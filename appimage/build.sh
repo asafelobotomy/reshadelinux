@@ -122,9 +122,24 @@ if [[ ! -x "$_TOOL" ]]; then
     chmod +x "$_TOOL"
 fi
 
+# ─── AppImage runtime (FUSE2 + FUSE3 compatible) ──────────────────────────────
+# The bundled runtime in the appimagetool "continuous" build only supports
+# FUSE2.  Modern distros (Fedora, Arch, openSUSE, Bazzite …) ship FUSE3 only.
+# The type2-runtime is a drop-in replacement that works with FUSE2, FUSE3, and
+# also honours APPIMAGE_EXTRACT_AND_RUN=1 for no-FUSE environments.
+_RUNTIME="$TOOLS_DIR/runtime-${_ARCH}"
+if [[ ! -f "$_RUNTIME" ]]; then
+    step "Downloading FUSE3-compatible AppImage runtime"
+    curl -L --progress-bar \
+        "https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-${_ARCH}" \
+        -o "$_RUNTIME"
+fi
+
 # ─── Build ────────────────────────────────────────────────────────────────────
 step "Building $OUTPUT"
-ARCH="$_ARCH" "$_TOOL" --appimage-extract-and-run "$BUILD_DIR" "$OUTPUT"
+ARCH="$_ARCH" "$_TOOL" --appimage-extract-and-run \
+    --runtime-file "$_RUNTIME" \
+    "$BUILD_DIR" "$OUTPUT"
 
 step "Done!"
 printf '  %s\n' "$OUTPUT"

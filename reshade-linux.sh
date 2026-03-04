@@ -412,7 +412,7 @@ function linkD3dcompilerToWineprefix() {
 }
 
 SEPARATOR="------------------------------------------------------------------------------------------------"
-SCRIPT_VERSION="1.0.1"
+SCRIPT_VERSION="1.0.2"
 # ANSI color helpers — used via printf '%b' throughout the script.
 _R=$'\e[0m'    # reset
 _B=$'\e[1m'    # bold

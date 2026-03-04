@@ -3,3 +3,4 @@ tools/
 
 # Generated AppImage outputs
 *.AppImage
+*.run
