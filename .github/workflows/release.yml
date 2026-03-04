@@ -54,6 +54,20 @@ jobs:
             echo "name=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
           fi
 
+      # ── 4b. Version consistency check ─────────────────────────────────────
+      # Ensure the git tag (e.g. v1.2.3) matches SCRIPT_VERSION in the script.
+      - name: Verify tag matches SCRIPT_VERSION
+        run: |
+          TAG="${{ steps.tag.outputs.name }}"
+          SCRIPT_VER="$(grep -o 'SCRIPT_VERSION="[^"]*"' reshade-linux.sh | grep -o '[0-9][^"]*')"
+          TAG_VER="${TAG#v}"   # strip leading 'v'
+          if [[ "$TAG_VER" != "$SCRIPT_VER" ]]; then
+            echo "::error::Tag '$TAG' does not match SCRIPT_VERSION '$SCRIPT_VER' in reshade-linux.sh"
+            echo "Update SCRIPT_VERSION in the script to '$TAG_VER' before tagging."
+            exit 1
+          fi
+          echo "Version check passed: $TAG matches SCRIPT_VERSION=$SCRIPT_VER"
+
       # ── 5. Locate the built AppImage ──────────────────────────────────────
       - name: Locate AppImage
         id: asset

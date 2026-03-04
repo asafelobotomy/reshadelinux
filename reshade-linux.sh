@@ -412,6 +412,7 @@ function linkD3dcompilerToWineprefix() {
 }
 
 SEPARATOR="------------------------------------------------------------------------------------------------"
+SCRIPT_VERSION="1.0.0"
 # ANSI color helpers — used via printf '%b' throughout the script.
 _R=$'\e[0m'    # reset
 _B=$'\e[1m'    # bold
@@ -543,8 +544,8 @@ fi
 [[ $UPDATE_RESHADE == 1 ]] && date +%s > LASTUPDATED
 # Z0005
 
-printf '%b%s\n  ReShade installer/updater for Linux games using Wine or Proton.\n%s%b\n\n' \
-    "$_CYN$_B" "$SEPARATOR" "$SEPARATOR" "$_R"
+printf '%b%s\n  ReShade installer/updater for Linux games using Wine or Proton.\n  Version %s\n%s%b\n\n' \
+    "$_CYN$_B" "$SEPARATOR" "$SCRIPT_VERSION" "$SEPARATOR" "$_R"
 
 # Z0010
 # Link Shader / Texture files from an input directory to an output directory if the link doesn't already exist.
