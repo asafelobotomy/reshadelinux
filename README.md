@@ -18,6 +18,7 @@ Bash script to download [ReShade](https://reshade.me/) and shaders and link them
 - All `[[ $? ]]` indirect exit-code checks replaced with direct checks (ShellCheck SC2181).
 - `RESHADE_URL_ALT` upgraded from `http://` to `https://`.
 - `SHADER_REPOS` updated: replaced `martymcmodding/qUINT` (3 years stale) with its active successor [`martymcmodding/iMMERSE`](https://github.com/martymcmodding/iMMERSE); added [`Fubaxiusz/fubax-shaders`](https://github.com/Fubaxiusz/fubax-shaders), which is featured in the official ReShade installer.
+- Flatpak Steam auto-detection: the script detects whether Steam is installed natively or as a Flatpak and sets `MAIN_PATH` automatically. If both are present it prompts the user to choose. The separate `reshade-linux-flatpak.sh` wrapper is no longer needed.
 - Zero ShellCheck warnings.
 
 ## Usage
@@ -55,5 +56,4 @@ Since [gamescope](https://github.com/Plagman/gamescope/) can use Vulkan, you can
 
 ## Misc
 
-`reshade-linux.sh` is the main script — works with any Windows game running under Wine or Proton.  
-`reshade-linux-flatpak.sh` wraps `reshade-linux.sh` with the correct path for Steam installed from Flatpak.
+`reshade-linux.sh` is the main script — works with any Windows game running under Wine or Proton. It auto-detects whether Steam is installed natively or as a Flatpak and configures `MAIN_PATH` accordingly.

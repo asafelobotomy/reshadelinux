@@ -141,8 +141,13 @@ cat > /dev/null <<DESCRIPTION
             ex.: UPDATE_RESHADE=0 ./reshade-linux.sh
 
         MAIN_PATH
-            By default, this script stores all its files, including ReShade and the shaders in XDG_DATA_HOME/reshade ($HOME/.local/share/reshade)
-            You can override this by setting the MAIN_PATH variable.
+            The directory where this script stores ReShade, shaders, and supporting files.
+            Auto-detected on startup:
+                If only Flatpak Steam is found (~/.var/app/com.valvesoftware.Steam), its data
+                directory is used automatically.
+                If both Flatpak and native Steam are found, you will be prompted to choose.
+                Otherwise the XDG default is used ($HOME/.local/share/reshade).
+            You can skip auto-detection by setting MAIN_PATH explicitly before running the script.
             ex.: MAIN_PATH=~/Documents/reshade ./reshade-linux.sh
 
         SHADER_REPOS
@@ -359,7 +364,29 @@ _CYN=$'\e[36m' # cyan  (section headers)
 COMMON_OVERRIDES="d3d8 d3d9 d3d11 d3d12 ddraw dinput8 dxgi opengl32"
 REQUIRED_EXECUTABLES=(7z curl git grep)
 XDG_DATA_HOME=${XDG_DATA_HOME:-"$HOME/.local/share"}
-MAIN_PATH=${MAIN_PATH:-"$XDG_DATA_HOME/reshade"}
+# Auto-detect Flatpak vs native Steam when MAIN_PATH is not explicitly set by user.
+if [[ -z ${MAIN_PATH+x} ]]; then
+    _flatpak_data="$HOME/.var/app/com.valvesoftware.Steam/.local/share"
+    _flatpak_ok=0; _native_ok=0
+    [[ -d "$_flatpak_data/Steam" ]] && _flatpak_ok=1
+    [[ -d "$XDG_DATA_HOME/Steam" ]] && _native_ok=1
+    if [[ $_flatpak_ok -eq 1 && $_native_ok -eq 0 ]]; then
+        MAIN_PATH="$_flatpak_data/reshade"
+        printf '%bDetected Flatpak Steam — using Flatpak data dir for MAIN_PATH.%b\n' "$_CYN" "$_R"
+    elif [[ $_flatpak_ok -eq 1 && $_native_ok -eq 1 ]]; then
+        printf '%bBoth Flatpak and native Steam installs detected.%b\n' "$_YLW$_B" "$_R"
+        printf '  1) Flatpak Steam  → %s/reshade\n' "$_flatpak_data"
+        printf '  2) Native Steam   → %s/reshade\n' "$XDG_DATA_HOME"
+        if [[ $(checkStdin "Which installation? (1/2): " "^(1|2)$") == "1" ]]; then
+            MAIN_PATH="$_flatpak_data/reshade"
+        else
+            MAIN_PATH="$XDG_DATA_HOME/reshade"
+        fi
+    else
+        MAIN_PATH="$XDG_DATA_HOME/reshade"
+    fi
+    unset _flatpak_data _flatpak_ok _native_ok
+fi
 RESHADE_PATH="$MAIN_PATH/reshade"
 # Strip the leading /home/$USER/ then convert forward slashes to double-backslashes
 # for use in Wine registry paths — done with pure bash, no external commands.
