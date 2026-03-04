@@ -228,7 +228,7 @@ DESCRIPTION
 # $2 is exit code
 function printErr() {
     removeTempDir
-    echo -e "\e[40m\e[31mError: $1\nExiting.\e[0m"
+    printf '%bError: %s\nExiting.%b\n' "$_RED$_B" "$1" "$_R" >&2
     [[ -z $2 ]] && exit 1 || exit "$2"
 }
 
@@ -237,7 +237,7 @@ function printErr() {
 # $2 is regex
 function checkStdin() {
     while true; do
-        read -rp "$1" userInput
+        read -rp "$(printf '%b%s%b' "$_YLW" "$1" "$_R")" userInput
         if [[ $userInput =~ $2 ]]; then
             break
         fi
@@ -245,23 +245,29 @@ function checkStdin() {
     echo "$userInput"
 }
 
+# Print a colored section header.
+# $1 is the message
+function printStep() {
+    printf '%b==> %s%b\n' "$_CYN$_B" "$1" "$_R"
+}
+
 # Try to get game directory from user.
 function getGamePath() {
-    echo 'Supply the folder path where the main executable (exe file) for the game is.'
-    echo '(Control+c to exit)'
+    printf '%bSupply the folder path where the main executable (.exe) for the game is.%b\n' "$_CYN" "$_R"
+    printf '%b(Control+C to exit)%b\n' "$_YLW" "$_R"
     while true; do
-        read -rp 'Game path: ' gamePath
+        read -rp "$(printf '%bGame path: %b' "$_YLW" "$_R")" gamePath
         # Expand leading ~ without using eval (safe tilde expansion).
         gamePath="${gamePath/#\~/$HOME}"
         gamePath=$(realpath "$gamePath" 2>/dev/null)
         [[ -f $gamePath ]] && gamePath=$(dirname "$gamePath")
         if [[ -z $gamePath || ! -d $gamePath ]]; then
-            echo "Incorrect or empty path supplied. You supplied \"$gamePath\"."
+            printf '%bIncorrect or empty path supplied. You supplied "%s".%b\n' "$_YLW" "$gamePath" "$_R"
             continue
         fi
         if ! compgen -G "$gamePath/*.exe" &>/dev/null; then
-            echo "No .exe file found in \"$gamePath\"."
-            echo "Do you still want to use this directory?"
+            printf '%bNo .exe file found in "%s".%b\n' "$_YLW" "$gamePath" "$_R"
+            printf '%bDo you still want to use this directory?%b\n' "$_YLW" "$_R"
             [[ $(checkStdin "(y/n) " "^(y|n)$") != "y" ]] && continue
         fi
         echo "Is this path correct? \"$gamePath\""
@@ -284,7 +290,7 @@ function removeTempDir() {
 function downloadD3dcompiler_47() {
     ! [[ $1 =~ ^(32|64)$ ]] && printErr "(downloadD3dcompiler_47): Wrong system architecture."
     [[ -f $MAIN_PATH/d3dcompiler_47.dll.$1 ]] && return
-    echo "Downloading d3dcompiler_47.dll for $1 bits."
+    printf '%bDownloading d3dcompiler_47.dll (%s-bit)...%b\n' "$_GRN" "$1" "$_R"
     createTempDir
     if [[ $1 -eq 32 ]]; then
         local url="https://raw.githubusercontent.com/mozilla/fxc2/master/dll/d3dcompiler_47_32.dll"
@@ -293,7 +299,7 @@ function downloadD3dcompiler_47() {
         local url="https://raw.githubusercontent.com/mozilla/fxc2/master/dll/d3dcompiler_47.dll"
         local hash="4432bbd1a390874f3f0a503d45cc48d346abc3a8c0213c289f4b615bf0ee84f3"
     fi
-    curl --fail -sLo d3dcompiler_47.dll "$url" \
+    curl --fail -Lo --progress-bar d3dcompiler_47.dll "$url" \
         || printErr "(downloadD3dcompiler_47) Could not download d3dcompiler_47.dll."
     local dlhash
     dlhash=$(sha256sum d3dcompiler_47.dll | cut -d' ' -f1)
@@ -307,7 +313,7 @@ function downloadD3dcompiler_47() {
 # $2 -> Full URL of ReShade exe, ex.: https://reshade.me/downloads/ReShade_Setup_5.0.2.exe
 function downloadReshade() {
     createTempDir
-    curl --fail -sLO "$2" || printErr "Could not download version $1 of ReShade."
+    curl --fail -LO --progress-bar "$2" || printErr "Could not download version $1 of ReShade."
     exeFile="$(find . -name "*.exe")"
     ! [[ -f $exeFile ]] && printErr "Download of ReShade exe file failed."
     [[ $(file "$exeFile" | grep -o executable) == "" ]] && printErr "The ReShade exe file is not an executable file, does the ReShade version exist?"
@@ -334,15 +340,22 @@ function linkD3dcompilerToWineprefix() {
         sysDir="$WINEPREFIX/drive_c/windows/system32"
     fi
     if [[ ! -d $sysDir ]]; then
-        echo "Warning: Wine prefix directory '$sysDir' not found -- skipping system32 d3dcompiler_47.dll install."
+        printf '%bWarning: Wine prefix directory '"'"'%s'"'"' not found -- skipping system32 d3dcompiler_47.dll install.%b\n' "$_YLW" "$sysDir" "$_R"
         return
     fi
-    echo "Linking d3dcompiler_47.dll into '$sysDir' (required for ReShade 6.5+)."
+    printf '%bLinking d3dcompiler_47.dll into %b%s%b (required for ReShade 6.5+).%b\n' "$_GRN" "$_CYN" "$sysDir" "$_GRN" "$_R"
     [[ -L "$sysDir/d3dcompiler_47.dll" ]] && unlink "$sysDir/d3dcompiler_47.dll"
     ln -is "$(realpath "$MAIN_PATH/d3dcompiler_47.dll.$arch")" "$sysDir/d3dcompiler_47.dll"
 }
 
 SEPARATOR="------------------------------------------------------------------------------------------------"
+# ANSI color helpers — used via printf '%b' throughout the script.
+_R=$'\e[0m'    # reset
+_B=$'\e[1m'    # bold
+_RED=$'\e[31m' # red   (errors)
+_GRN=$'\e[32m' # green (success / info)
+_YLW=$'\e[33m' # yellow (warnings / prompts)
+_CYN=$'\e[36m' # cyan  (section headers)
 COMMON_OVERRIDES="d3d8 d3d9 d3d11 d3d12 ddraw dinput8 dxgi opengl32"
 REQUIRED_EXECUTABLES=(7z curl git grep)
 XDG_DATA_HOME=${XDG_DATA_HOME:-"$HOME/.local/share"}
@@ -401,7 +414,8 @@ LASTUPDATED=0; [[ -f LASTUPDATED ]] && LASTUPDATED=$(< LASTUPDATED)
 [[ $UPDATE_RESHADE == 1 ]] && date +%s > LASTUPDATED
 # Z0005
 
-echo -e "$SEPARATOR\nReShade installer/updater for Linux games using wine or proton.\n$SEPARATOR\n"
+printf '%b%s\n  ReShade installer/updater for Linux games using Wine or Proton.\n%s%b\n\n' \
+    "$_CYN$_B" "$SEPARATOR" "$SEPARATOR" "$_R"
 
 # Z0010
 # Link Shader / Texture files from an input directory to an output directory if the link doesn't already exist.
@@ -435,7 +449,7 @@ function mergeShaderDirs() {
     done
 }
 if [[ -n $SHADER_REPOS ]]; then
-    echo "Checking for ReShade Shader updates."
+    printStep "Checking for shader updates"
     [[ $REBUILD_MERGE == 1 ]] && rm -rf "$MAIN_PATH/ReShade_shaders/Merged/"
     [[ $MERGE_SHADERS == 1 ]] && mkdir -p "$MAIN_PATH/ReShade_shaders/Merged/Shaders" &&  mkdir -p "$MAIN_PATH/ReShade_shaders/Merged/Textures"
     IFS=';' read -ra _shaderRepos <<< "$SHADER_REPOS"
@@ -444,20 +458,20 @@ if [[ -n $SHADER_REPOS ]]; then
         if [[ -d "$MAIN_PATH/ReShade_shaders/$localRepoName" ]]; then
             if [[ $UPDATE_RESHADE -eq 1 ]]; then
                 cd "$MAIN_PATH/ReShade_shaders/$localRepoName" || continue
-                echo "Updating ReShade shader repository $URI."
-                git pull --ff-only || echo "Could not update shader repo: $URI."
+                printf '%bUpdating shader repo:%b %s\n' "$_GRN" "$_R" "$URI"
+                git pull --ff-only || printf '%bCould not update shader repo: %s%b\n' "$_YLW" "$URI" "$_R"
             fi
         else
             cd "$MAIN_PATH/ReShade_shaders" || exit
             branchArgs=()
             [[ -n $branchName ]] && branchArgs=(--branch "$branchName" --single-branch)
-            echo "Cloning ReShade shader repository $URI."
-            git clone --depth 1 "${branchArgs[@]}" "$URI" "$localRepoName" || echo "Could not clone Shader repo: $URI."
+            printf '%bCloning shader repo:%b %s\n' "$_GRN" "$_R" "$URI"
+            git clone --depth 1 "${branchArgs[@]}" "$URI" "$localRepoName" || printf '%bCould not clone shader repo: %s%b\n' "$_YLW" "$URI" "$_R"
         fi
         [[ $MERGE_SHADERS == 1 ]] && mergeShaderDirs "ReShade_shaders" "$localRepoName"
     done
     if [[ $MERGE_SHADERS == 1 ]] && [[ -d "$MAIN_PATH/External_shaders" ]]; then
-        echo "Checking for External Shader updates."
+        printStep "Checking for external shader updates"
         mergeShaderDirs "External_shaders"
         # Link loose files.
         cd "$MAIN_PATH/External_shaders" || exit 1
@@ -483,7 +497,7 @@ if [[ $RESHADE_VERSION == latest ]]; then
     [[ ! $LVERS =~ Addon ]] && [[ $RESHADE_ADDON_SUPPORT -eq 1 ]] && UPDATE_RESHADE=1
 fi
 if [[ $FORCE_RESHADE_UPDATE_CHECK -eq 1 ]] || [[ $UPDATE_RESHADE -eq 1 ]] || [[ ! -e reshade/latest/ReShade64.dll ]] || [[ ! -e reshade/latest/ReShade32.dll ]]; then
-    echo -e "Checking for ReShade updates.\n$SEPARATOR"
+    printStep "Checking for ReShade updates"
     ALT_URL=0
     if ! RHTML=$(curl --fail --max-time 10 -sL "$RESHADE_URL") || [[ $RHTML == *'<h2>Something went wrong.</h2>'* ]]; then
         ALT_URL=1
@@ -497,12 +511,12 @@ if [[ $FORCE_RESHADE_UPDATE_CHECK -eq 1 ]] || [[ $UPDATE_RESHADE -eq 1 ]] || [[ 
     RVERS=$(echo "$RLINK" | grep -o "$VREGEX")
     if [[ $RVERS != "$LVERS" ]]; then
         [[ -L $RESHADE_PATH/latest ]] && unlink "$RESHADE_PATH/latest"
-        echo -e "Updating ReShade to latest version."
+        printf '%bUpdating ReShade to version %s...%b\n' "$_GRN" "$RVERS" "$_R"
         downloadReshade "$RVERS" "$RLINK"
         ln -is "$(realpath "$RESHADE_PATH/$RVERS")" "$(realpath "$RESHADE_PATH/latest")"
         echo "$RVERS" > LVERS
         LVERS="$RVERS"
-        echo "Updated ReShade to version $RVERS."
+        printf '%bReShade updated to %b%s%b.%b\n' "$_GRN" "$_CYN$_B" "$RVERS" "$_R$_GRN" "$_R"
     fi
 fi
 # Z0015
@@ -516,9 +530,9 @@ if [[ $RESHADE_VERSION != latest ]]; then
         [[ -e reshade/$RESHADE_VERSION ]] && rm -rf "reshade/$RESHADE_VERSION"
         downloadReshade "$RESHADE_VERSION" "$RESHADE_URL/downloads/ReShade_Setup_$RESHADE_VERSION.exe"
     fi
-    echo -e "Using version $RESHADE_VERSION of ReShade.\n"
+    printf '%bUsing ReShade version %b%s%b.%b\n\n' "$_GRN" "$_CYN$_B" "$RESHADE_VERSION" "$_R$_GRN" "$_R"
 else
-    echo -e "Using the latest version of ReShade ($LVERS).\n"
+    printf '%bUsing the latest version of ReShade (%b%s%b).%b\n\n' "$_GRN" "$_CYN$_B" "$LVERS" "$_R$_GRN" "$_R"
 fi
 # Z0016
 
@@ -542,18 +556,18 @@ fi
 if [[ $VULKAN_SUPPORT == 1 ]]; then
     echo "Does the game use the Vulkan API?"
     if [[ $(checkStdin "(y/n): " "^(y|n)$") == "y" ]]; then
-        echo 'Supply the WINEPREFIX path for the game.'
-        echo '(Control+c to exit)'
+        printf '%bSupply the WINEPREFIX path for the game.%b\n' "$_CYN" "$_R"
+        printf '%b(Control+C to exit)%b\n' "$_YLW" "$_R"
         while true; do
-            read -rp 'WINEPREFIX path: ' WINEPREFIX
+            read -rp "$(printf '%bWINEPREFIX path: %b' "$_YLW" "$_R")" WINEPREFIX
             # Expand leading ~ without using eval (safe tilde expansion).
             WINEPREFIX="${WINEPREFIX/#\~/$HOME}"
             WINEPREFIX=$(realpath "$WINEPREFIX" 2>/dev/null)
             if [[ -z $WINEPREFIX || ! -d $WINEPREFIX ]]; then
-                echo "Incorrect or empty path supplied. You supplied \"$WINEPREFIX\"."
+                printf '%bIncorrect or empty path supplied. You supplied "%s".%b\n' "$_YLW" "$WINEPREFIX" "$_R"
                 continue
             fi
-            echo "Is this path correct? \"$WINEPREFIX\""
+            printf '%bIs this path correct? "%s"%b\n' "$_YLW" "$WINEPREFIX" "$_R"
             [[ $(checkStdin "(y/n) " "^(y|n)$") == "y" ]] && break
         done
         echo "Specify if the game's EXE file architecture is 32 or 64 bits:"
@@ -576,7 +590,7 @@ fi
 echo "Do you want to (i)nstall or (u)ninstall ReShade for a DirectX or OpenGL game?"
 if [[ $(checkStdin "(i/u): " "^(i|u)$") == "u" ]]; then
     getGamePath
-    echo "Unlinking ReShade files."
+    printf '%bUnlinking ReShade files from:%b %s\n' "$_GRN" "$_R" "$gamePath"
     # Build the DLL list from COMMON_OVERRIDES using bash string substitution
     # (replaces each space with ".dll ", then appends ".dll" to the last entry).
     LINKS="${COMMON_OVERRIDES// /.dll }.dll ReShade.ini ReShade32.json ReShade64.json d3dcompiler_47.dll Shaders Textures ReShade_shaders"
@@ -599,8 +613,8 @@ if [[ $(checkStdin "(i/u): " "^(i|u)$") == "u" ]]; then
             fi
         done
     fi
-    echo "Finished uninstalling ReShade for '$gamePath'."
-    echo -e "\e[40m\e[32mMake sure to remove or change the \e[34mWINEDLLOVERRIDES\e[32m environment variable.\e[0m"
+    printf '%bFinished uninstalling ReShade for:%b %s\n' "$_GRN$_B" "$_R" "$gamePath"
+    printf '%bMake sure to remove or unset the %bWINEDLLOVERRIDES%b environment variable.%b\n' "$_GRN" "$_CYN$_B" "$_R$_GRN" "$_R"
     exit 0
 fi
 # Z0030
@@ -625,12 +639,12 @@ else
     [[ $(checkStdin "(32/64) " "^(32|64)$") == 64 ]] && exeArch=64
 fi
 if [[ $wantedDll == "manual" ]]; then
-    echo "Manually enter the dll override for ReShade, common values are one of: $COMMON_OVERRIDES"
+    printf '%bManually enter the dll override for ReShade.%b Common values: %b%s%b\n' "$_CYN" "$_R" "$_B" "$COMMON_OVERRIDES" "$_R"
     while true; do
-        read -rp 'Override: ' wantedDll
+        read -rp "$(printf '%bOverride: %b' "$_YLW" "$_R")" wantedDll
         wantedDll=${wantedDll//.dll/}
-        echo "You have entered '$wantedDll', is this correct?"
-        read -rp '(y/n): ' ynCheck
+        printf '%bYou entered %b%s%b — is this correct?%b\n' "$_YLW" "$_CYN$_B" "$wantedDll" "$_R$_YLW" "$_R"
+        read -rp "$(printf '%b(y/n): %b' "$_YLW" "$_R")" ynCheck
         [[ $ynCheck =~ ^(y|Y|yes|YES)$ ]] && break
     done
 fi
@@ -642,13 +656,13 @@ linkD3dcompilerToWineprefix "$exeArch"
 # Z0040
 
 # Z0045
-echo "Linking ReShade files to game directory."
+printStep "Linking ReShade files to game directory"
 [[ -L $gamePath/$wantedDll.dll ]] && unlink "$gamePath/$wantedDll.dll"
 if [[ $exeArch == 32 ]]; then
-    echo "Linking ReShade32.dll to $wantedDll.dll."
+    printf '%bLinking ReShade32.dll → %s.dll%b\n' "$_GRN" "$wantedDll" "$_R"
     ln -is "$(realpath "$RESHADE_PATH/$RESHADE_VERSION"/ReShade32.dll)" "$gamePath/$wantedDll.dll"
 else
-    echo "Linking ReShade64.dll to $wantedDll.dll."
+    printf '%bLinking ReShade64.dll → %s.dll%b\n' "$_GRN" "$wantedDll" "$_R"
     ln -is "$(realpath "$RESHADE_PATH/$RESHADE_VERSION"/ReShade64.dll)" "$gamePath/$wantedDll.dll"
 fi
 [[ -L $gamePath/d3dcompiler_47.dll ]] && unlink "$gamePath/d3dcompiler_47.dll"
@@ -666,15 +680,20 @@ if [[ -f $MAIN_PATH/$LINK_PRESET ]]; then
 fi
 # Z0045
 
-echo -e "$SEPARATOR\nDone."
 gameEnvVar="WINEDLLOVERRIDES=\"d3dcompiler_47=n;$wantedDll=n,b\""
-echo -e "\e[40m\e[32mIf you're using Steam, right click the game, click properties, set the 'LAUNCH OPTIONS' to: \e[34m$gameEnvVar %command%"
-echo -e "\e[32mIf not, run the game with this environment variable set: \e[34m$gameEnvVar"
-echo -e "\e[32mThe next time you start the game, \e[34mopen the ReShade settings, go to the 'Settings' tab, if they are missing, add the Shaders folder" \
-        "location to the 'Effect Search Paths', add the Textures folder to the 'Texture Search Paths'," \
-        "these folders are located inside the ReShade_shaders folder, finally go to the 'Home' tab, click 'Reload'.\e[0m"
+printf '%b%s\n  Done!\n%s%b\n' "$_GRN$_B" "$SEPARATOR" "$SEPARATOR" "$_R"
+printf '\n%bSteam launch option%b (Game Properties → Launch Options):\n  %b%s %%command%%%b\n' \
+    "$_GRN$_B" "$_R" "$_CYN$_B" "$gameEnvVar" "$_R"
+printf '%bNon-Steam — run the game with:%b\n  %b%s%b\n' \
+    "$_GRN$_B" "$_R" "$_CYN$_B" "$gameEnvVar" "$_R"
+printf '\n%bReShade first-run setup:%b\n' "$_GRN$_B" "$_R"
+printf '  In the ReShade overlay, open the %bSettings%b tab.\n' "$_B" "$_R"
+printf '  Ensure shader/texture paths point inside: %b%s/ReShade_shaders/Merged/%b\n' \
+    "$_CYN" "$MAIN_PATH" "$_R"
+printf '  Then go to the %bHome%b tab and click %bReload%b.\n' "$_B" "$_R" "$_B" "$_R"
 if [[ -z $WINEPREFIX ]]; then
-    echo -e "\e[40m\e[33mNote: ReShade 6.5+ requires d3dcompiler_47.dll in the game's Wine/Proton prefix system32 folder,"
-    echo -e "not only in the game folder. If shaders fail to compile, re-run with WINEPREFIX set:"
-    echo -e "\e[34mWINEPREFIX=\"\$HOME/.local/share/Steam/steamapps/compatdata/<AppID>/pfx\" $0\e[0m"
+    printf '\n%bNote:%b ReShade 6.5+ also requires d3dcompiler_47.dll inside the game'"'"'s Wine/Proton prefix.\n' "$_YLW$_B" "$_R"
+    printf '  If shaders fail to compile, re-run the script with:\n'
+    printf '  %bWINEPREFIX="%s/.local/share/Steam/steamapps/compatdata/<AppID>/pfx" %s%b\n' \
+        "$_CYN" "$HOME" "$0" "$_R"
 fi
