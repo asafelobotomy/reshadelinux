@@ -13,4 +13,15 @@ if [[ -d "$HERE/usr/lib" && -n "$(ls -A "$HERE/usr/lib" 2>/dev/null)" ]]; then
     export LD_LIBRARY_PATH="$HERE/usr/lib:${LD_LIBRARY_PATH:-}"
 fi
 
+# Force GUI mode — yad is bundled so it is always available inside the AppImage.
+export _GUI=1
+
+# When launched from a desktop launcher (not a terminal), redirect stdout/stderr
+# to a log file so silent failures are diagnosable.
+if [[ ! -t 1 ]]; then
+    LOG_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/reshade-linux"
+    mkdir -p "$LOG_DIR"
+    exec > "$LOG_DIR/reshade-linux.log" 2>&1
+fi
+
 exec "$HERE/usr/bin/reshade-linux.sh" "$@"

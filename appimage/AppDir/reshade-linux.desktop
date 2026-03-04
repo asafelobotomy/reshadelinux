@@ -5,5 +5,5 @@ Exec=reshade-linux
 Icon=reshade-linux
 Type=Application
 Categories=Game;Utility;
-Terminal=true
-StartupNotify=false
+Terminal=false
+StartupNotify=true
