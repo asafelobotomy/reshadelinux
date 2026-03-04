@@ -1,0 +1,97 @@
+name: Build and release AppImage
+
+# Trigger on version tags (e.g. v1.0.0) or a manual run.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to create (e.g. v1.2.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write   # needed to create releases and upload assets
+
+jobs:
+  build:
+    name: Build AppImage
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Source ──────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Dependencies ────────────────────────────────────────────────────
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          # ImageMagick  — generates the icon inside build.sh
+          # yad          — bundled into the AppImage so GUI mode works on targets
+          #                without yad installed
+          # libfuse2     — needed by appimagetool on some runners as a fallback
+          #                (build.sh uses --appimage-extract-and-run, so FUSE
+          #                is usually not required, but install it defensively)
+          sudo apt-get install -y --no-install-recommends \
+            imagemagick yad libfuse2
+
+      # ── 3. Build ──────────────────────────────────────────────────────────
+      - name: Build AppImage
+        run: bash appimage/build.sh
+
+      # ── 4. Resolve tag name ───────────────────────────────────────────────
+      # For tag-push events github.ref_name is the tag; for workflow_dispatch
+      # we use the user-supplied input.
+      - name: Resolve release tag
+        id: tag
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "name=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ── 5. Locate the built AppImage ──────────────────────────────────────
+      - name: Locate AppImage
+        id: asset
+        run: |
+          file="$(ls reshade-linux-*.AppImage | head -1)"
+          echo "path=$file" >> "$GITHUB_OUTPUT"
+          echo "name=$(basename "$file")" >> "$GITHUB_OUTPUT"
+
+      # ── 6. Create release + upload asset ─────────────────────────────────
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.tag.outputs.name }}"
+          ASSET="${{ steps.asset.outputs.path }}"
+          ASSET_NAME="${{ steps.asset.outputs.name }}"
+
+          # Create (or update) the release, then upload the AppImage.
+          # --notes-file reads from stdin when "-" is passed, so we use a
+          # here-doc for clean multi-line notes.
+          gh release create "$TAG" \
+            --title "reshade-linux $TAG" \
+            --notes "## reshade-linux $TAG
+
+Portable AppImage built automatically by GitHub Actions.
+
+### What's included
+- \`reshade-linux.sh\` (the installer script)
+- \`yad\` binary bundled — GUI mode works without installing \`yad\` on the target machine
+- GTK3 / GLib / X11 are **not** bundled (present on all desktop distros)
+
+### Usage
+\`\`\`bash
+chmod +x $ASSET_NAME
+./$ASSET_NAME
+\`\`\`
+
+Requires bash ≥ 4.4, GTK 3, Wine/Proton, curl, and git." \
+            "$ASSET#$ASSET_NAME" \
+            || \
+          gh release upload "$TAG" "$ASSET#$ASSET_NAME" --clobber
