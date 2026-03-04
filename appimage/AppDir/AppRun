@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# AppImage entry point for reshade-linux
+# Sets PATH and LD_LIBRARY_PATH so the bundled yad and any non-system libs
+# found at build time are preferred, then launches the main script.
+
+HERE="$(dirname "$(readlink -f "$0")")"
+
+# Bundled binaries (yad, if present) take precedence over system copies.
+export PATH="$HERE/usr/bin:$PATH"
+
+# Bundled non-GTK libraries, if any were copied during the build.
+if [[ -d "$HERE/usr/lib" && -n "$(ls -A "$HERE/usr/lib" 2>/dev/null)" ]]; then
+    export LD_LIBRARY_PATH="$HERE/usr/lib:${LD_LIBRARY_PATH:-}"
+fi
+
+exec "$HERE/usr/bin/reshade-linux.sh" "$@"

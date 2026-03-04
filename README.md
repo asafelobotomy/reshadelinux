@@ -44,6 +44,27 @@ For full usage instructions, see the comments at the top of the script:
 
 https://github.com/asafelobotomy/reshade-steam-proton/blob/main/reshade-linux.sh#L21
 
+## AppImage
+
+A self-contained AppImage can be built from the repository. It bundles `yad` (when present on the build host) so GUI mode works on target systems that do not have `yad` installed. GTK3 is intentionally not bundled — it is universally available on desktop distros.
+
+**Build:**
+
+```bash
+bash appimage/build.sh
+```
+
+Requirements: `curl`, `ImageMagick` (`magick` or `convert`). `yad` is optional — if present it is bundled automatically.
+
+**Run:**
+
+```bash
+chmod +x reshade-linux-x86_64.AppImage
+./reshade-linux-x86_64.AppImage
+```
+
+The generated AppImage file and the `appimage/tools/` cache directory are gitignored.
+
 ## Alternatives
 
 ### vkBasalt:

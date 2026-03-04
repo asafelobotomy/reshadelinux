@@ -1,0 +1,5 @@
+# Downloaded by build.sh — not versioned
+tools/
+
+# Generated AppImage outputs
+*.AppImage
