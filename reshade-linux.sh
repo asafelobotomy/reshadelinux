@@ -525,7 +525,7 @@ fi
 # Z0020
 if [[ $GLOBAL_INI != 0 ]] && [[ $GLOBAL_INI == ReShade.ini ]] && [[ ! -f $MAIN_PATH/$GLOBAL_INI ]]; then
     cd "$MAIN_PATH" || exit
-    curl -sLO https://github.com/kevinlekiller/reshade-steam-proton/raw/ini/ReShade.ini
+    curl --fail -sLO https://github.com/asafelobotomy/reshade-steam-proton/raw/ini/ReShade.ini
     if [[ -f ReShade.ini ]]; then
         sed -i "s/_USERSED_/$USER/g" "$MAIN_PATH/$GLOBAL_INI"
         if [[ $MERGE_SHADERS == 1 ]]; then
