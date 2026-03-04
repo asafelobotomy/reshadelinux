@@ -19,6 +19,7 @@ Bash script to download [ReShade](https://reshade.me/) and shaders and link them
 - `RESHADE_URL_ALT` upgraded from `http://` to `https://`.
 - `SHADER_REPOS` updated: replaced `martymcmodding/qUINT` (3 years stale) with its active successor [`martymcmodding/iMMERSE`](https://github.com/martymcmodding/iMMERSE); added [`Fubaxiusz/fubax-shaders`](https://github.com/Fubaxiusz/fubax-shaders), which is featured in the official ReShade installer.
 - Flatpak Steam auto-detection: the script detects whether Steam is installed natively or as a Flatpak and sets `MAIN_PATH` automatically. If both are present it prompts the user to choose. The separate `reshade-linux-flatpak.sh` wrapper is no longer needed.
+- GUI mode via `yad`: when `yad` is installed and a display server (`$DISPLAY` / `$WAYLAND_DISPLAY`) is present, every interactive prompt is replaced by a native GTK dialog — folder picker, radio lists, yes/no questions, text entry, and pulsating progress windows. Falls back to the existing CLI behaviour automatically when `yad` is absent or no display server is detected.
 - Zero ShellCheck warnings.
 
 ## Usage
@@ -57,3 +58,5 @@ Since [gamescope](https://github.com/Plagman/gamescope/) can use Vulkan, you can
 ## Misc
 
 `reshade-linux.sh` is the main script — works with any Windows game running under Wine or Proton. It auto-detects whether Steam is installed natively or as a Flatpak and configures `MAIN_PATH` accordingly.
+
+[`yad`](https://github.com/v1cont/yad) is an optional dependency. Install it with your package manager (`sudo dnf install yad`, `sudo apt install yad`, etc.) to enable GUI mode. When absent the script runs entirely in the terminal.

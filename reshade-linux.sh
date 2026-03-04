@@ -27,6 +27,9 @@ cat > /dev/null <<DESCRIPTION
         curl   : Used to download files.
         git    : Used to clone ReShade shader repositories.
         wine   : Only used if the game uses Vulkan (to insert Windows Registry entries).
+        yad    : Optional. When a display server is available and yad is installed, the script
+                 automatically uses GTK dialogs for all prompts (directory picker, radio lists,
+                 progress windows, info/error dialogs). Falls back to CLI if yad is absent.
 
     Notes:
         Vulkan / ReShade currently is not functional under wine.
@@ -234,6 +237,8 @@ DESCRIPTION
 function printErr() {
     removeTempDir
     printf '%bError: %s\nExiting.%b\n' "$_RED$_B" "$1" "$_R" >&2
+    [[ $_GUI -eq 1 ]] && yad --error --title="ReShade — Error" \
+        --text="<b>Error:</b>\n$1" --width=520 --button="OK:0" 2>/dev/null
     [[ -z $2 ]] && exit 1 || exit "$2"
 }
 
@@ -256,8 +261,61 @@ function printStep() {
     printf '%b==> %s%b\n' "$_CYN$_B" "$1" "$_R"
 }
 
+# Run a command while showing a pulsating yad progress window (GUI mode only).
+# $1 = dialog label text; remaining args = command + arguments to execute.
+# The command runs in the current shell so functions and cd side-effects work normally.
+function withProgress() {
+    local text="$1"; shift
+    if [[ $_GUI -eq 1 ]]; then
+        # Drive yad --pulsate from a background loop; kill it when the command finishes.
+        (while true; do printf '1\n'; sleep 0.1; done) \
+            | yad --progress --pulsate --no-buttons \
+                  --title="ReShade" --text="$text" --width=480 2>/dev/null &
+        local _yadPid=$!
+        "$@"
+        local _ret=$?
+        kill "$_yadPid" 2>/dev/null
+        wait "$_yadPid" 2>/dev/null
+        return $_ret
+    else
+        "$@"
+    fi
+}
+
 # Try to get game directory from user.
 function getGamePath() {
+    if [[ $_GUI -eq 1 ]]; then
+        local _startDir="$HOME/.local/share/Steam/steamapps/common"
+        [[ ! -d $_startDir ]] && _startDir="$HOME"
+        while true; do
+            gamePath=$(yad --file --directory \
+                --title="ReShade — Select the game folder" \
+                --filename="$_startDir/" \
+                --width=750 --height=520 2>/dev/null)
+            if [[ -z $gamePath ]]; then
+                yad --question --title="ReShade" --width=360 \
+                    --text="No folder selected.\nExit the script?" 2>/dev/null \
+                    && exit 0
+                continue
+            fi
+            gamePath=$(realpath "$gamePath" 2>/dev/null)
+            [[ -f $gamePath ]] && gamePath=$(dirname "$gamePath")
+            if [[ -z $gamePath || ! -d $gamePath ]]; then
+                yad --warning --title="ReShade" --width=420 \
+                    --text="Path does not exist:\n<tt>$gamePath</tt>" \
+                    --button="Try again:1" 2>/dev/null
+                continue
+            fi
+            if ! compgen -G "$gamePath/*.exe" &>/dev/null; then
+                yad --question --title="ReShade" --width=520 \
+                    --text="No .exe file found in:\n<tt>$gamePath</tt>\n\nUse this folder anyway?" \
+                    2>/dev/null || { _startDir="$gamePath"; continue; }
+            fi
+            break
+        done
+        return
+    fi
+    # --- CLI path ---
     printf '%bSupply the folder path where the main executable (.exe) for the game is.%b\n' "$_CYN" "$_R"
     printf '%b(Control+C to exit)%b\n' "$_YLW" "$_R"
     while true; do
@@ -304,7 +362,7 @@ function downloadD3dcompiler_47() {
         local url="https://raw.githubusercontent.com/mozilla/fxc2/master/dll/d3dcompiler_47.dll"
         local hash="4432bbd1a390874f3f0a503d45cc48d346abc3a8c0213c289f4b615bf0ee84f3"
     fi
-    curl --fail -Lo --progress-bar d3dcompiler_47.dll "$url" \
+    curl --fail -Lo "${_CURL_PROG[@]}" d3dcompiler_47.dll "$url" \
         || printErr "(downloadD3dcompiler_47) Could not download d3dcompiler_47.dll."
     local dlhash
     dlhash=$(sha256sum d3dcompiler_47.dll | cut -d' ' -f1)
@@ -318,7 +376,7 @@ function downloadD3dcompiler_47() {
 # $2 -> Full URL of ReShade exe, ex.: https://reshade.me/downloads/ReShade_Setup_5.0.2.exe
 function downloadReshade() {
     createTempDir
-    curl --fail -LO --progress-bar "$2" || printErr "Could not download version $1 of ReShade."
+    curl --fail -LO "${_CURL_PROG[@]}" "$2" || printErr "Could not download version $1 of ReShade."
     exeFile="$(find . -name "*.exe")"
     ! [[ -f $exeFile ]] && printErr "Download of ReShade exe file failed."
     [[ $(file "$exeFile" | grep -o executable) == "" ]] && printErr "The ReShade exe file is not an executable file, does the ReShade version exist?"
@@ -361,6 +419,12 @@ _RED=$'\e[31m' # red   (errors)
 _GRN=$'\e[32m' # green (success / info)
 _YLW=$'\e[33m' # yellow (warnings / prompts)
 _CYN=$'\e[36m' # cyan  (section headers)
+# GUI mode: use yad dialogs when a display server and yad are both available.
+_GUI=0
+[[ -n ${DISPLAY:-}${WAYLAND_DISPLAY:-} ]] && command -v yad &>/dev/null && _GUI=1
+# Curl progress flag: visible progress bar in CLI; silent in GUI (yad shows its own indicator).
+_CURL_PROG=(--progress-bar)
+[[ $_GUI -eq 1 ]] && _CURL_PROG=(--silent)
 COMMON_OVERRIDES="d3d8 d3d9 d3d11 d3d12 ddraw dinput8 dxgi opengl32"
 REQUIRED_EXECUTABLES=(7z curl git grep)
 XDG_DATA_HOME=${XDG_DATA_HOME:-"$HOME/.local/share"}
@@ -374,13 +438,27 @@ if [[ -z ${MAIN_PATH+x} ]]; then
         MAIN_PATH="$_flatpak_data/reshade"
         printf '%bDetected Flatpak Steam — using Flatpak data dir for MAIN_PATH.%b\n' "$_CYN" "$_R"
     elif [[ $_flatpak_ok -eq 1 && $_native_ok -eq 1 ]]; then
-        printf '%bBoth Flatpak and native Steam installs detected.%b\n' "$_YLW$_B" "$_R"
-        printf '  1) Flatpak Steam  → %s/reshade\n' "$_flatpak_data"
-        printf '  2) Native Steam   → %s/reshade\n' "$XDG_DATA_HOME"
-        if [[ $(checkStdin "Which installation? (1/2): " "^(1|2)$") == "1" ]]; then
-            MAIN_PATH="$_flatpak_data/reshade"
+        if [[ $_GUI -eq 1 ]]; then
+            _fpChoice=$(yad --list --radiolist \
+                --title="ReShade" \
+                --text="Both Flatpak and native Steam installs were detected.\nWhich installation should ReShade target?" \
+                --column="" --column="Installation" --column="Path" \
+                --print-column=2 --separator="" \
+                --width=650 --height=220 \
+                TRUE "Flatpak Steam" "$_flatpak_data/reshade" \
+                FALSE "Native Steam" "$XDG_DATA_HOME/reshade" 2>/dev/null) || exit 0
+            [[ $_fpChoice == *"Flatpak"* ]] \
+                && MAIN_PATH="$_flatpak_data/reshade" \
+                || MAIN_PATH="$XDG_DATA_HOME/reshade"
         else
-            MAIN_PATH="$XDG_DATA_HOME/reshade"
+            printf '%bBoth Flatpak and native Steam installs detected.%b\n' "$_YLW$_B" "$_R"
+            printf '  1) Flatpak Steam  → %s/reshade\n' "$_flatpak_data"
+            printf '  2) Native Steam   → %s/reshade\n' "$XDG_DATA_HOME"
+            if [[ $(checkStdin "Which installation? (1/2): " "^(1|2)$") == "1" ]]; then
+                MAIN_PATH="$_flatpak_data/reshade"
+            else
+                MAIN_PATH="$XDG_DATA_HOME/reshade"
+            fi
         fi
     else
         MAIN_PATH="$XDG_DATA_HOME/reshade"
@@ -486,14 +564,18 @@ if [[ -n $SHADER_REPOS ]]; then
             if [[ $UPDATE_RESHADE -eq 1 ]]; then
                 cd "$MAIN_PATH/ReShade_shaders/$localRepoName" || continue
                 printf '%bUpdating shader repo:%b %s\n' "$_GRN" "$_R" "$URI"
-                git pull --ff-only || printf '%bCould not update shader repo: %s%b\n' "$_YLW" "$URI" "$_R"
+                withProgress "Updating shader repo:\n<tt>$URI</tt>" \
+                    git pull --ff-only \
+                    || printf '%bCould not update shader repo: %s%b\n' "$_YLW" "$URI" "$_R"
             fi
         else
             cd "$MAIN_PATH/ReShade_shaders" || exit
             branchArgs=()
             [[ -n $branchName ]] && branchArgs=(--branch "$branchName" --single-branch)
             printf '%bCloning shader repo:%b %s\n' "$_GRN" "$_R" "$URI"
-            git clone --depth 1 "${branchArgs[@]}" "$URI" "$localRepoName" || printf '%bCould not clone shader repo: %s%b\n' "$_YLW" "$URI" "$_R"
+            withProgress "Cloning shader repo:\n<tt>$URI</tt>" \
+                git clone --depth 1 "${branchArgs[@]}" "$URI" "$localRepoName" \
+                || printf '%bCould not clone shader repo: %s%b\n' "$_YLW" "$URI" "$_R"
         fi
         [[ $MERGE_SHADERS == 1 ]] && mergeShaderDirs "ReShade_shaders" "$localRepoName"
     done
@@ -539,7 +621,7 @@ if [[ $FORCE_RESHADE_UPDATE_CHECK -eq 1 ]] || [[ $UPDATE_RESHADE -eq 1 ]] || [[ 
     if [[ $RVERS != "$LVERS" ]]; then
         [[ -L $RESHADE_PATH/latest ]] && unlink "$RESHADE_PATH/latest"
         printf '%bUpdating ReShade to version %s...%b\n' "$_GRN" "$RVERS" "$_R"
-        downloadReshade "$RVERS" "$RLINK"
+        withProgress "Downloading ReShade $RVERS..." downloadReshade "$RVERS" "$RLINK"
         ln -is "$(realpath "$RESHADE_PATH/$RVERS")" "$(realpath "$RESHADE_PATH/latest")"
         echo "$RVERS" > LVERS
         LVERS="$RVERS"
@@ -555,7 +637,8 @@ if [[ $RESHADE_VERSION != latest ]]; then
     if [[ ! -f reshade/$RESHADE_VERSION/ReShade64.dll ]] || [[ ! -f reshade/$RESHADE_VERSION/ReShade32.dll ]]; then
         echo -e "Downloading version $RESHADE_VERSION of ReShade.\n$SEPARATOR\n"
         [[ -e reshade/$RESHADE_VERSION ]] && rm -rf "reshade/$RESHADE_VERSION"
-        downloadReshade "$RESHADE_VERSION" "$RESHADE_URL/downloads/ReShade_Setup_$RESHADE_VERSION.exe"
+        withProgress "Downloading ReShade $RESHADE_VERSION..." \
+            downloadReshade "$RESHADE_VERSION" "$RESHADE_URL/downloads/ReShade_Setup_$RESHADE_VERSION.exe"
     fi
     printf '%bUsing ReShade version %b%s%b.%b\n\n' "$_GRN" "$_CYN$_B" "$RESHADE_VERSION" "$_R$_GRN" "$_R"
 else
@@ -581,27 +664,77 @@ fi
 # TODO Requires changes for ReShade 5.0 ; paths and json files are different.
 # See https://github.com/asafelobotomy/reshade-steam-proton/issues/6#issuecomment-1027230967
 if [[ $VULKAN_SUPPORT == 1 ]]; then
-    echo "Does the game use the Vulkan API?"
-    if [[ $(checkStdin "(y/n): " "^(y|n)$") == "y" ]]; then
-        printf '%bSupply the WINEPREFIX path for the game.%b\n' "$_CYN" "$_R"
-        printf '%b(Control+C to exit)%b\n' "$_YLW" "$_R"
-        while true; do
-            read -rp "$(printf '%bWINEPREFIX path: %b' "$_YLW" "$_R")" WINEPREFIX
-            # Expand leading ~ without using eval (safe tilde expansion).
-            WINEPREFIX="${WINEPREFIX/#\~/$HOME}"
-            WINEPREFIX=$(realpath "$WINEPREFIX" 2>/dev/null)
-            if [[ -z $WINEPREFIX || ! -d $WINEPREFIX ]]; then
-                printf '%bIncorrect or empty path supplied. You supplied "%s".%b\n' "$_YLW" "$WINEPREFIX" "$_R"
-                continue
-            fi
-            printf '%bIs this path correct? "%s"%b\n' "$_YLW" "$WINEPREFIX" "$_R"
-            [[ $(checkStdin "(y/n) " "^(y|n)$") == "y" ]] && break
-        done
-        echo "Specify if the game's EXE file architecture is 32 or 64 bits:"
-        [[ $(checkStdin "(32/64) " "^(32|64)$") == 64 ]] && exeArch=64 || exeArch=32
+    _useVulkan="n"
+    if [[ $_GUI -eq 1 ]]; then
+        yad --question --title="ReShade" --width=420 \
+            --text="Does this game use the <b>Vulkan API</b>?" 2>/dev/null \
+            && _useVulkan="y"
+    else
+        echo "Does the game use the Vulkan API?"
+        _useVulkan=$(checkStdin "(y/n): " "^(y|n)$")
+    fi
+    if [[ $_useVulkan == "y" ]]; then
+        # --- WINEPREFIX ---
+        if [[ $_GUI -eq 1 ]]; then
+            _startDir="$HOME/.local/share/Steam/steamapps/compatdata"
+            [[ ! -d $_startDir ]] && _startDir="$HOME"
+            while true; do
+                WINEPREFIX=$(yad --file --directory \
+                    --title="ReShade — Select WINEPREFIX folder" \
+                    --filename="$_startDir/" \
+                    --width=750 --height=520 2>/dev/null)
+                [[ -z $WINEPREFIX ]] && exit 0
+                WINEPREFIX=$(realpath "$WINEPREFIX" 2>/dev/null)
+                [[ -d $WINEPREFIX ]] && break
+                yad --warning --title="ReShade" --width=420 \
+                    --text="Path does not exist:\n<tt>$WINEPREFIX</tt>" \
+                    --button="Try again:1" 2>/dev/null
+            done
+        else
+            printf '%bSupply the WINEPREFIX path for the game.%b\n' "$_CYN" "$_R"
+            printf '%b(Control+C to exit)%b\n' "$_YLW" "$_R"
+            while true; do
+                read -rp "$(printf '%bWINEPREFIX path: %b' "$_YLW" "$_R")" WINEPREFIX
+                # Expand leading ~ without using eval (safe tilde expansion).
+                WINEPREFIX="${WINEPREFIX/#\~/$HOME}"
+                WINEPREFIX=$(realpath "$WINEPREFIX" 2>/dev/null)
+                if [[ -z $WINEPREFIX || ! -d $WINEPREFIX ]]; then
+                    printf '%bIncorrect or empty path supplied. You supplied "%s".%b\n' "$_YLW" "$WINEPREFIX" "$_R"
+                    continue
+                fi
+                printf '%bIs this path correct? "%s"%b\n' "$_YLW" "$WINEPREFIX" "$_R"
+                [[ $(checkStdin "(y/n) " "^(y|n)$") == "y" ]] && break
+            done
+        fi
+        # --- Architecture ---
+        if [[ $_GUI -eq 1 ]]; then
+            _archPick=$(yad --list --radiolist \
+                --title="ReShade" --text="Select the game's EXE architecture:" \
+                --column="" --column="Architecture" \
+                --print-column=2 --separator="" \
+                --width=400 --height=220 \
+                TRUE "64-bit" FALSE "32-bit" 2>/dev/null) || exit 0
+            [[ $_archPick == *"32"* ]] && exeArch=32 || exeArch=64
+        else
+            echo "Specify if the game's EXE file architecture is 32 or 64 bits:"
+            [[ $(checkStdin "(32/64) " "^(32|64)$") == 64 ]] && exeArch=64 || exeArch=32
+        fi
         export WINEPREFIX="$WINEPREFIX"
-        echo "Do you want to (i)nstall or (u)ninstall ReShade?"
-        if [[ $(checkStdin "(i/u): " "^(i|u)$") == "i" ]]; then
+        # --- Install / Uninstall ---
+        _vulkanAction="i"
+        if [[ $_GUI -eq 1 ]]; then
+            _vPick=$(yad --list --radiolist \
+                --title="ReShade" --text="Install or uninstall Vulkan ReShade?" \
+                --column="" --column="Action" \
+                --print-column=2 --separator="" \
+                --width=420 --height=220 \
+                TRUE "Install" FALSE "Uninstall" 2>/dev/null) || exit 0
+            [[ $_vPick == *"Uninstall"* ]] && _vulkanAction="u"
+        else
+            echo "Do you want to (i)nstall or (u)ninstall ReShade?"
+            _vulkanAction=$(checkStdin "(i/u): " "^(i|u)$")
+        fi
+        if [[ $_vulkanAction == "i" ]]; then
             wine reg ADD HKLM\\SOFTWARE\\Khronos\\Vulkan\\ImplicitLayers /d 0 /t REG_DWORD /v "Z:\\home\\$USER\\$WINE_MAIN_PATH\\reshade\\$RESHADE_VERSION\\ReShade$exeArch.json" -f /reg:"$exeArch" \
                 && echo "Done." || echo "An error has occurred."
         else
@@ -614,8 +747,22 @@ fi
 # Z0025
 
 # Z0030
-echo "Do you want to (i)nstall or (u)ninstall ReShade for a DirectX or OpenGL game?"
-if [[ $(checkStdin "(i/u): " "^(i|u)$") == "u" ]]; then
+_action="i"
+if [[ $_GUI -eq 1 ]]; then
+    _pick=$(yad --list --radiolist \
+        --title="ReShade" \
+        --text="What would you like to do?" \
+        --column="" --column="Action" \
+        --print-column=2 --separator="" \
+        --width=480 --height=230 \
+        TRUE "Install ReShade for a game" \
+        FALSE "Uninstall ReShade for a game" 2>/dev/null) || exit 0
+    [[ $_pick == *"Uninstall"* ]] && _action="u"
+else
+    echo "Do you want to (i)nstall or (u)ninstall ReShade for a DirectX or OpenGL game?"
+    _action=$(checkStdin "(i/u): " "^(i|u)$")
+fi
+if [[ $_action == "u" ]]; then
     getGamePath
     printf '%bUnlinking ReShade files from:%b %s\n' "$_GRN" "$_R" "$gamePath"
     # Build the DLL list from COMMON_OVERRIDES using bash string substitution
@@ -648,8 +795,14 @@ fi
 
 # Z0035
 getGamePath
-echo "Do you want $0 to attempt to automatically detect the right dll files to use for ReShade?"
-[[ $(checkStdin "(y/n) " "^(y|n)$") == "y" ]] && wantedDll="auto" || wantedDll="manual"
+if [[ $_GUI -eq 1 ]]; then
+    yad --question --title="ReShade" --width=520 \
+        --text="Attempt to <b>automatically detect</b> the DLL override for ReShade?\n\n<i>Click Yes to auto-detect, No to choose manually.</i>" \
+        2>/dev/null && wantedDll="auto" || wantedDll="manual"
+else
+    echo "Do you want $0 to attempt to automatically detect the right dll files to use for ReShade?"
+    [[ $(checkStdin "(y/n) " "^(y|n)$") == "y" ]] && wantedDll="auto" || wantedDll="manual"
+fi
 exeArch=32
 if [[ $wantedDll == "auto" ]]; then
     for file in "$gamePath/"*.exe; do
@@ -659,26 +812,57 @@ if [[ $wantedDll == "auto" ]]; then
         fi
     done
     [[ $exeArch -eq 32 ]] && wantedDll="d3d9" || wantedDll="dxgi"
-    echo "We have detected the game is $exeArch bits, we will use $wantedDll.dll as the override, is this correct?"
-    [[ $(checkStdin "(y/n) " "^(y|n)$") == "n" ]] && wantedDll="manual"
+    if [[ $_GUI -eq 1 ]]; then
+        yad --question --title="ReShade" --width=520 \
+            --text="Detected a <b>$exeArch-bit</b> game.\nUse <b>$wantedDll.dll</b> as the DLL override?\n\n<i>Click No to select manually.</i>" \
+            2>/dev/null || wantedDll="manual"
+    else
+        echo "We have detected the game is $exeArch bits, we will use $wantedDll.dll as the override, is this correct?"
+        [[ $(checkStdin "(y/n) " "^(y|n)$") == "n" ]] && wantedDll="manual"
+    fi
 else
-    echo "Specify if the game's EXE file architecture is 32 or 64 bits:"
-    [[ $(checkStdin "(32/64) " "^(32|64)$") == 64 ]] && exeArch=64
+    if [[ $_GUI -eq 1 ]]; then
+        _archPick=$(yad --list --radiolist \
+            --title="ReShade" --text="Select the game's EXE architecture:" \
+            --column="" --column="Architecture" \
+            --print-column=2 --separator="" \
+            --width=420 --height=220 \
+            TRUE "64-bit" FALSE "32-bit" 2>/dev/null) || exit 0
+        [[ $_archPick == *"32"* ]] && exeArch=32 || exeArch=64
+    else
+        echo "Specify if the game's EXE file architecture is 32 or 64 bits:"
+        [[ $(checkStdin "(32/64) " "^(32|64)$") == 64 ]] && exeArch=64
+    fi
 fi
 if [[ $wantedDll == "manual" ]]; then
-    printf '%bManually enter the dll override for ReShade.%b Common values: %b%s%b\n' "$_CYN" "$_R" "$_B" "$COMMON_OVERRIDES" "$_R"
-    while true; do
-        read -rp "$(printf '%bOverride: %b' "$_YLW" "$_R")" wantedDll
-        wantedDll=${wantedDll//.dll/}
-        printf '%bYou entered %b%s%b — is this correct?%b\n' "$_YLW" "$_CYN$_B" "$wantedDll" "$_R$_YLW" "$_R"
-        read -rp "$(printf '%b(y/n): %b' "$_YLW" "$_R")" ynCheck
-        [[ $ynCheck =~ ^(y|Y|yes|YES)$ ]] && break
-    done
+    if [[ $_GUI -eq 1 ]]; then
+        while true; do
+            wantedDll=$(yad --entry \
+                --title="ReShade" \
+                --text="Enter the DLL override for ReShade.\nCommon values: <b>$COMMON_OVERRIDES</b>" \
+                --entry-text="dxgi" \
+                --width=520 2>/dev/null) || exit 0
+            wantedDll=${wantedDll//.dll/}
+            [[ -n $wantedDll ]] && break
+            yad --warning --title="ReShade" --width=360 \
+                --text="Please enter a DLL name." --button="OK:1" 2>/dev/null
+        done
+    else
+        printf '%bManually enter the dll override for ReShade.%b Common values: %b%s%b\n' "$_CYN" "$_R" "$_B" "$COMMON_OVERRIDES" "$_R"
+        while true; do
+            read -rp "$(printf '%bOverride: %b' "$_YLW" "$_R")" wantedDll
+            wantedDll=${wantedDll//.dll/}
+            printf '%bYou entered %b%s%b — is this correct?%b\n' "$_YLW" "$_CYN$_B" "$wantedDll" "$_R$_YLW" "$_R"
+            read -rp "$(printf '%b(y/n): %b' "$_YLW" "$_R")" ynCheck
+            [[ $ynCheck =~ ^(y|Y|yes|YES)$ ]] && break
+        done
+    fi
 fi
 # Z0035
 
 # Z0040
-downloadD3dcompiler_47 "$exeArch"
+withProgress "Downloading d3dcompiler_47.dll ($exeArch-bit)..." \
+    downloadD3dcompiler_47 "$exeArch"
 linkD3dcompilerToWineprefix "$exeArch"
 # Z0040
 
@@ -723,4 +907,25 @@ if [[ -z $WINEPREFIX ]]; then
     printf '  If shaders fail to compile, re-run the script with:\n'
     printf '  %bWINEPREFIX="%s/.local/share/Steam/steamapps/compatdata/<AppID>/pfx" %s%b\n' \
         "$_CYN" "$HOME" "$0" "$_R"
+fi
+
+if [[ $_GUI -eq 1 ]]; then
+    _wineNote=""
+    [[ -z $WINEPREFIX ]] && _wineNote="\n\n<b>Note:</b> ReShade 6.5+ also requires d3dcompiler_47.dll inside the game's Wine/Proton prefix. If shaders fail to compile, re-run with:\n<tt>WINEPREFIX=\"\$HOME/.local/share/Steam/steamapps/compatdata/&lt;AppID&gt;/pfx\" $0</tt>"
+    yad --info \
+        --title="ReShade — Done!" \
+        --text="<b>ReShade installation complete!</b>
+
+<b>Steam launch option</b> (Game Properties → Launch Options):
+<tt>$gameEnvVar %command%</tt>
+
+<b>Non-Steam — run the game with:</b>
+<tt>$gameEnvVar</tt>
+
+<b>ReShade first-run setup:</b>
+In the ReShade overlay, open the <b>Settings</b> tab.
+Ensure shader/texture paths point inside:
+<tt>$MAIN_PATH/ReShade_shaders/Merged/</tt>
+Then go to the <b>Home</b> tab and click <b>Reload</b>.$_wineNote" \
+        --button="OK:0" --width=680 2>/dev/null
 fi
