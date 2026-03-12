@@ -6,8 +6,15 @@ set -euo pipefail
 
 # Create temporary test environment
 setup_test_env() {
+    TEST_REAL_HOME="${HOME:-}"
+    export TEST_REAL_HOME
     TEST_TEMP_DIR=$(mktemp -d)
     export TEST_TEMP_DIR
+    export HOME="$TEST_TEMP_DIR/home"
+    mkdir -p "$HOME"
+    
+    # Isolate the icon cache so tests don't read/write the real user cache.
+    export XDG_CACHE_HOME="$TEST_TEMP_DIR/.cache"
     
     # Create fake Steam directory structure
     TEST_STEAM_ROOT="$TEST_TEMP_DIR/Steam"
@@ -17,13 +24,21 @@ setup_test_env() {
     mkdir -p "$TEST_STEAM_CACHE"
     mkdir -p "$TEST_GAMES_DIR"
     
-    # Create cache directory for reshade icons
-    TEST_ICON_CACHE="$TEST_TEMP_DIR/.cache/reshade-linux/icons"
+    # Create cache directory for reshade icons (within test dir)
+    TEST_ICON_CACHE="$XDG_CACHE_HOME/reshade-linux/icons"
     mkdir -p "$TEST_ICON_CACHE"
+    
+    # Set MAIN_PATH to an isolated temp location for state/shader tests
+    export MAIN_PATH="$TEST_TEMP_DIR/reshade"
+    mkdir -p "$MAIN_PATH/ReShade_shaders" "$MAIN_PATH/External_shaders" \
+             "$MAIN_PATH/game-state" "$MAIN_PATH/game-shaders"
 }
 
 # Clean up test environment
 teardown_test_env() {
+    if [[ -n "${TEST_REAL_HOME:-}" ]]; then
+        export HOME="$TEST_REAL_HOME"
+    fi
     [[ -n "${TEST_TEMP_DIR:-}" ]] && rm -rf "$TEST_TEMP_DIR"
 }
 
@@ -124,6 +139,19 @@ create_complex_exes_test() {
         "UnityPlayer.exe" \
         "EasyAntiCheat.exe" \
         "setup.exe"
+}
+
+# Create a fake shader repository with some .fx / .fxh files.
+# $1: repo local name (e.g. "sweetfx-shaders")
+# Places files under $MAIN_PATH/ReShade_shaders/$1/Shaders/ and .../Textures/
+create_mock_shader_repo() {
+    local _name="$1"
+    local _shaders="$MAIN_PATH/ReShade_shaders/$_name/Shaders"
+    local _textures="$MAIN_PATH/ReShade_shaders/$_name/Textures"
+    mkdir -p "$_shaders" "$_textures"
+    echo "// shader" > "$_shaders/$_name.fx"
+    echo "// header" > "$_shaders/$_name.fxh"
+    echo "texture"   > "$_textures/$_name.png"
 }
 
 # Source the main script functions (for testing)

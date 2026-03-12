@@ -1,0 +1,25 @@
+name: Run shell tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test:
+    name: Run test suite
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            bash coreutils curl file git grep p7zip-full sed
+
+      - name: Run test suite
+        run: bash tests/run_simple_tests.sh

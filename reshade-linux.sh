@@ -18,234 +18,131 @@ cat > /dev/null <<LICENSE
     https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html
 LICENSE
 cat > /dev/null <<DESCRIPTION
-    Bash script to download ReShade and ReShade shaders then links them to a game directory for games using Wine or Proton on Linux.
-    By linking, re-running this script will update ReShade / shaders for all games.
+    Bash script to download ReShade and shader repositories, then link them into a game directory
+    for games using Wine or Proton on Linux. Re-running the script updates the installed files.
 
     Requirements:
-        grep   : Used in various parts of the script.
-        7z     : Used to extract exe files
-        curl   : Used to download files.
-        git    : Used to clone ReShade shader repositories.
-        wine   : Only used if the game uses Vulkan (to insert Windows Registry entries).
-        yad    : Optional. When a display server is available and yad is installed, the script
-                 automatically uses GTK dialogs for all prompts (directory picker, radio lists,
-                 progress windows, info/error dialogs). Falls back to CLI if yad is absent.
+        grep, 7z, curl, git, file, sed, sha256sum
+        wine : only needed for Vulkan registry setup
+        whiptail or dialog : optional terminal UI; otherwise plain CLI prompts are used
 
     Notes:
-        Vulkan / ReShade currently is not functional under wine.
-        It might become possible in the future, so this information is provided in the event that happens.
-        See https://github.com/kevinlekiller/reshade-steam-proton/issues/6
-            Vulkan games like Doom (2016) : When asked if the game uses the Vulkan API, type y.
-            Tell the script if the executable is 32 bit or 64 bit (by using the file command on the exe file or check on https://www.pcgamingwiki.com)
-            Provide the WINEPREFIX to the script, for Steam games, the WINEPREFIX's folder name is the App ID and is stored in ~/.local/share/Steam/steamapps/compatdata/
-            For example, on Doom (2016) on Steam, the WINEPREFIX is ~/.local/share/Steam/steamapps/compatdata/379720
+        ReShade installs are stored per game. Each game gets its own shader selection state,
+        merged shader directory, and local ReShade.ini.
 
-        OpenGL games require the dll to be named opengl32.dll (Wolfenstein: The New Order for example).
-        You will want to respond 'n' when asked for automatic detection of the dll.
-        Then you will write 'opengl32' when asked for the name of the dll to override.
-        You can check on pcgamingwiki.com to see what graphic API the game uses.
-
-        Some 32 bit games use Direct3D 11 (Leisure Suit Larry: Wet Dreams Don't Dry for example),
-         you'll have to manually specify the architecture (32) and DLL name (dxgi).
-
-        Adding shader files not in a repository to the Merged/Shaders folder:
-            For example, if we want to add this shader (CMAA2.fx) https://gist.github.com/kevinlekiller/cbb663e14b0f6ad6391a0062351a31a2
-            Create the External_shaders folder inside the MAIN_PATH folder (by default $HOME/.local/share/reshade)
-            Add the shader to it: cd "$HOME/.local/share/reshade/External_shaders" && curl -LO https://gist.github.com/kevinlekiller/cbb663e14b0f6ad6391a0062351a31a2/raw/CMAA2.fx
-            Run this script, the shader will then be linked to the Merged folder.
-
-        When you enable shaders in Reshade, this is a rough ideal order of shaders :
-            color -> contrast/brightness/gamma -> anti-aliasing -> sharpening -> film grain
+        Re-running the script for an already installed game lets you change the selected shader
+        repositories for that game. Unticking a repo removes its shaders from that game's merged
+        ReShade shader directory.
 
     Usage:
-        Download the script
-            Using curl:
-                curl -LO https://github.com/asafelobotomy/reshade-steam-proton/raw/main/reshade-linux.sh
-            Using git:
-                git clone https://github.com/asafelobotomy/reshade-steam-proton
-                cd reshade-steam-proton
-        Make it executable:
-            chmod u+x reshade-linux.sh
-        Run it:
-            ./reshade-linux.sh
-
-        Installing ReShade for a DirectX / OpenGL game:
-            Example on Back To The Future Episode 1:
-
-                Find the game directory where the .exe file is.
-                    If using Steam, you can open the Steam client, right click the game, click Properties,
-                    click Local Files, clicking Browse, find the directory with the main
-                    exe file, copy it, supply it to the script.
-
-                    Or you can run : find ~/.local/share/Steam/steamapps/common -iregex ".*Back to the future.*.exe$"
-                    We see BackToTheFuture101.exe is in "/home/kevin/.local/share/Steam/steamapps/common/Back to the Future Ep 1/"
-
-                Run this script: ./reshade-linux.sh
-
-                Type n when asked if the game uses the Vulkan API.
-
-                Type i to install ReShade.
-                    If you have never run this script, the shaders and ReShade will be downloaded.
-
-                Supply the game directory where exe file is, when asked:
-                    /home/kevin/.local/share/Steam/steamapps/common/Back to the Future Ep 1
-
-                Select if you want it to automatically detect the correct dll file for ReShade or
-                  to manually specity it.
-
-                Set the WINEDLLOVERRIDES environment variable as instructed.
-
-                Run the game, set the Effects and Textures search paths in the ReShade settings if required.
-
-        Uninstalling ReShade for a DirectX /OpenGL game:
-            Run this script: ./reshade-linux.sh
-
-            Type n when asked if the game uses the Vulkan API.
-
-            Type u to uninstall ReShade.
-
-            Supply the game path where the .exe file is (see instructions above).
-
-        Installing ReShade for a Vulkan game:
-            Example on Doom (2016) on Steam:
-
-                Run this script ./reshade-linux.sh
-
-                When asked if the game is using the Vulkan API, type y
-
-                Supply the WINEPREFIX:
-                To find the WINEPREFIX for Doom on Steam, do a search on https://steamdb.info for Doom : https://steamdb.info/app/379720/
-                We see the App ID listed there as 379720, we can now search for the folder: find ~/.local/share/Steam -wholename *compatdata/379720
-                    /home/kevin/.local/share/Steam/steamapps/compatdata/379720
-
-                Supply the exe architecture (32 or 64 bits):
-                To find the exe architecture for the game, we can run: file ~/.local/share/Steam/steamapps/common/DOOM/DOOMx64vk.exe
-                    /home/kevin/.local/share/Steam/steamapps/common/DOOM/DOOMx64vk.exe: PE32+ executable (GUI) x86-64, for MS Windows
-                x86-64 is 64 bits, Intel 80386 would be 32 bits.
-
-                Type i when asked if you want to install ReShade.
-
-        Uninstall ReShade for a Vulkan game:
-                Run this script ./reshade-linux.sh
-
-                Type y when asked if the game is using the Vulkan API.
-
-                Supply the WINEPREFIX location and the exe architecture.
-
-                Type u to uninstall ReShade.
-
-        Removing ReShade / shader files:
-            By default the files are stored in $HOME/.local/share/reshade
-            Run: rm -rf "$HOME/.local/share/reshade"
-
-    Environment Variables:
-        UPDATE_RESHADE
-            To skip checking for ReShade and shader updates, set UPDATE_RESHADE=0
-            ex.: UPDATE_RESHADE=0 ./reshade-linux.sh
-
-        MAIN_PATH
-            The directory where this script stores ReShade, shaders, and supporting files.
-            Auto-detected on startup:
-                If only Flatpak Steam is found (~/.var/app/com.valvesoftware.Steam), its data
-                directory is used automatically.
-                If both Flatpak and native Steam are found, you will be prompted to choose.
-                Otherwise the XDG default is used ($HOME/.local/share/reshade).
-            You can skip auto-detection by setting MAIN_PATH explicitly before running the script.
-            ex.: MAIN_PATH=~/Documents/reshade ./reshade-linux.sh
-
-        SHADER_REPOS
-            List of git repo URI's to clone or update which contain reshade shaders.
-            By default this is set to :
-                https://github.com/CeeJayDK/SweetFX|sweetfx-shaders;https://github.com/martymcmodding/iMMERSE|immerse-shaders;https://github.com/BlueSkyDefender/AstrayFX|astrayfx-shaders;https://github.com/prod80/prod80-ReShade-Repository|prod80-shaders;https://github.com/crosire/reshade-shaders|reshade-shaders|slim;https://github.com/Fubaxiusz/fubax-shaders|fubax-shaders
-            The format is (the branch is optional) : URI|local_repo_name|branch
-            Use ; to separate multiple repos. For example: URI1|local_repo_name_1|master;URI2|local_repo_name_2
-
-        MERGE_SHADERS
-            If you're using multiple shader repositories, all the unique shaders will be put into one folder called Merged.
-            For example, if you use reshade-shaders and sweetfx-shaders, both have ASCII.fx,
-              by enabling MERGE_SHADERS, only 1 ASCII.fx is put into the Merged folder.
-            The order of priority for shaders is taken from SHADER_REPOS.
-            The default is MERGE_SHADERS=1
-            To disable, set MERGE_SHADERS=0
-
-        REBUILD_MERGE
-            Set to REBUILD_MERGE to 1 to rebuild the MERGE_SHADERS folder.
-            This is useful if you have changed SHADER_REPOS
-            ex.: REBUILD_MERGE=1 SHADER_REPOS="https://github.com/martymcmodding/qUINT|martymc-shaders" ./reshade-linux.sh
-
-        GLOBAL_INI
-            With the default, GLOBAL_INI=1, the script will create a ReShade.ini file and store it
-              in MAIN_PATH folder if it does not exist.
-            The script will link this ReShade.ini file to the game's path.
-            If you have disabled MERGE_SHADERS, you will need to manually edit the paths by editing
-              this ReShade.ini file. Alternatively, when ReShade launches, you can change the paths in the GUI.
-            You can disable GLOBAL_INI with : GLOBAL_INI=0
-            Disabling GLOBAL_INI will cause ReShade to create a ReShade.ini file when the game starts,
-              you will then need to manually configure ReShade when the game starts.
-            You can also use a different ReShade.ini than the one that is created by this script,
-              put it in the MAIN_PATH folder, then set GLOBAL_INI to the name of the
-              file, for example : GLOBAL_INI="ReShade2.ini" ./reshade-linux.sh
-
-        LINK_PRESET
-            Link a ReShade preset file to the game's directory.
-            Put the preset file in the MAIN_PATH, then run the script with LINK_PRESET set to the name of the file.
-            ex.: LINK_PRESET=ReShadePreset.ini ./reshade-linux.sh
-
-        RESHADE_VERSION
-            To use a version of ReShade other than the newest version.
-            If the version does not exist, the script will exit.
-            The default is RESHADE_VERSION="latest"
-            ex.: RESHADE_VERSION="4.9.1" ./reshade-linux.sh
-
-        FORCE_RESHADE_UPDATE_CHECK
-            By default the script will only check for updates if the script hasn't been run in more than 4 hours.
-            This will bypass the 4 hours.
-            ex.: FORCE_RESHADE_UPDATE_CHECK=1 ./reshade-linux.sh
-
-        RESHADE_ADDON_SUPPORT
-            This will download ReShade with addon support, it's only intended for single player games,
-             since anti-cheat software might detect it as malicious.
-            ex.: RESHADE_ADDON_SUPPORT=1 ./reshade-linux.sh
-
-        DELETE_RESHADE_FILES
-            When uninstalling ReShade for game, if DELETE_RESHADE_FILES is set to 1, ReShade.log and ReShadePreset.ini will be deleted.
-            Disabled by default.
-            ex.: DELETE_RESHADE_FILES=1 ./reshade-linux.sh
-
-        VULKAN_SUPPORT
-            As noted below, Vulkan / ReShade is not currently functional under wine.
-            The script contains a function to enable ReShade under Vulkan, although it's disabled
-            by default since it's currently not functional, you can enable this function by
-            passing VULKAN_SUPPORT=1
-            ex.: VULKAN_SUPPORT=1 ./reshade-linux.sh
-
-        WINEPREFIX
-            Since ReShade 6.5+, d3dcompiler_47.dll must also be present in the game's Wine/Proton
-            prefix (drive_c/windows/system32 for 64-bit games, or syswow64 for 32-bit games),
-            not only in the game folder. Without this, ReShade shaders will fail to compile.
-            Set WINEPREFIX to the path of the Wine/Proton prefix for the game to have this script
-            install d3dcompiler_47.dll there automatically.
-            For Steam games with Proton, the prefix is typically found at:
-            ~/.local/share/Steam/steamapps/compatdata/<AppID>/pfx
-            You can find your game's AppID on https://steamdb.info
-            ex.: WINEPREFIX="$HOME/.local/share/Steam/steamapps/compatdata/12345/pfx" ./reshade-linux.sh
-
-        GAME_DIR_PRESETS
-            Optional app-specific install-directory overrides used by Steam auto-detection.
-            Format: AppID|subdirectory;AppID2|subdirectory2
-            ex.: GAME_DIR_PRESETS="12345|Binaries/Win64;67890|bin/x64" ./reshade-linux.sh
-            If a preset matches, that subdirectory is used instead of built-in presets and generic heuristics.
+        chmod u+x reshade-linux.sh
+        ./reshade-linux.sh
+        ./reshade-linux.sh --update-all
 DESCRIPTION
 
-# Print error and exit
-# $1 is message
-# $2 is exit code
-function printErr() {
-    removeTempDir
-    printf '%bError: %s\nExiting.%b\n' "$_RED$_B" "$1" "$_R" >&2
-    [[ $_GUI -eq 1 ]] && yad --error --title="ReShade — Error" \
-        --text="<b>Error:</b>\n$1" --width=520 --button="OK:0" 2>/dev/null
-    [[ -z $2 ]] && exit 1 || exit "$2"
+function ui_capture() {
+    local _result _status
+    set +e
+    if [[ $_UI_BACKEND == whiptail ]]; then
+        _result=$("$@" 3>&1 1>&2 2>&3)
+        _status=$?
+    else
+        _result=$("$@" 3>&1 1>/dev/tty 2>&3)
+        _status=$?
+    fi
+    set -e
+    ui_refresh_screen
+    printf '%s' "$_result"
+    return $_status
+}
+
+function ui_refresh_screen() {
+    [[ $_UI_BACKEND == cli ]] && return 0
+    local _ui_out="/dev/tty"
+    [[ -w $_ui_out ]] || _ui_out="/dev/stderr"
+    if command -v tput &>/dev/null; then
+        tput sgr0 >"$_ui_out" 2>/dev/null || true
+        tput cnorm >"$_ui_out" 2>/dev/null || true
+        tput clear >"$_ui_out" 2>/dev/null || printf '\033[0m\033[H\033[2J\033[3J' >"$_ui_out"
+        return 0
+    fi
+    printf '\033[0m\033[H\033[2J\033[3J' >"$_ui_out"
+}
+
+function ui_run() {
+    local _status
+    set +e
+    "$@"
+    _status=$?
+    set -e
+    ui_refresh_screen
+    return $_status
+}
+
+function ui_msgbox() {
+    local _title="$1" _text="$2" _height="${3:-14}" _width="${4:-70}"
+    case $_UI_BACKEND in
+        whiptail) ui_run whiptail --clear --title "$_title" --msgbox "$_text" "$_height" "$_width" ;;
+        dialog) ui_run dialog --clear --title "$_title" --msgbox "$_text" "$_height" "$_width" ;;
+        *) return 0 ;;
+    esac
+}
+
+function ui_yesno() {
+    local _title="$1" _text="$2" _height="${3:-12}" _width="${4:-70}"
+    case $_UI_BACKEND in
+        whiptail) ui_run whiptail --clear --title "$_title" --yesno "$_text" "$_height" "$_width" ;;
+        dialog) ui_run dialog --clear --title "$_title" --yesno "$_text" "$_height" "$_width" ;;
+        *) return 1 ;;
+    esac
+}
+
+function ui_inputbox() {
+    local _title="$1" _text="$2" _default="${3:-}" _height="${4:-14}" _width="${5:-78}"
+    case $_UI_BACKEND in
+        whiptail) ui_capture whiptail --clear --title "$_title" --inputbox "$_text" "$_height" "$_width" "$_default" ;;
+        dialog) ui_capture dialog --clear --title "$_title" --inputbox "$_text" "$_height" "$_width" "$_default" ;;
+        *) return 1 ;;
+    esac
+}
+
+function ui_menu() {
+    local _title="$1" _text="$2" _height="$3" _width="$4" _menuHeight="$5"
+    shift 5
+    case $_UI_BACKEND in
+        whiptail) ui_capture whiptail --clear --title "$_title" --menu "$_text" "$_height" "$_width" "$_menuHeight" "$@" ;;
+        dialog) ui_capture dialog --clear --title "$_title" --menu "$_text" "$_height" "$_width" "$_menuHeight" "$@" ;;
+        *) return 1 ;;
+    esac
+}
+
+function ui_radiolist() {
+    local _title="$1" _text="$2" _height="$3" _width="$4" _listHeight="$5"
+    shift 5
+    case $_UI_BACKEND in
+        whiptail) ui_capture whiptail --clear --title "$_title" --radiolist "$_text" "$_height" "$_width" "$_listHeight" "$@" ;;
+        dialog) ui_capture dialog --clear --title "$_title" --radiolist "$_text" "$_height" "$_width" "$_listHeight" "$@" ;;
+        *) return 1 ;;
+    esac
+}
+
+function ui_checklist() {
+    local _title="$1" _text="$2" _height="$3" _width="$4" _listHeight="$5"
+    shift 5
+    case $_UI_BACKEND in
+        whiptail) ui_capture whiptail --clear --title "$_title" --checklist "$_text" "$_height" "$_width" "$_listHeight" "$@" ;;
+        dialog) ui_capture dialog --clear --title "$_title" --checklist "$_text" "$_height" "$_width" "$_listHeight" "$@" ;;
+        *) return 1 ;;
+    esac
+}
+
+function ui_infobox() {
+    local _title="$1" _text="$2" _height="${3:-10}" _width="${4:-70}"
+    case $_UI_BACKEND in
+        whiptail) whiptail --title "$_title" --infobox "$_text" "$_height" "$_width" ;;
+        dialog) dialog --title "$_title" --infobox "$_text" "$_height" "$_width" ;;
+        *) return 0 ;;
+    esac
 }
 
 # Check user input
@@ -267,25 +164,17 @@ function printStep() {
     printf '%b==> %s%b\n' "$_CYN$_B" "$1" "$_R"
 }
 
-# Run a command while showing a pulsating yad progress window (GUI mode only).
+# Run a command while showing a lightweight TUI infobox when available.
 # $1 = dialog label text; remaining args = command + arguments to execute.
 # The command runs in the current shell so functions and cd side-effects work normally.
 function withProgress() {
     local text="$1"; shift
-    if [[ $_GUI -eq 1 ]]; then
-        # Drive yad --pulsate from a background loop; kill it when the command finishes.
-        (while true; do printf '1\n'; sleep 0.1; done) \
-            | yad --progress --pulsate --no-buttons \
-                  --title="ReShade" --text="$text" --width=480 2>/dev/null &
-        local _yadPid=$!
-        "$@"
-        local _ret=$?
-        kill "$_yadPid" 2>/dev/null
-        wait "$_yadPid" 2>/dev/null
-        return $_ret
-    else
-        "$@"
+    if [[ $_UI_BACKEND != cli ]]; then
+        ui_infobox "ReShade" "$text" 10 70
+        sleep 0.1
+        ui_refresh_screen
     fi
+    "$@"
 }
 
 # Return all detected Steam library steamapps directories (one per line).
@@ -394,7 +283,7 @@ function pickBestExeInDir() {
     local _dir="$1" _parentDir _exe _name _lname _score _best _bestScore=-999999 _isUtility
     local _exeList=()
     
-    _parentDir=$(basename "$_dir" | tr 'A-Z' 'a-z' | tr -cd 'a-z0-9')
+    _parentDir=$(basename "$_dir" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9')
     
     # Collect all .exe files and score them.
     for _exe in "$_dir"/*.exe; do
@@ -444,7 +333,7 @@ function scoreExeCandidate() {
     local _dir="$1" _name="$2" _lname _parentDir _score=50
     [[ -z $_name ]] && { printf '%s\n' "-999999"; return; }
     _lname=${_name,,}
-    _parentDir=$(basename "$_dir" | tr 'A-Z' 'a-z' | tr -cd 'a-z0-9')
+    _parentDir=$(basename "$_dir" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9')
 
     [[ $_lname =~ (unityplayer|unitycrash|crashhandler|easyanticheat|battleye|asp|unins|uninstall|setup|installer|vcredist|redist|eac|crashreport|crashpad|benchmark|test|launcher|update|check|remov|error|consultant) ]] && _score=$((_score - 200))
     [[ $_lname =~ ^mono\. ]] && _score=$((_score - 200))
@@ -711,77 +600,273 @@ print(f"dll={best_dll}")
 PYEOF
 }
 
-# Write a per-game state file recording installation details.
-# $1=appId  $2=gamePath  $3=dll  $4=arch
-# State files live in $MAIN_PATH/game-state/<appid>.state
-function writeGameState() {
-    local _aid="$1" _gp="$2" _dll="$3" _arch="$4"
-    [[ -z $_aid ]] && return
-    local _dir="$MAIN_PATH/game-state"
-    mkdir -p "$_dir" 2>/dev/null || return
-    printf 'dll=%s\narch=%s\ngamePath=%s\n' "$_dll" "$_arch" "$_gp" > "$_dir/$_aid.state"
+# Build a stable per-game install key.
+# Steam games use the AppID directly; non-Steam games use a path hash.
+# $1=appId  $2=gamePath
+function buildGameInstallKey() {
+    local _aid="$1" _gp="$2"
+    if [[ -n $_aid ]]; then
+        printf '%s\n' "$_aid"
+        return
+    fi
+    [[ -z $_gp ]] && return 1
+    printf 'path-%s\n' "$(printf '%s' "$_gp" | sha256sum | cut -c1-16)"
 }
 
-# Write/replace the Steam launch option for a game in localconfig.vdf.
-# $1=appId  $2=full launch option string  (e.g. 'WINEDLLOVERRIDES="..." %command%')
-# Backs up the file before any modification.
+# Write a per-game state file recording installation details.
+# $1=gameKey  $2=gamePath  $3=dll  $4=arch  $5=selected_repos  $6=appId(optional)
+# State files live in $MAIN_PATH/game-state/<gameKey>.state
+function writeGameState() {
+    local _gameKey="$1" _gp="$2" _dll="$3" _arch="$4" _repos="$5" _appId="${6:-}"
+    [[ -z $_gameKey ]] && return
+    local _dir="$MAIN_PATH/game-state"
+    mkdir -p "$_dir" 2>/dev/null || return
+    printf 'dll=%s\narch=%s\ngamePath=%s\nselected_repos=%s\napp_id=%s\n' \
+        "$_dll" "$_arch" "$_gp" "$_repos" "$_appId" > "$_dir/$_gameKey.state"
+}
+
+# Write or replace the Steam launch option for a game in localconfig.vdf.
+# $1=appId  $2=full launch option string (for example: WINEDLLOVERRIDES="..." %command%)
+# Returns success if at least one matching localconfig.vdf was updated.
 function applyLaunchOption() {
     local _aid="$1" _opt="$2"
     [[ -z $_aid || -z $_opt ]] && return 1
     command -v python3 &>/dev/null || return 1
+
     local _vcfg _applied=0
     for _vcfg in \
         "$HOME/.local/share/Steam/userdata"/*/config/localconfig.vdf \
         "$HOME/.var/app/com.valvesoftware.Steam/.local/share/Steam/userdata"/*/config/localconfig.vdf; do
         [[ -f $_vcfg ]] || continue
-        python3 - "$_vcfg" "$_aid" "$_opt" 2>/dev/null <<'PYEOF'
-import sys, re, os, shutil
+        python3 - "$_vcfg" "$_aid" "$_opt" <<'PYEOF' >/dev/null 2>&1
+import re
+import shutil
+import sys
+
 vdf_path, appid, launch_opt = sys.argv[1], sys.argv[2], sys.argv[3]
 
-with open(vdf_path, encoding='utf-8', errors='replace') as f:
-    text = f.read()
+with open(vdf_path, encoding="utf-8", errors="replace") as handle:
+    text = handle.read()
 
-# Locate "apps" section then find the <appid> block within it using brace counting.
-apps_m = re.search(r'"[Aa]pps"\s*\{', text)
-if not apps_m:
-    sys.exit(1)
-appid_m = re.search(rf'"{ re.escape(appid) }"\s*\{{', text[apps_m.end():])
-if not appid_m:
+apps_match = re.search(r'"[Aa]pps"\s*\{', text)
+if not apps_match:
     sys.exit(1)
 
-block_start = apps_m.end() + appid_m.end()
+appid_match = re.search(rf'"{re.escape(appid)}"\s*\{{', text[apps_match.end():])
+if not appid_match:
+    sys.exit(1)
+
+block_start = apps_match.end() + appid_match.end()
 depth = 1
 block_end = block_start
-for pos, ch in enumerate(text[block_start:]):
-    if ch == '{': depth += 1
-    elif ch == '}':
+for offset, char in enumerate(text[block_start:]):
+    if char == '{':
+        depth += 1
+    elif char == '}':
         depth -= 1
         if depth == 0:
-            block_end = block_start + pos
+            block_end = block_start + offset
             break
 else:
     sys.exit(1)
 
-block    = text[block_start:block_end]
-lo_re    = re.compile(r'"LaunchOptions"(\s+)"[^"]*"', re.I)
-lo_repl  = f'"LaunchOptions"\t\t"{launch_opt}"'
-if lo_re.search(block):
-    new_block = lo_re.sub(lo_repl, block, count=1)
+block = text[block_start:block_end]
+escaped_launch_opt = launch_opt.replace('\\', '\\\\').replace('"', '\\"')
+launch_line = f'"LaunchOptions"\t\t"{escaped_launch_opt}"'
+launch_re = re.compile(r'(?im)^(\s*)"LaunchOptions"\s+".*"$')
+if launch_re.search(block):
+    new_block = launch_re.sub(lambda match: f'{match.group(1)}{launch_line}', block, count=1)
 else:
-    indent    = (re.search(r'\n(\s+)"', block) or re.match(r'()', '')).group(1) if re.search(r'\n(\s+)"', block) else '\t' * 8
-    new_block = block.rstrip() + f'\n{indent}{lo_repl}\n'
+    indent_match = re.search(r'\n(\s+)"', block)
+    indent = indent_match.group(1) if indent_match else '\t' * 8
+    new_block = block.rstrip() + f'\n{indent}{launch_line}\n'
 
 new_text = text[:block_start] + new_block + text[block_end:]
+if new_text == text:
+    sys.exit(0)
+
 shutil.copy2(vdf_path, vdf_path + '.reshade.bak')
-with open(vdf_path, 'w', encoding='utf-8') as f:
-    f.write(new_text)
-print(f"Updated {vdf_path}")
+with open(vdf_path, 'w', encoding='utf-8') as handle:
+    handle.write(new_text)
 PYEOF
         if [[ $? -eq 0 ]]; then
             _applied=1
+            printf '%bUpdated%b %s\n' "$_GRN" "$_R" "$_vcfg" >&2
         fi
     done
-    return $(( 1 - _applied ))
+
+    [[ $_applied -eq 1 ]]
+}
+
+function steamIsRunning() {
+    ps -eo comm= 2>/dev/null | grep -Eq '^(steam|steamwebhelper)$'
+}
+
+function copyToClipboard() {
+    local _text="$1"
+    if [[ -n ${WAYLAND_DISPLAY:-} ]] && command -v wl-copy &>/dev/null; then
+        printf '%s' "$_text" | wl-copy >/dev/null 2>&1
+        return $?
+    fi
+    if [[ -n ${DISPLAY:-} ]] && command -v xclip &>/dev/null; then
+        printf '%s' "$_text" | xclip -selection clipboard >/dev/null 2>&1
+        return $?
+    fi
+    if [[ -n ${DISPLAY:-} ]] && command -v xsel &>/dev/null; then
+        printf '%s' "$_text" | xsel --clipboard --input >/dev/null 2>&1
+        return $?
+    fi
+    return 1
+}
+
+# Return a comma-separated list of all configured shader repo names.
+function getDefaultSelectedRepos() {
+    local -a _names=()
+    local _savedIFS="$IFS" _entry _uri _repoName _branch
+    IFS=';' read -ra _allRepos <<< "$SHADER_REPOS"
+    IFS="$_savedIFS"
+    for _entry in "${_allRepos[@]}"; do
+        IFS='|' read -r _uri _repoName _branch <<< "$_entry"
+        IFS="$_savedIFS"
+        [[ -n $_repoName ]] && _names+=("$_repoName")
+    done
+    local IFS=','
+    printf '%s\n' "${_names[*]}"
+}
+
+# Read selected shader repos from a state file.
+# Missing fields default to all repos for backward compatibility.
+# An explicit empty field means no repos selected.
+function readSelectedReposFromState() {
+    local _stateFile="$1"
+    [[ -f $_stateFile ]] || { getDefaultSelectedRepos; return; }
+    if grep -q '^selected_repos=' "$_stateFile" 2>/dev/null; then
+        grep '^selected_repos=' "$_stateFile" | cut -d= -f2- | head -1
+        return
+    fi
+    getDefaultSelectedRepos
+}
+
+function repoIsSelected() {
+    local _selectedRepos="$1" _repoName="$2" _entry
+    local _savedIFS="$IFS"
+    IFS=',' read -ra _repoList <<< "$_selectedRepos"
+    IFS="$_savedIFS"
+    for _entry in "${_repoList[@]}"; do
+        [[ $_entry == "$_repoName" ]] && return 0
+    done
+    return 1
+}
+
+function repoChecklistState() {
+    local _selectedRepos="$1" _repoName="$2"
+    repoIsSelected "$_selectedRepos" "$_repoName" && printf 'ON\n' || printf 'OFF\n'
+}
+
+# Build (or rebuild) a per-game shader directory containing only the selected repos.
+# Creates $MAIN_PATH/game-shaders/<gameKey>/Merged/{Shaders,Textures}/.
+# $1: game key  $2: comma-separated selected repo names
+function buildGameShaderDir() {
+    local _gameKey="$1" _selectedRepos="$2"
+    [[ -z $_gameKey ]] && return 1
+    local _gameShaderDir="$MAIN_PATH/game-shaders/$_gameKey"
+    rm -rf "$_gameShaderDir"
+    mkdir -p "$_gameShaderDir/Merged/Shaders" "$_gameShaderDir/Merged/Textures"
+    local _outBase="$_gameShaderDir/Merged"
+    IFS=';' read -ra _allRepos <<< "$SHADER_REPOS"
+    for _entry in "${_allRepos[@]}"; do
+        IFS='|' read -r _uri _repoName _branch <<< "$_entry"
+        [[ -z $_repoName ]] && continue
+        [[ ",$_selectedRepos," != *",$_repoName,"* ]] && continue
+        [[ ! -d "$MAIN_PATH/ReShade_shaders/$_repoName" ]] && continue
+        mergeShaderDirsTo "ReShade_shaders" "$_repoName" "$_outBase"
+    done
+    if [[ -d "$MAIN_PATH/External_shaders" ]]; then
+        mergeShaderDirsTo "External_shaders" "" "$_outBase"
+        # Link loose files in External_shaders root.
+        cd "$MAIN_PATH/External_shaders" || return
+        local _file
+        for _file in *; do
+            [[ ! -f $_file || -L "$_outBase/Shaders/$_file" ]] && continue
+            ln -s "$(realpath "$MAIN_PATH/External_shaders/$_file")" "$_outBase/Shaders/"
+        done
+    fi
+}
+
+# Create a per-game ReShade.ini if one does not already exist.
+# Default configs use relative shader paths so every game stays self-contained.
+# $1: game path
+function ensureGameIni() {
+    local _gamePath="$1"
+    [[ $GLOBAL_INI == 0 ]] && return 0
+    local _target="$_gamePath/ReShade.ini"
+    [[ -f $_target ]] && return 0
+    if [[ $GLOBAL_INI == ReShade.ini ]]; then
+        cat > "$_target" <<'EOF'
+[GENERAL]
+EffectSearchPaths=.\ReShade_shaders\Merged\Shaders
+TextureSearchPaths=.\ReShade_shaders\Merged\Textures
+EOF
+        return 0
+    fi
+    [[ -f "$MAIN_PATH/$GLOBAL_INI" ]] || return 1
+    cp "$MAIN_PATH/$GLOBAL_INI" "$_target"
+}
+
+# Copy a preset into the game directory if requested and not already present.
+# The copy stays per-game and can be customized independently afterwards.
+# $1: game path
+function ensureGamePreset() {
+    local _gamePath="$1"
+    [[ -z $LINK_PRESET ]] && return 0
+    [[ -f "$MAIN_PATH/$LINK_PRESET" ]] || return 0
+    [[ -f "$_gamePath/$LINK_PRESET" ]] && return 0
+    cp "$MAIN_PATH/$LINK_PRESET" "$_gamePath/$LINK_PRESET"
+}
+
+# Show a shader repository selection dialog.
+# $1: comma-separated currently-selected repo names
+# Prints comma-separated selected repo names to stdout.
+# Returns 1 if the user cancelled.
+function selectShaders() {
+    local _current="$1"
+    local -a _names=() _uris=() _rows=()
+    local _savedIFS="$IFS"
+    IFS=';' read -ra _allRepos <<< "$SHADER_REPOS"
+    IFS="$_savedIFS"
+    local _entry _uri _name _branch _checked
+    for _entry in "${_allRepos[@]}"; do
+        IFS='|' read -r _uri _name _branch <<< "$_entry"
+        IFS="$_savedIFS"
+        [[ -z $_name ]] && continue
+        _checked="$(repoChecklistState "$_current" "$_name")"
+        _names+=("$_name")
+        _uris+=("$_uri")
+        _rows+=("$_name" "$_uri" "$_checked")
+    done
+    local -a _selected_names=()
+    if [[ $_UI_BACKEND != cli ]]; then
+        local _result
+        _result=$(ui_checklist "ReShade - Shader Repositories" \
+            "Select which shader repositories to install for this game. Unticking a repo removes its shaders from this game." \
+            20 90 10 "${_rows[@]}") || return 1
+        _result=${_result//\"/}
+        IFS=' ' read -ra _selected_names <<< "$_result"
+    else
+        printf '%bSelect shader repositories to install for this game:%b\n' "$_CYN" "$_R"
+        local _i _ans
+        for (( _i=0; _i<${#_names[@]}; _i++ )); do
+            local _def="y"
+            [[ "${_rows[$(( (_i * 3) + 2 ))]}" == "OFF" ]] && _def="n"
+            printf '  [%s] %s (%s)\n     Include? [%s]: ' \
+                "$(( _i + 1 ))" "${_names[$_i]}" "${_uris[$_i]}" "$_def"
+            read -r _ans
+            [[ -z $_ans ]] && _ans="$_def"
+            [[ "$_ans" =~ ^(y|Y|yes|YES)$ ]] && _selected_names+=("${_names[$_i]}")
+        done
+    fi
+    local IFS=','
+    echo "${_selected_names[*]}"
 }
 
 # Fill auto-detected Steam game arrays.
@@ -899,39 +984,36 @@ function detectSteamGames() {
     done < <(listSteamAppsDirs)
 }
 
-# Prompt user for a game path manually (GUI or CLI).
+# Prompt user for a game path manually (TUI or CLI).
 function promptGamePathManual() {
-    if [[ $_GUI -eq 1 ]]; then
+    if [[ $_UI_BACKEND != cli ]]; then
         local _startDir="$HOME/.local/share/Steam/steamapps/common"
         [[ ! -d $_startDir ]] && _startDir="$HOME"
         while true; do
-            gamePath=$(yad --file --directory \
-                --title="ReShade — Select the game folder" \
-                --filename="$_startDir/" \
-                --width=750 --height=520 2>/dev/null)
+            gamePath=$(ui_inputbox "ReShade - Game Folder" \
+                "Enter the game folder containing the main .exe file:" \
+                "$_startDir/") || exit 0
             if [[ -z $gamePath ]]; then
-                yad --question --title="ReShade" --width=360 \
-                    --text="No folder selected.\nExit the script?" 2>/dev/null \
+                ui_yesno "ReShade" "No folder entered. Exit the script?" 10 60 \
                     && exit 0
                 continue
             fi
+            gamePath="${gamePath/#\~/$HOME}"
             gamePath=$(realpath "$gamePath" 2>/dev/null)
             [[ -f $gamePath ]] && gamePath=$(dirname "$gamePath")
             if [[ -z $gamePath || ! -d $gamePath ]]; then
-                yad --warning --title="ReShade" --width=420 \
-                    --text="Path does not exist:\n<tt>$gamePath</tt>" \
-                    --button="Try again:1" 2>/dev/null
+                ui_msgbox "ReShade" "Path does not exist:\n$gamePath" 12 70
                 continue
             fi
             if ! compgen -G "$gamePath/*.exe" &>/dev/null; then
-                yad --question --title="ReShade" --width=520 \
-                    --text="No .exe file found in:\n<tt>$gamePath</tt>\n\nUse this folder anyway?" \
-                    2>/dev/null || { _startDir="$gamePath"; continue; }
+                ui_yesno "ReShade" "No .exe file found in:\n$gamePath\n\nUse this folder anyway?" 12 72 \
+                    || { _startDir="$gamePath"; continue; }
             fi
             break
         done
         return
     fi
+
     printf '%bSupply the folder path where the main executable (.exe) for the game is.%b\n' "$_CYN" "$_R"
     printf '%b(Control+C to exit)%b\n' "$_YLW" "$_R"
     while true; do
@@ -948,8 +1030,8 @@ function promptGamePathManual() {
             printf '%bDo you still want to use this directory?%b\n' "$_YLW" "$_R"
             [[ $(checkStdin "(y/n) " "^(y|n)$") != "y" ]] && continue
         fi
-        echo "Is this path correct? \"$gamePath\""
-        [[ $(checkStdin "(y/n) " "^(y|n)$") == "y" ]] && break
+        printf '%bIs this path correct? "%s"%b\n' "$_YLW" "$gamePath" "$_R"
+        [[ $(checkStdin "(y/n) " "^(y|n)$") == "y" ]] && return
     done
 }
 
@@ -957,71 +1039,31 @@ function promptGamePathManual() {
 function getGamePath() {
     detectSteamGames
     if [[ ${#DETECTED_GAME_PATHS[@]} -eq 0 ]]; then
+        _selectedAppId=""
         promptGamePathManual
         return
     fi
 
-    if [[ $_GUI -eq 1 ]]; then
-        local _pick _i _iconTmpDir="" _scaledIcon _statusName
-        local _cacheDir="${XDG_CACHE_HOME:-$HOME/.cache}/reshade-linux/icons"
-        mkdir -p "$_cacheDir" 2>/dev/null
-
-        # Download missing icons from the Steam CDN in parallel (cached for future runs).
+    if [[ $_UI_BACKEND != cli ]]; then
+        local _pick _i _statusLabel
+        local -a _items=()
         for ((_i=0; _i<${#DETECTED_GAME_PATHS[@]}; _i++)); do
-            [[ -n ${DETECTED_GAME_ICONS[_i]} ]] && continue
-            curl --silent --fail --max-time 8 \
-                -o "$_cacheDir/${DETECTED_GAME_APPIDS[_i]}.jpg" \
-                "https://cdn.steamstatic.com/steam/apps/${DETECTED_GAME_APPIDS[_i]}/header.jpg" \
-                2>/dev/null &
-        done
-        wait
-        # Fill in paths for games that now have a freshly downloaded icon.
-        for ((_i=0; _i<${#DETECTED_GAME_PATHS[@]}; _i++)); do
-            [[ -n ${DETECTED_GAME_ICONS[_i]} ]] && continue
-            local _f="$_cacheDir/${DETECTED_GAME_APPIDS[_i]}.jpg"
-            [[ -f $_f ]] && DETECTED_GAME_ICONS[_i]="$_f"
-        done
-
-        # Pre-scale icons to 48x48 so they don't fill entire rows in the list.
-        if command -v magick &>/dev/null; then
-            _iconTmpDir=$(mktemp -d)
-        fi
-        local _args=(
-            --list --no-click
-            --title "ReShade — Select Game"
-            --text "Detected installed Steam games. Choose one, or select manual path. ✔ = ReShade already installed."
-            --column "Icon:IMG" --column "Game" --column "AppID" --column "Executable" --column "Install directory" --column "Detected by"
-            --print-column=5 --search-column=2 --separator ""
-            --width=1100 --height=560
-        )
-        for ((_i=0; _i<${#DETECTED_GAME_PATHS[@]}; _i++)); do
-            _scaledIcon="${DETECTED_GAME_ICONS[_i]}"
-            if [[ -n $_iconTmpDir && -n $_scaledIcon ]]; then
-                magick "$_scaledIcon" -resize 48x48\> "$_iconTmpDir/$_i.png" 2>/dev/null \
-                    && _scaledIcon="$_iconTmpDir/$_i.png"
-            fi
-            _statusName="${DETECTED_GAME_NAMES[_i]}"
+            _statusLabel="${DETECTED_GAME_NAMES[_i]}"
             [[ -f "$MAIN_PATH/game-state/${DETECTED_GAME_APPIDS[_i]}.state" ]] \
-                && _statusName="✔ $_statusName"
-            _args+=("$_scaledIcon" "$_statusName" "${DETECTED_GAME_APPIDS[_i]}" "${DETECTED_GAME_EXES[_i]}" "${DETECTED_GAME_PATHS[_i]}" "${DETECTED_GAME_REASONS[_i]}")
+                && _statusLabel="[installed] $_statusLabel"
+            _items+=("$((_i+1))" "$_statusLabel | AppID ${DETECTED_GAME_APPIDS[_i]} | ${DETECTED_GAME_EXES[_i]}")
         done
-        _args+=("" "Manual path..." "-" "-" "MANUAL" "manual")
-        _pick=$(yad "${_args[@]}" 2>/dev/null)
-        local _yadExit=$?
-        [[ -n $_iconTmpDir ]] && rm -rf "$_iconTmpDir"
-        [[ $_yadExit -ne 0 ]] && exit 0
-        if [[ $_pick == "MANUAL" ]]; then
+        _items+=("m" "Manual path...")
+        _pick=$(ui_menu "ReShade - Select Game" \
+            "Detected installed Steam games. Choose one, or select manual path." \
+            24 110 16 "${_items[@]}") || exit 0
+        if [[ $_pick == "m" ]]; then
             _selectedAppId=""
             promptGamePathManual
         else
-            gamePath="$_pick"
-            _selectedAppId=""
-            for ((_i=0; _i<${#DETECTED_GAME_PATHS[@]}; _i++)); do
-                if [[ "${DETECTED_GAME_PATHS[_i]}" == "$gamePath" ]]; then
-                    _selectedAppId="${DETECTED_GAME_APPIDS[_i]}"
-                    break
-                fi
-            done
+            _i=$((_pick - 1))
+            gamePath="${DETECTED_GAME_PATHS[_i]}"
+            _selectedAppId="${DETECTED_GAME_APPIDS[_i]}"
             printf '%bSelected auto-detected game path:%b %s\n' "$_GRN" "$_R" "$gamePath"
         fi
         return
@@ -1127,11 +1169,11 @@ function linkD3dcompilerToWineprefix() {
     fi
     printf '%bLinking d3dcompiler_47.dll into %b%s%b (required for ReShade 6.5+).%b\n' "$_GRN" "$_CYN" "$sysDir" "$_GRN" "$_R"
     [[ -L "$sysDir/d3dcompiler_47.dll" ]] && unlink "$sysDir/d3dcompiler_47.dll"
-    ln -is "$(realpath "$MAIN_PATH/d3dcompiler_47.dll.$arch")" "$sysDir/d3dcompiler_47.dll"
+    ln -sf "$(realpath "$MAIN_PATH/d3dcompiler_47.dll.$arch")" "$sysDir/d3dcompiler_47.dll"
 }
 
 SEPARATOR="------------------------------------------------------------------------------------------------"
-SCRIPT_VERSION="1.1.0"
+SCRIPT_VERSION="1.2.0"
 # ANSI color helpers — used via printf '%b' throughout the script.
 _R=$'\e[0m'    # reset
 _B=$'\e[1m'    # bold
@@ -1139,12 +1181,18 @@ _RED=$'\e[31m' # red   (errors)
 _GRN=$'\e[32m' # green (success / info)
 _YLW=$'\e[33m' # yellow (warnings / prompts)
 _CYN=$'\e[36m' # cyan  (section headers)
-# GUI mode: use yad dialogs when a display server and yad are both available.
-_GUI=0
-[[ -n ${DISPLAY:-}${WAYLAND_DISPLAY:-} ]] && command -v yad &>/dev/null && _GUI=1
-# Curl progress flag: visible progress bar in CLI; silent in GUI (yad shows its own indicator).
+# TUI mode: prefer whiptail, then dialog, else fall back to plain CLI.
+_UI_BACKEND=cli
+if [[ -t 0 && -t 1 ]]; then
+    if command -v whiptail &>/dev/null; then
+        _UI_BACKEND=whiptail
+    elif command -v dialog &>/dev/null; then
+        _UI_BACKEND=dialog
+    fi
+fi
+# Curl progress flag: visible progress bar in CLI; silent in TUI (dialog boxes provide context already).
 _CURL_PROG=(--progress-bar)
-[[ $_GUI -eq 1 ]] && _CURL_PROG=(--silent)
+[[ $_UI_BACKEND != cli ]] && _CURL_PROG=(--silent)
 COMMON_OVERRIDES="d3d8 d3d9 d3d11 d3d12 ddraw dinput8 dxgi opengl32"
 REQUIRED_EXECUTABLES=(7z curl file git grep sed sha256sum)
 XDG_DATA_HOME=${XDG_DATA_HOME:-"$HOME/.local/share"}
@@ -1158,16 +1206,13 @@ if [[ -z ${MAIN_PATH+x} ]]; then
         MAIN_PATH="$_flatpak_data/reshade"
         printf '%bDetected Flatpak Steam — using Flatpak data dir for MAIN_PATH.%b\n' "$_CYN" "$_R"
     elif [[ $_flatpak_ok -eq 1 && $_native_ok -eq 1 ]]; then
-        if [[ $_GUI -eq 1 ]]; then
-            _fpChoice=$(yad --list --radiolist \
-                --title="ReShade" \
-                --text="Both Flatpak and native Steam installs were detected.\nWhich installation should ReShade target?" \
-                --column="" --column="Installation" --column="Path" \
-                --print-column=2 --separator="" \
-                --width=650 --height=220 \
-                TRUE "Flatpak Steam" "$_flatpak_data/reshade" \
-                FALSE "Native Steam" "$XDG_DATA_HOME/reshade" 2>/dev/null) || exit 0
-            [[ $_fpChoice == *"Flatpak"* ]] \
+        if [[ $_UI_BACKEND != cli ]]; then
+            _fpChoice=$(ui_radiolist "ReShade" \
+                "Both Flatpak and native Steam installs were detected. Which installation should ReShade target?" \
+                14 78 2 \
+                flatpak "Flatpak Steam -> $_flatpak_data/reshade" ON \
+                native "Native Steam -> $XDG_DATA_HOME/reshade" OFF) || exit 0
+            [[ $_fpChoice == flatpak ]] \
                 && MAIN_PATH="$_flatpak_data/reshade" \
                 || MAIN_PATH="$XDG_DATA_HOME/reshade"
         else
@@ -1192,7 +1237,6 @@ _tmp_path="${MAIN_PATH#/home/"$USER"/}"
 WINE_MAIN_PATH="${_tmp_path//\//\\\\}"
 unset _tmp_path
 UPDATE_RESHADE=${UPDATE_RESHADE:-1}
-MERGE_SHADERS=${MERGE_SHADERS:-1}
 VULKAN_SUPPORT=${VULKAN_SUPPORT:-0}
 GLOBAL_INI=${GLOBAL_INI:-"ReShade.ini"}
 SHADER_REPOS=${SHADER_REPOS:-"https://github.com/CeeJayDK/SweetFX|sweetfx-shaders;https://github.com/martymcmodding/iMMERSE|immerse-shaders;https://github.com/BlueSkyDefender/AstrayFX|astrayfx-shaders;https://github.com/prod80/prod80-ReShade-Repository|prod80-shaders;https://github.com/crosire/reshade-shaders|reshade-shaders|slim;https://github.com/Fubaxiusz/fubax-shaders|fubax-shaders"}
@@ -1282,40 +1326,44 @@ printf '%b%s\n  ReShade installer/updater for Linux games using Wine or Proton.\
     "$_CYN$_B" "$SEPARATOR" "$SCRIPT_VERSION" "$SEPARATOR" "$_R"
 
 # Z0010
-# Link Shader / Texture files from an input directory to an output directory if the link doesn't already exist.
-# $1 is the input directory (full path).
-# $2 is the output directory name (Textures / Shaders), with optional subdirectory.
-function linkShaderFiles() {
+# Like linkShaderFiles but writes into an arbitrary output base directory.
+# $1: source directory (full path)
+# $2: subdirectory name (Shaders or Textures[/subpath])
+# $3: output base directory — files go into $3/$2/
+function linkShaderFilesTo() {
     [[ ! -d $1 ]] && return
-    cd "$1" || return
+    local _inDir="$1" _subDir="$2" _outBase="$3"
+    cd "$_inDir" || return
+    local _outDir="$_outBase/$_subDir"
+    mkdir -p "$_outDir"
+    local _outDirReal
+    _outDirReal="$(realpath "$_outDir")"
     for file in *; do
         [[ ! -f $file ]] && continue
-        [[ -L "$MAIN_PATH/ReShade_shaders/Merged/$2/$file" ]] && continue
-        INFILE="$(realpath "$1/$file")"
-        OUTDIR="$(realpath "$MAIN_PATH/ReShade_shaders/Merged/$2/")"
-        [[ ! -d $OUTDIR ]] && mkdir -p "$OUTDIR"
-        echo "Linking $INFILE to $OUTDIR"
-        ln -s "$INFILE" "$OUTDIR"
+        [[ -L "$_outDirReal/$file" ]] && continue
+        ln -s "$(realpath "$_inDir/$file")" "$_outDirReal/"
     done
 }
-# Check ReShade_shaders or External_shaders directories for directories to link to the Merged folder.
-# $1 ReShade_shaders | External_shaders
-# $2 Optional: Repo name
-function mergeShaderDirs() {
+# Like mergeShaderDirs but writes into an arbitrary output base directory.
+# $1: ReShade_shaders | External_shaders
+# $2: repo name (only for ReShade_shaders)
+# $3: output base directory (Shaders/ and Textures/ will be created inside it)
+function mergeShaderDirsTo() {
     [[ $1 != ReShade_shaders && $1 != External_shaders ]] && return
+    local _outBase="$3"
+    local dirPath
     for dirName in Shaders Textures; do
-        [[ $1 == "ReShade_shaders" ]] && dirPath=$(find "$MAIN_PATH/$1/$2" ! -path . -type d -name "$dirName") || dirPath="$MAIN_PATH/$1/$dirName"
-        linkShaderFiles "$dirPath" "$dirName"
-        # Check if there are any extra directories inside the Shaders or Texture folder, and link them.
+        [[ $1 == "ReShade_shaders" ]] \
+            && dirPath=$(find "$MAIN_PATH/$1/$2" ! -path . -type d -name "$dirName") \
+            || dirPath="$MAIN_PATH/$1/$dirName"
+        linkShaderFilesTo "$dirPath" "$dirName" "$_outBase"
         while IFS= read -rd '' anyDir; do
-            linkShaderFiles "$dirPath/$anyDir" "$dirName/$anyDir"
+            linkShaderFilesTo "$dirPath/$anyDir" "$dirName/$anyDir" "$_outBase"
         done < <(find . ! -path . -type d -print0)
     done
 }
 if [[ -n $SHADER_REPOS ]]; then
     printStep "Checking for shader updates"
-    [[ $REBUILD_MERGE == 1 ]] && rm -rf "$MAIN_PATH/ReShade_shaders/Merged/"
-    [[ $MERGE_SHADERS == 1 ]] && mkdir -p "$MAIN_PATH/ReShade_shaders/Merged/Shaders" &&  mkdir -p "$MAIN_PATH/ReShade_shaders/Merged/Textures"
     IFS=';' read -ra _shaderRepos <<< "$SHADER_REPOS"
     for _repoEntry in "${_shaderRepos[@]}"; do
         IFS='|' read -r URI localRepoName branchName <<< "$_repoEntry"
@@ -1336,20 +1384,10 @@ if [[ -n $SHADER_REPOS ]]; then
                 git clone --depth 1 "${branchArgs[@]}" "$URI" "$localRepoName" \
                 || printf '%bCould not clone shader repo: %s%b\n' "$_YLW" "$URI" "$_R"
         fi
-        [[ $MERGE_SHADERS == 1 ]] && mergeShaderDirs "ReShade_shaders" "$localRepoName"
     done
-    if [[ $MERGE_SHADERS == 1 ]] && [[ -d "$MAIN_PATH/External_shaders" ]]; then
+    if [[ -d "$MAIN_PATH/External_shaders" ]]; then
         printStep "Checking for external shader updates"
-        mergeShaderDirs "External_shaders"
-        # Link loose files.
-        cd "$MAIN_PATH/External_shaders" || exit 1
-        for file in *; do
-            [[ ! -f $file || -L "$MAIN_PATH/ReShade_shaders/Merged/Shaders/$file" ]] && continue
-            INFILE="$(realpath "$MAIN_PATH/External_shaders/$file")"
-            OUTDIR="$MAIN_PATH/ReShade_shaders/Merged/Shaders/"
-            echo "Linking $INFILE to $OUTDIR"
-            ln -s "$INFILE" "$OUTDIR"
-        done
+        :
     fi
 fi
 echo "$SEPARATOR"
@@ -1381,7 +1419,7 @@ if [[ $FORCE_RESHADE_UPDATE_CHECK -eq 1 ]] || [[ $UPDATE_RESHADE -eq 1 ]] || [[ 
         [[ -L $RESHADE_PATH/latest ]] && unlink "$RESHADE_PATH/latest"
         printf '%bUpdating ReShade to version %s...%b\n' "$_GRN" "$RVERS" "$_R"
         withProgress "Downloading ReShade $RVERS..." downloadReshade "$RVERS" "$RLINK"
-        ln -is "$(realpath "$RESHADE_PATH/$RVERS")" "$(realpath "$RESHADE_PATH/latest")"
+        ln -sf "$(realpath "$RESHADE_PATH/$RVERS")" "$(realpath "$RESHADE_PATH/latest")"
         echo "$RVERS" > LVERS
         LVERS="$RVERS"
         printf '%bReShade updated to %b%s%b.%b\n' "$_GRN" "$_CYN$_B" "$RVERS" "$_R$_GRN" "$_R"
@@ -1406,52 +1444,32 @@ fi
 # Z0016
 
 # Z0020
-if [[ $GLOBAL_INI != 0 ]] && [[ $GLOBAL_INI == ReShade.ini ]] && [[ ! -f $MAIN_PATH/$GLOBAL_INI ]]; then
-    cd "$MAIN_PATH" || exit
-    curl --fail -sLO https://github.com/asafelobotomy/reshade-steam-proton/raw/ini/ReShade.ini
-    if [[ -f ReShade.ini ]]; then
-        if [[ $MERGE_SHADERS == 1 ]]; then
-            sed -i \
-                -e "s/_USERSED_/$USER/g" \
-                -e "s#_SHADSED_#$WINE_MAIN_PATH\\\ReShade_shaders\\\Merged\\\Shaders#g" \
-                -e "s#_TEXSED_#$WINE_MAIN_PATH\\\ReShade_shaders\\\Merged\\\Textures#g" \
-                "$MAIN_PATH/$GLOBAL_INI"
-        else
-            sed -i "s/_USERSED_/$USER/g" "$MAIN_PATH/$GLOBAL_INI"
-        fi
-    fi
-fi
-# Z0020
 
 # Z0025
 # TODO Requires changes for ReShade 5.0 ; paths and json files are different.
 # See https://github.com/asafelobotomy/reshade-steam-proton/issues/6#issuecomment-1027230967
 if [[ $VULKAN_SUPPORT == 1 ]]; then
     _useVulkan="n"
-    if [[ $_GUI -eq 1 ]]; then
-        yad --question --title="ReShade" --width=420 \
-            --text="Does this game use the <b>Vulkan API</b>?" 2>/dev/null \
-            && _useVulkan="y"
+    if [[ $_UI_BACKEND != cli ]]; then
+        ui_yesno "ReShade" "Does this game use the Vulkan API?" 10 60 && _useVulkan="y"
     else
         echo "Does the game use the Vulkan API?"
         _useVulkan=$(checkStdin "(y/n): " "^(y|n)$")
     fi
     if [[ $_useVulkan == "y" ]]; then
         # --- WINEPREFIX ---
-        if [[ $_GUI -eq 1 ]]; then
+        if [[ $_UI_BACKEND != cli ]]; then
             _startDir="$HOME/.local/share/Steam/steamapps/compatdata"
             [[ ! -d $_startDir ]] && _startDir="$HOME"
             while true; do
-                WINEPREFIX=$(yad --file --directory \
-                    --title="ReShade — Select WINEPREFIX folder" \
-                    --filename="$_startDir/" \
-                    --width=750 --height=520 2>/dev/null)
+                WINEPREFIX=$(ui_inputbox "ReShade - WINEPREFIX" \
+                    "Enter the game's WINEPREFIX path:" \
+                    "$_startDir/") || exit 0
                 [[ -z $WINEPREFIX ]] && exit 0
+                WINEPREFIX="${WINEPREFIX/#\~/$HOME}"
                 WINEPREFIX=$(realpath "$WINEPREFIX" 2>/dev/null)
                 [[ -d $WINEPREFIX ]] && break
-                yad --warning --title="ReShade" --width=420 \
-                    --text="Path does not exist:\n<tt>$WINEPREFIX</tt>" \
-                    --button="Try again:1" 2>/dev/null
+                ui_msgbox "ReShade" "Path does not exist:\n$WINEPREFIX" 12 70
             done
         else
             printf '%bSupply the WINEPREFIX path for the game.%b\n' "$_CYN" "$_R"
@@ -1470,14 +1488,10 @@ if [[ $VULKAN_SUPPORT == 1 ]]; then
             done
         fi
         # --- Architecture ---
-        if [[ $_GUI -eq 1 ]]; then
-            _archPick=$(yad --list --radiolist \
-                --title="ReShade" --text="Select the game's EXE architecture:" \
-                --column="" --column="Architecture" \
-                --print-column=2 --separator="" \
-                --width=400 --height=220 \
-                TRUE "64-bit" FALSE "32-bit" 2>/dev/null) || exit 0
-            [[ $_archPick == *"32"* ]] && exeArch=32 || exeArch=64
+        if [[ $_UI_BACKEND != cli ]]; then
+            _archPick=$(ui_radiolist "ReShade" "Select the game's EXE architecture:" \
+                12 60 2 64 "64-bit" ON 32 "32-bit" OFF) || exit 0
+            [[ $_archPick == 32 ]] && exeArch=32 || exeArch=64
         else
             echo "Specify if the game's EXE file architecture is 32 or 64 bits:"
             [[ $(checkStdin "(32/64) " "^(32|64)$") == 64 ]] && exeArch=64 || exeArch=32
@@ -1485,14 +1499,10 @@ if [[ $VULKAN_SUPPORT == 1 ]]; then
         export WINEPREFIX="$WINEPREFIX"
         # --- Install / Uninstall ---
         _vulkanAction="i"
-        if [[ $_GUI -eq 1 ]]; then
-            _vPick=$(yad --list --radiolist \
-                --title="ReShade" --text="Install or uninstall Vulkan ReShade?" \
-                --column="" --column="Action" \
-                --print-column=2 --separator="" \
-                --width=420 --height=220 \
-                TRUE "Install" FALSE "Uninstall" 2>/dev/null) || exit 0
-            [[ $_vPick == *"Uninstall"* ]] && _vulkanAction="u"
+        if [[ $_UI_BACKEND != cli ]]; then
+            _vPick=$(ui_radiolist "ReShade" "Install or uninstall Vulkan ReShade?" \
+                12 60 2 install "Install" ON uninstall "Uninstall" OFF) || exit 0
+            [[ $_vPick == uninstall ]] && _vulkanAction="u"
         else
             echo "Do you want to (i)nstall or (u)ninstall ReShade?"
             _vulkanAction=$(checkStdin "(i/u): " "^(i|u)$")
@@ -1511,16 +1521,10 @@ fi
 
 # Z0030
 _action="i"
-if [[ $_GUI -eq 1 ]]; then
-    _pick=$(yad --list --radiolist \
-        --title="ReShade" \
-        --text="What would you like to do?" \
-        --column="" --column="Action" \
-        --print-column=2 --separator="" \
-        --width=480 --height=230 \
-        TRUE "Install ReShade for a game" \
-        FALSE "Uninstall ReShade for a game" 2>/dev/null) || exit 0
-    [[ $_pick == *"Uninstall"* ]] && _action="u"
+if [[ $_UI_BACKEND != cli ]]; then
+    _pick=$(ui_radiolist "ReShade" "What would you like to do?" \
+        12 70 2 install "Install ReShade for a game" ON uninstall "Uninstall ReShade for a game" OFF) || exit 0
+    [[ $_pick == uninstall ]] && _action="u"
 else
     echo "Do you want to (i)nstall or (u)ninstall ReShade for a DirectX or OpenGL game?"
     _action=$(checkStdin "(i/u): " "^(i|u)$")
@@ -1550,9 +1554,13 @@ if [[ $_action == "u" ]]; then
             fi
         done
     fi
-    # Clean up state file on uninstall if it exists.
-    if [[ -n $_selectedAppId && -f "$MAIN_PATH/game-state/$_selectedAppId.state" ]]; then
-        rm -f "$MAIN_PATH/game-state/$_selectedAppId.state"
+    # Clean up state file and per-game shader dir on uninstall.
+    _selectedGameKey="$(buildGameInstallKey "$_selectedAppId" "$gamePath")"
+    if [[ -n $_selectedGameKey ]]; then
+        [[ -f "$MAIN_PATH/game-state/$_selectedGameKey.state" ]] && \
+            rm -f "$MAIN_PATH/game-state/$_selectedGameKey.state"
+        [[ -d "$MAIN_PATH/game-shaders/$_selectedGameKey" ]] && \
+            rm -rf "$MAIN_PATH/game-shaders/$_selectedGameKey"
     fi
     printf '%bFinished uninstalling ReShade for:%b %s\n' "$_GRN$_B" "$_R" "$gamePath"
     printf '%bMake sure to remove or unset the %bWINEDLLOVERRIDES%b environment variable.%b\n' "$_GRN" "$_CYN$_B" "$_R$_GRN" "$_R"
@@ -1569,31 +1577,32 @@ if [[ $_BATCH_UPDATE -eq 1 ]]; then
     fi
     _ok=0; _fail=0
     for _sf in "$_stateDir"/*.state; do
-        _aid="${_sf##*/}"; _aid="${_aid%.state}"
-        _dll=$(grep  '^dll='      "$_sf" | cut -d= -f2  | head -1)
-        _arch=$(grep '^arch='     "$_sf" | cut -d= -f2  | head -1)
-        _gp=$(grep   '^gamePath=' "$_sf" | cut -d= -f2- | head -1)
+        _gameKey="${_sf##*/}"; _gameKey="${_gameKey%.state}"
+        _dll=$(grep  '^dll='           "$_sf" | cut -d= -f2  | head -1)
+        _arch=$(grep '^arch='          "$_sf" | cut -d= -f2  | head -1)
+        _gp=$(grep   '^gamePath='      "$_sf" | cut -d= -f2- | head -1)
+        _repos=$(readSelectedReposFromState "$_sf")
+        _appId=$(grep '^app_id=' "$_sf" | cut -d= -f2- | head -1)
         if [[ ! -d $_gp ]]; then
-            printf '%bSkipping AppID %s — game directory not found: %s%b\n' \
-                "$_YLW" "$_aid" "$_gp" "$_R"
+            printf '%bSkipping game %s — directory not found: %s%b\n' \
+                "$_YLW" "$_gameKey" "$_gp" "$_R"
             (( _fail++ )); continue
         fi
-        printf '%bUpdating AppID %s — %s (%s-bit, %s.dll)%b\n' \
-            "$_GRN" "$_aid" "$_gp" "$_arch" "$_dll" "$_R"
+        printf '%bUpdating %s — %s (%s-bit, %s.dll)%b\n' \
+            "$_GRN" "${_appId:-$_gameKey}" "$_gp" "$_arch" "$_dll" "$_R"
         [[ -L "$_gp/$_dll.dll" ]] && unlink "$_gp/$_dll.dll"
         if [[ $_arch == 64 ]]; then
-            ln -is "$(realpath "$RESHADE_PATH/$RESHADE_VERSION"/ReShade64.dll)" "$_gp/$_dll.dll"
+            ln -sf "$(realpath "$RESHADE_PATH/$RESHADE_VERSION"/ReShade64.dll)" "$_gp/$_dll.dll"
         else
-            ln -is "$(realpath "$RESHADE_PATH/$RESHADE_VERSION"/ReShade32.dll)" "$_gp/$_dll.dll"
+            ln -sf "$(realpath "$RESHADE_PATH/$RESHADE_VERSION"/ReShade32.dll)" "$_gp/$_dll.dll"
         fi
         [[ -L "$_gp/d3dcompiler_47.dll" ]] && unlink "$_gp/d3dcompiler_47.dll"
-        ln -is "$(realpath "$MAIN_PATH/d3dcompiler_47.dll.$_arch")" "$_gp/d3dcompiler_47.dll" 2>/dev/null
+        ln -sf "$(realpath "$MAIN_PATH/d3dcompiler_47.dll.$_arch")" "$_gp/d3dcompiler_47.dll" 2>/dev/null
         [[ -L "$_gp/ReShade_shaders" ]] && unlink "$_gp/ReShade_shaders"
-        ln -is "$(realpath "$MAIN_PATH/ReShade_shaders")" "$_gp/" 2>/dev/null
-        if [[ $GLOBAL_INI != 0 && -f "$MAIN_PATH/$GLOBAL_INI" ]]; then
-            [[ -L "$_gp/$GLOBAL_INI" ]] && unlink "$_gp/$GLOBAL_INI"
-            ln -is "$(realpath "$MAIN_PATH/$GLOBAL_INI")" "$_gp/$GLOBAL_INI" 2>/dev/null
-        fi
+        buildGameShaderDir "$_gameKey" "$_repos"
+        ln -sf "$(realpath "$MAIN_PATH/game-shaders/$_gameKey")" "$_gp/ReShade_shaders"
+        ensureGameIni "$_gp"
+        ensureGamePreset "$_gp"
         (( _ok++ ))
     done
     printf '%bBatch update complete: %d game(s) updated, %d skipped.%b\n' \
@@ -1603,13 +1612,19 @@ fi
 
 # Z0035
 _selectedAppId=""
+_selectedGameKey=""
 getGamePath
+if [[ -z $gamePath || ! -d $gamePath ]]; then
+    printf '%bError:%b No valid game path was selected. Aborting before linking.\n' "$_RED$_B" "$_R" >&2
+    exit 1
+fi
+_selectedGameKey="$(buildGameInstallKey "$_selectedAppId" "$gamePath")"
 
 # If this game was previously installed, skip the DLL dialog and reuse stored settings.
 exeArch=32
 wantedDll=""
 _stateFile=""
-[[ -n $_selectedAppId ]] && _stateFile="$MAIN_PATH/game-state/$_selectedAppId.state"
+[[ -n $_selectedGameKey ]] && _stateFile="$MAIN_PATH/game-state/$_selectedGameKey.state"
 if [[ -f "$_stateFile" ]]; then
     _stored_dll=$(grep  '^dll='  "$_stateFile" | cut -d= -f2 | head -1)
     _stored_arch=$(grep '^arch=' "$_stateFile" | cut -d= -f2 | head -1)
@@ -1639,10 +1654,10 @@ if [[ -z $wantedDll ]]; then
         [[ $exeArch -eq 32 ]] && wantedDll="d3d9" || wantedDll="dxgi"
     fi
     # Confirm with the user; offer manual override.
-    if [[ $_GUI -eq 1 ]]; then
-        yad --question --title="ReShade" --width=520 \
-            --text="Detected a <b>$exeArch-bit</b> game.\nUse <b>$wantedDll.dll</b> as the DLL override?\n\n<i>Click No to choose a different DLL manually.</i>" \
-            2>/dev/null || wantedDll="manual"
+    if [[ $_UI_BACKEND != cli ]]; then
+        ui_yesno "ReShade" \
+            "Detected a $exeArch-bit game. Use $wantedDll.dll as the DLL override?\n\nCommon overrides: d3d9, dxgi, d3d11, opengl32, ddraw, dinput8." \
+            14 78 || wantedDll="manual"
     else
         printf '%bDetected %s-bit game — DLL override: %s.dll. Is this correct?%b\n' \
             "$_CYN" "$exeArch" "$wantedDll" "$_R"
@@ -1651,17 +1666,14 @@ if [[ -z $wantedDll ]]; then
 fi
 
 if [[ $wantedDll == "manual" ]]; then
-    if [[ $_GUI -eq 1 ]]; then
+    if [[ $_UI_BACKEND != cli ]]; then
         while true; do
-            wantedDll=$(yad --entry \
-                --title="ReShade" \
-                --text="Enter the DLL override for ReShade.\nCommon values: <b>$COMMON_OVERRIDES</b>" \
-                --entry-text="dxgi" \
-                --width=520 2>/dev/null) || exit 0
+            wantedDll=$(ui_inputbox "ReShade" \
+                "Enter the DLL override for ReShade. Common values: $COMMON_OVERRIDES" \
+                "dxgi") || exit 0
             wantedDll=${wantedDll//.dll/}
             [[ -n $wantedDll ]] && break
-            yad --warning --title="ReShade" --width=360 \
-                --text="Please enter a DLL name." --button="OK:1" 2>/dev/null
+            ui_msgbox "ReShade" "Please enter a DLL name." 10 50
         done
     else
         printf '%bManually enter the dll override for ReShade.%b Common values: %b%s%b\n' "$_CYN" "$_R" "$_B" "$COMMON_OVERRIDES" "$_R"
@@ -1676,27 +1688,45 @@ if [[ $wantedDll == "manual" ]]; then
 fi
 # Z0035
 
+# Z0037 Shader selection — let the user pick which repos to link for this game.
+_selectedRepos=""
+if [[ -n $SHADER_REPOS ]]; then
+    _prevRepos=$(readSelectedReposFromState "$_stateFile")
+    _selectedRepos=$(selectShaders "$_prevRepos") || exit 0
+    if [[ -n $_selectedRepos ]]; then
+        printf '%bSelected shader repos:%b %s\n' "$_GRN" "$_R" "$_selectedRepos"
+    else
+        printf '%bNo shader repos selected — ReShade will have no shaders linked.%b\n' "$_YLW" "$_R"
+    fi
+fi
+# Z0037
+
 # If WINEPREFIX was not set by the user or Vulkan path, try to auto-detect it
 # from the game path when the game lives under a Steam steamapps/common/ tree.
 if [[ -z $WINEPREFIX && $gamePath == */steamapps/common/* ]]; then
     _steamRoot="${gamePath%/steamapps/common/*}"
-    _gameName="${gamePath##*/steamapps/common/}"
-    _gameName="${_gameName%%/*}"
-    # Locate the ACF manifest whose "installdir" matches this game folder name.
-    _acf=""
-    while IFS= read -r _f; do
-        if grep -qF "\"$_gameName\"" "$_f" 2>/dev/null; then
-            _acf="$_f"; break
-        fi
-    done < <(grep -rl '"installdir"' "$_steamRoot/steamapps/" 2>/dev/null)
-    if [[ -n $_acf ]]; then
-        _appid=$(grep -o '"appid"[[:space:]]*"[0-9]*"' "$_acf" 2>/dev/null \
-            | grep -o '[0-9]*' | head -1)
-        _pfx="$_steamRoot/steamapps/compatdata/$_appid/pfx"
-        if [[ -n $_appid && -d $_pfx ]]; then
-            export WINEPREFIX="$_pfx"
-            printf '%bAuto-detected WINEPREFIX:%b %s\n' "$_GRN" "$_R" "$WINEPREFIX"
-        fi
+    _pfx=""
+    if [[ -n $_selectedAppId ]]; then
+        # Fast path: AppID already known from the game picker — go directly to compatdata.
+        _pfx="$_steamRoot/steamapps/compatdata/$_selectedAppId/pfx"
+    else
+        # Slow path: search only the top-level appmanifest_*.acf files (never recurse
+        # into steamapps/common/ which can contain hundreds of GB of game data).
+        _gameName="${gamePath##*/steamapps/common/}"
+        _gameName="${_gameName%%/*}"
+        for _acf in "$_steamRoot/steamapps"/appmanifest_*.acf; do
+            [[ -f $_acf ]] || continue
+            if grep -qF "\"$_gameName\"" "$_acf" 2>/dev/null; then
+                _appid=$(grep -o '"appid"[[:space:]]*"[0-9]*"' "$_acf" \
+                    | grep -o '[0-9]*' | head -1)
+                [[ -n $_appid ]] && _pfx="$_steamRoot/steamapps/compatdata/$_appid/pfx"
+                break
+            fi
+        done
+    fi
+    if [[ -n $_pfx && -d $_pfx ]]; then
+        export WINEPREFIX="$_pfx"
+        printf '%bAuto-detected WINEPREFIX:%b %s\n' "$_GRN" "$_R" "$WINEPREFIX"
     fi
     unset _steamRoot _gameName _acf _appid _pfx
 fi
@@ -1708,71 +1738,55 @@ linkD3dcompilerToWineprefix "$exeArch"
 # Z0040
 
 # Z0045
-printStep "Linking ReShade files to game directory"
-[[ -L $gamePath/$wantedDll.dll ]] && unlink "$gamePath/$wantedDll.dll"
-if [[ $exeArch == 32 ]]; then
-    printf '%bLinking ReShade32.dll → %s.dll%b\n' "$_GRN" "$wantedDll" "$_R"
-    ln -is "$(realpath "$RESHADE_PATH/$RESHADE_VERSION"/ReShade32.dll)" "$gamePath/$wantedDll.dll"
-else
-    printf '%bLinking ReShade64.dll → %s.dll%b\n' "$_GRN" "$wantedDll" "$_R"
-    ln -is "$(realpath "$RESHADE_PATH/$RESHADE_VERSION"/ReShade64.dll)" "$gamePath/$wantedDll.dll"
-fi
-[[ -L $gamePath/d3dcompiler_47.dll ]] && unlink "$gamePath/d3dcompiler_47.dll"
-ln -is "$(realpath "$MAIN_PATH/d3dcompiler_47.dll.$exeArch")" "$gamePath/d3dcompiler_47.dll"
-[[ -L $gamePath/ReShade_shaders ]] && unlink "$gamePath/ReShade_shaders"
-ln -is "$(realpath "$MAIN_PATH"/ReShade_shaders)" "$gamePath/"
-if [[ $GLOBAL_INI != 0 ]] && [[ -f $MAIN_PATH/$GLOBAL_INI ]]; then
-    [[ -L $gamePath/$GLOBAL_INI ]] && unlink "$gamePath/$GLOBAL_INI"
-    ln -is "$(realpath "$MAIN_PATH/$GLOBAL_INI")" "$gamePath/$GLOBAL_INI"
-fi
-if [[ -f $MAIN_PATH/$LINK_PRESET ]]; then
-    echo "Linking $LINK_PRESET to game directory."
-    [[ -L $gamePath/$LINK_PRESET ]] && unlink "$gamePath/$LINK_PRESET"
-    ln -is "$(realpath "$MAIN_PATH/$LINK_PRESET")" "$gamePath/$LINK_PRESET"
-fi
+# shellcheck disable=SC2329  # Invoked indirectly via withProgress "$@".
+_linkGameFiles() {
+    printStep "Linking ReShade files to game directory"
+    [[ -L $gamePath/$wantedDll.dll ]] && unlink "$gamePath/$wantedDll.dll"
+    if [[ $exeArch == 32 ]]; then
+        printf '%bLinking ReShade32.dll → %s.dll%b\n' "$_GRN" "$wantedDll" "$_R"
+        ln -sf "$(realpath "$RESHADE_PATH/$RESHADE_VERSION"/ReShade32.dll)" "$gamePath/$wantedDll.dll"
+    else
+        printf '%bLinking ReShade64.dll → %s.dll%b\n' "$_GRN" "$wantedDll" "$_R"
+        ln -sf "$(realpath "$RESHADE_PATH/$RESHADE_VERSION"/ReShade64.dll)" "$gamePath/$wantedDll.dll"
+    fi
+    [[ -L $gamePath/d3dcompiler_47.dll ]] && unlink "$gamePath/d3dcompiler_47.dll"
+    ln -sf "$(realpath "$MAIN_PATH/d3dcompiler_47.dll.$exeArch")" "$gamePath/d3dcompiler_47.dll"
+    [[ -L $gamePath/ReShade_shaders ]] && unlink "$gamePath/ReShade_shaders"
+    printf '%bBuilding per-game shader directory...%b\n' "$_GRN" "$_R"
+    buildGameShaderDir "$_selectedGameKey" "$_selectedRepos"
+    ln -sf "$(realpath "$MAIN_PATH/game-shaders/$_selectedGameKey")" "$gamePath/ReShade_shaders"
+    ensureGameIni "$gamePath"
+    ensureGamePreset "$gamePath"
+}
+withProgress "Linking ReShade to game directory..." _linkGameFiles
+unset -f _linkGameFiles
 # Z0045
 
 # Persist installation details so future runs can skip the DLL dialog
 # and the batch --update-all mode knows which games have ReShade.
-writeGameState "$_selectedAppId" "$gamePath" "$wantedDll" "$exeArch"
+writeGameState "$_selectedGameKey" "$gamePath" "$wantedDll" "$exeArch" "$_selectedRepos" "$_selectedAppId"
 
 gameEnvVar="WINEDLLOVERRIDES=\"d3dcompiler_47=n;$wantedDll=n,b\""
 
-# Try to write the Steam launch option directly into localconfig.vdf.
 _launchOpt="$gameEnvVar %command%"
-_launchApplied=0
-if [[ -n $_selectedAppId ]]; then
-    if applyLaunchOption "$_selectedAppId" "$_launchOpt"; then
-        _launchApplied=1
-        printf '%bSteam launch option written automatically%b (restart Steam if already running).%b\n' \
-            "$_GRN" "$_YLW" "$_R"
-    fi
+_clipCopied=0
+if [[ -n $_selectedAppId ]] && copyToClipboard "$_launchOpt"; then
+    _clipCopied=1
+    printf '%bSteam launch option copied to clipboard.%b Paste it into Game Properties -> Launch Options.\n' \
+        "$_GRN" "$_R"
 fi
 
-# In GUI mode, also copy the Steam launch option to the clipboard if possible.
-_clipNote=""
-if [[ $_GUI -eq 1 ]]; then
-    if [[ -n ${WAYLAND_DISPLAY:-} ]] && command -v wl-copy &>/dev/null; then
-        printf '%s' "$_launchOpt" | wl-copy 2>/dev/null \
-            && _clipNote="\n\n<i>The Steam launch option has been copied to your clipboard.</i>"
-    elif [[ -n ${DISPLAY:-} ]] && command -v xclip &>/dev/null; then
-        printf '%s' "$_launchOpt" | xclip -selection clipboard 2>/dev/null \
-            && _clipNote="\n\n<i>The Steam launch option has been copied to your clipboard.</i>"
-    fi
-    [[ $_launchApplied -eq 1 && -z $_clipNote ]] \
-        && _clipNote="\n\n<i>Steam launch option applied automatically.</i>"
-fi
 unset _launchOpt
 
 printf '%b%s\n  Done!\n%s%b\n' "$_GRN$_B" "$SEPARATOR" "$SEPARATOR" "$_R"
-printf '\n%bSteam launch option%b (Game Properties → Launch Options):\n  %b%s %%command%%%b\n' \
+printf '\n%bSteam launch option required for Steam launches%b (Game Properties -> Launch Options):\n  %b%s %%command%%%b\n' \
     "$_GRN$_B" "$_R" "$_CYN$_B" "$gameEnvVar" "$_R"
 printf '%bNon-Steam — run the game with:%b\n  %b%s%b\n' \
     "$_GRN$_B" "$_R" "$_CYN$_B" "$gameEnvVar" "$_R"
 printf '\n%bReShade first-run setup:%b\n' "$_GRN$_B" "$_R"
 printf '  In the ReShade overlay, open the %bSettings%b tab.\n' "$_B" "$_R"
 printf '  Ensure shader/texture paths point inside: %b%s/ReShade_shaders/Merged/%b\n' \
-    "$_CYN" "$MAIN_PATH" "$_R"
+    "$_CYN" "$gamePath" "$_R"
 printf '  Then go to the %bHome%b tab and click %bReload%b.\n' "$_B" "$_R" "$_B" "$_R"
 if [[ -z $WINEPREFIX ]]; then
     printf '\n%bNote:%b ReShade 6.5+ also requires d3dcompiler_47.dll inside the game'"'"'s Wine/Proton prefix.\n' "$_YLW$_B" "$_R"
@@ -1781,23 +1795,17 @@ if [[ -z $WINEPREFIX ]]; then
         "$_CYN" "$HOME" "$0" "$_R"
 fi
 
-if [[ $_GUI -eq 1 ]]; then
-    _wineNote=""
-    [[ -z $WINEPREFIX ]] && _wineNote="\n\n<b>Note:</b> ReShade 6.5+ also requires d3dcompiler_47.dll inside the game's Wine/Proton prefix. If shaders fail to compile, re-run with:\n<tt>WINEPREFIX=\"\$HOME/.local/share/Steam/steamapps/compatdata/&lt;AppID&gt;/pfx\" $0</tt>"
-    yad --info \
-        --title="ReShade — Done!" \
-        --text="<b>ReShade installation complete!</b>
-
-<b>Steam launch option</b> (Game Properties → Launch Options):
-<tt>$gameEnvVar %command%</tt>
-
-<b>Non-Steam — run the game with:</b>
-<tt>$gameEnvVar</tt>
-
-<b>ReShade first-run setup:</b>
-In the ReShade overlay, open the <b>Settings</b> tab.
-Ensure shader/texture paths point inside:
-<tt>$MAIN_PATH/ReShade_shaders/Merged/</tt>
-Then go to the <b>Home</b> tab and click <b>Reload</b>.$_wineNote$_clipNote" \
-        --button="OK:0" --width=680 2>/dev/null
+if [[ $_UI_BACKEND != cli ]]; then
+    _summary="ReShade installation complete."
+    _summary+="\n\nSteam launch option required for Steam launches:\n$gameEnvVar %command%"
+    if [[ $_clipCopied -eq 1 ]]; then
+        _summary+="\n\nThe Steam launch option was copied to the clipboard."
+    else
+        _summary+="\n\nCopy and paste it into Game Properties -> Launch Options."
+    fi
+    _summary+="\n\nNon-Steam:\n$gameEnvVar\n\nReShade first-run setup:\nOpen Settings, point shader/texture paths to:\n$gamePath/ReShade_shaders/Merged/\nThen click Reload."
+    if [[ -z $WINEPREFIX ]]; then
+        _summary+="\n\nNote: ReShade 6.5+ also requires d3dcompiler_47.dll inside the game's Wine/Proton prefix."
+    fi
+    ui_msgbox "ReShade - Done" "$_summary" 20 78
 fi
