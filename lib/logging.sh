@@ -1,3 +1,5 @@
+# shellcheck shell=bash
+
 _R=$'\e[0m'
 _B=$'\e[1m'
 _RED=$'\e[31m'

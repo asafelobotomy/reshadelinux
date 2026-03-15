@@ -1,3 +1,5 @@
+# shellcheck shell=bash
+
 function chooseUiBackend() {
     local _hasTty="${1:-0}"
     local _forced="${UI_BACKEND:-auto}"
@@ -9,6 +11,7 @@ function chooseUiBackend() {
             ;;
         *)
             printErr "Invalid UI_BACKEND='$_forced'. Expected one of: auto, yad, whiptail, dialog, cli."
+            return 1
             ;;
     esac
     if [[ $_hasTty -eq 1 ]]; then

@@ -1,3 +1,5 @@
+# shellcheck shell=bash
+
 # Build a stable per-game install key.
 # Steam games use the AppID directly; non-Steam games use a path hash.
 # $1=appId  $2=gamePath

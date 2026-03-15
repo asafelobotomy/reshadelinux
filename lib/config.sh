@@ -1,3 +1,5 @@
+# shellcheck shell=bash
+
 function init_runtime_config() {
     _has_tty=0
     [[ -t 0 && -t 1 ]] && _has_tty=1
@@ -6,7 +8,10 @@ function init_runtime_config() {
     _CURL_PROG=(--progress-bar)
     [[ $_UI_BACKEND != cli ]] && _CURL_PROG=(--silent)
 
+    # Shared runtime globals are consumed by the main script after sourcing this file.
+    # shellcheck disable=SC2034
     COMMON_OVERRIDES="d3d8 d3d9 d3d11 d3d12 ddraw dinput8 dxgi opengl32"
+    # shellcheck disable=SC2034
     REQUIRED_EXECUTABLES=(7z curl file git grep sed sha256sum)
     XDG_DATA_HOME=${XDG_DATA_HOME:-"$HOME/.local/share"}
     UI_BACKEND=${UI_BACKEND:-auto}
@@ -34,7 +39,9 @@ function init_runtime_config() {
                 printf '%bBoth Flatpak and native Steam installs detected.%b\n' "$_YLW$_B" "$_R"
                 printf '  1) Flatpak Steam  → %s/reshade\n' "$_flatpak_data"
                 printf '  2) Native Steam   → %s/reshade\n' "$XDG_DATA_HOME"
-                if [[ $(checkStdin "Which installation? (1/2): " "^(1|2)$") == "1" ]]; then
+                local _installChoice
+                _installChoice=$(checkStdin "Which installation? (1/2): " "^(1|2)$") || exit 1
+                if [[ $_installChoice == "1" ]]; then
                     MAIN_PATH="$_flatpak_data/reshade"
                 else
                     MAIN_PATH="$XDG_DATA_HOME/reshade"
@@ -45,8 +52,10 @@ function init_runtime_config() {
         fi
     fi
 
+    # shellcheck disable=SC2034
     RESHADE_PATH="$MAIN_PATH/reshade"
     local _tmp_path="${MAIN_PATH#/home/"$USER"/}"
+    # shellcheck disable=SC2034
     WINE_MAIN_PATH="${_tmp_path//\//\\\\}"
 
     UPDATE_RESHADE=${UPDATE_RESHADE:-1}
@@ -56,8 +65,11 @@ function init_runtime_config() {
     RESHADE_VERSION=${RESHADE_VERSION:-"latest"}
     RESHADE_ADDON_SUPPORT=${RESHADE_ADDON_SUPPORT:-0}
     FORCE_RESHADE_UPDATE_CHECK=${FORCE_RESHADE_UPDATE_CHECK:-0}
+    # shellcheck disable=SC2034
     RESHADE_URL="https://reshade.me"
+    # shellcheck disable=SC2034
     RESHADE_URL_ALT="https://static.reshade.me"
     WINEPREFIX=${WINEPREFIX:-""}
+    # shellcheck disable=SC2034
     BUILTIN_GAME_DIR_PRESETS="1091500|bin/x64;292030|bin/x64;275850|Binaries;1245620|Game;306130|The Elder Scrolls Online/game/client;2623190|OblivionRemastered/Binaries/Win64"
 }

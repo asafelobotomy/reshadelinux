@@ -66,7 +66,7 @@ To force a backend manually, set `UI_BACKEND` to `auto`, `yad`, `whiptail`, `dia
 | **D3D12** | `d3d12` added to `COMMON_OVERRIDES` (ReShade officially supports Direct3D 12) |
 | **Shader repos** | Expanded from 6 to 18 curated repositories covering AA, AO, DoF, colour grading, LUTs, and more (OtisFX, qUINT, Insane-Shaders, NiceGuy, Glamarye, CobraFX, CorgiFX, MLUT, and others); checklist now shows human-readable descriptions instead of raw URLs; box height adapts to terminal size |
 | **D3D compiler** | `downloadD3dcompiler_47()` uses [mozilla/fxc2](https://github.com/mozilla/fxc2) (same as Winetricks) with sha256 verification instead of a 50 MB Firefox 62 installer |
-| **ShellCheck** | Zero warnings |
+| **ShellCheck** | Clean entry scripts and sourced library files are annotated for Bash-aware analysis |
 
 ---
 
@@ -117,6 +117,14 @@ If you want to launch the graphical wrapper directly, run:
 ```
 
 That wrapper forces `UI_BACKEND=yad` and starts [reshade-linux.sh](reshade-linux.sh). For desktop packaging, the repository also includes an AppImage-style launcher and desktop entry under `appimage/AppDir/`.
+
+## Repository layout
+
+- `reshade-linux.sh` and `reshade-linux-gui.sh` are the user-facing entrypoints kept at the repository root.
+- `lib/` contains the production Bash libraries grouped by runtime concern: config, state, shaders, Steam detection, install flow, and orchestration helpers.
+- `tests/` contains the automated shell regression suite and test fixtures.
+- `scripts/diagnostics/` contains local debugging and manual inspection scripts.
+- `appimage/` contains desktop-packaging assets.
 
 ---
 

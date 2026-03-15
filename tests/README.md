@@ -11,8 +11,10 @@ bash tests/run_simple_tests.sh
 ## Files
 
 - `run_simple_tests.sh` - main regression suite used locally and in CI
+- `test_detection_groups.sh` - detection, UI, preset, and integration test groups sourced by the runner
+- `test_state_shader_groups.sh` - state, release metadata, and shader test groups sourced by the runner
 - `fixtures.sh` - isolated temp Steam, cache, and shader fixture helpers
-- `test_functions.sh` - mirrored pure-shell helpers extracted from `reshade-linux.sh`
+- `test_functions.sh` - loader that sources the production libraries used by the tests
 
 ## Coverage
 
@@ -36,8 +38,8 @@ The current shell suite covers:
 
 - Tests run in isolated temporary directories and do not touch the real Steam install.
 - `HOME`, `XDG_CACHE_HOME`, and `MAIN_PATH` are redirected into the fixture tree for each test.
-- `test_functions.sh` must stay behaviorally aligned with the production functions it mirrors.
-- When adding a new regression test, update both `run_simple_tests.sh` and `test_functions.sh` if the production logic is mirrored there.
+- `test_functions.sh` should keep sourcing the production libraries directly so tests do not drift from runtime behavior.
+- Add new test functions to the appropriate grouped test file, then invoke them from `run_simple_tests.sh`.
 
 ## CI
 
@@ -76,7 +78,7 @@ bash tests/run_simple_tests.sh
 If scripts lose their executable bit locally:
 
 ```bash
-chmod +x tests/*.sh
+chmod +x tests/*.sh scripts/diagnostics/*.sh
 ```
 
 ## License

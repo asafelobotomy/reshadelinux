@@ -1,3 +1,5 @@
+# shellcheck shell=bash
+
 # Parse a SHADER_REPOS entry into shared variables.
 # Format: URL|localname[|branch[|description]]
 function parseShaderRepoEntry() {
@@ -35,8 +37,9 @@ function buildGameShaderDir() {
     local _gameShaderDir="$MAIN_PATH/game-shaders/$_gameKey"
     rm -rf "$_gameShaderDir"
     mkdir -p "$_gameShaderDir/Merged/Shaders" "$_gameShaderDir/Merged/Textures"
-    local _outBase="$_gameShaderDir/Merged" _entry
+    local _outBase="$_gameShaderDir/Merged" _entry _selectedCount=0 _currentIndex=0
     local -A _seen=()
+
     IFS=';' read -ra _allRepos <<< "$SHADER_REPOS"
     for _entry in "${_allRepos[@]}"; do
         parseShaderRepoEntry "$_entry"
@@ -45,15 +48,33 @@ function buildGameShaderDir() {
         _seen["$_shaderRepoName"]=1
         [[ ",$_selectedRepos," != *",$_shaderRepoName,"* ]] && continue
         [[ ! -d "$MAIN_PATH/ReShade_shaders/$_shaderRepoName" ]] && continue
+        _selectedCount=$((_selectedCount + 1))
+    done
+
+    _seen=()
+    for _entry in "${_allRepos[@]}"; do
+        parseShaderRepoEntry "$_entry"
+        [[ -z $_shaderRepoName ]] && continue
+        [[ -n ${_seen["$_shaderRepoName"]+x} ]] && continue
+        _seen["$_shaderRepoName"]=1
+        [[ ",$_selectedRepos," != *",$_shaderRepoName,"* ]] && continue
+        [[ ! -d "$MAIN_PATH/ReShade_shaders/$_shaderRepoName" ]] && continue
+        _currentIndex=$((_currentIndex + 1))
+        setProgressText "Building shader directory\n[$_currentIndex/$_selectedCount] Merging $_shaderRepoName"
+        printf '%b[%d/%d] Merging shader repo:%b %s\n' \
+            "$_CYN$_B" "$_currentIndex" "$_selectedCount" "$_R" "$_shaderRepoName"
         mergeShaderDirsTo "ReShade_shaders" "$_shaderRepoName" "$_outBase"
     done
     if [[ -d "$MAIN_PATH/External_shaders" ]]; then
+        setProgressText "Building shader directory\n[extra] Merging external shaders"
+        printf '%b[extra] Merging external shaders%b\n' "$_CYN$_B" "$_R"
         mergeShaderDirsTo "External_shaders" "" "$_outBase"
-        cd "$MAIN_PATH/External_shaders" || return
-        local _file
-        for _file in *; do
-            [[ ! -f $_file || -L "$_outBase/Shaders/$_file" ]] && continue
-            ln -s "$(realpath "$MAIN_PATH/External_shaders/$_file")" "$_outBase/Shaders/"
+        local _file _basename
+        for _file in "$MAIN_PATH/External_shaders"/*; do
+            [[ ! -f $_file ]] && continue
+            _basename="${_file##*/}"
+            [[ -L "$_outBase/Shaders/$_basename" ]] && continue
+            ln -s "$(realpath "$_file")" "$_outBase/Shaders/"
         done
     fi
 }
@@ -200,15 +221,16 @@ function selectShaders() {
 function linkShaderFilesTo() {
     [[ ! -d $1 ]] && return
     local _inDir="$1" _subDir="$2" _outBase="$3"
-    cd "$_inDir" || return
     local _outDir="$_outBase/$_subDir"
     mkdir -p "$_outDir"
     local _outDirReal
     _outDirReal="$(realpath "$_outDir")"
-    for file in *; do
-        [[ ! -f $file ]] && continue
-        [[ -L "$_outDirReal/$file" ]] && continue
-        ln -s "$(realpath "$_inDir/$file")" "$_outDirReal/"
+    local _file _basename
+    for _file in "$_inDir"/*; do
+        [[ ! -f $_file ]] && continue
+        _basename="${_file##*/}"
+        [[ -L "$_outDirReal/$_basename" ]] && continue
+        ln -s "$(realpath "$_file")" "$_outDirReal/"
     done
 }
 
@@ -219,14 +241,31 @@ function linkShaderFilesTo() {
 function mergeShaderDirsTo() {
     [[ $1 != ReShade_shaders && $1 != External_shaders ]] && return
     local _outBase="$3"
-    local dirPath
+    local _repoRoot="" dirPath
+
+    if [[ $1 == "ReShade_shaders" ]]; then
+        _repoRoot="$MAIN_PATH/$1/$2"
+    else
+        _repoRoot="$MAIN_PATH/$1"
+    fi
+
     for dirName in Shaders Textures; do
-        [[ $1 == "ReShade_shaders" ]] \
-            && dirPath=$(find "$MAIN_PATH/$1/$2" ! -path . -type d -name "$dirName") \
-            || dirPath="$MAIN_PATH/$1/$dirName"
+        if [[ $1 == "ReShade_shaders" ]]; then
+            if [[ -d "$_repoRoot/$dirName" ]]; then
+                dirPath="$_repoRoot/$dirName"
+            else
+                dirPath=$(find "$_repoRoot" \
+                    -maxdepth 4 \
+                    \( -path '*/.git' -o -path '*/.github' -o -path '*/download' \) -prune -o \
+                    -type d -name "$dirName" -print -quit)
+            fi
+        else
+            dirPath="$_repoRoot/$dirName"
+        fi
+        [[ -z $dirPath || ! -d $dirPath ]] && continue
         linkShaderFilesTo "$dirPath" "$dirName" "$_outBase"
         while IFS= read -rd '' anyDir; do
             linkShaderFilesTo "$dirPath/$anyDir" "$dirName/$anyDir" "$_outBase"
-        done < <(find . ! -path . -type d -print0)
+        done < <(cd "$dirPath" && find . -mindepth 1 -type d -print0)
     done
 }
