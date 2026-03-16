@@ -24,39 +24,54 @@ function setProgressText() {
 
 function withProgress() {
     local text="$1"; shift
+    local _startTs _status
+    _startTs=$(date +%s)
+    logDebug "withProgress start backend=${_UI_BACKEND:-unknown} progress_ui=${PROGRESS_UI:-1} text=${text//$'\n'/ | }"
+    if [[ ${PROGRESS_UI:-1} != 1 ]]; then
+        "$@"
+        _status=$?
+        logDebug "withProgress finish backend=${_UI_BACKEND:-unknown} status=$_status elapsed=$(( $(date +%s) - _startTs ))s text=${text//$'\n'/ | }"
+        return $_status
+    fi
     if [[ $_UI_BACKEND == yad ]]; then
-        local _progressFile _stopFile _yadPid _ret
+        local _progressFile _stopFile _yadPipe _yadPipeFd _yadPid _writerPid _ret
         _progressFile=$(mktemp)
         _stopFile=$(mktemp)   # file existence signals the loop to keep running
+        _yadPipe=$(mktemp -u)
+        mkfifo "$_yadPipe"
         setProgressText "$text"
         _WITH_PROGRESS_FILE="$_progressFile"
+        exec {_yadPipeFd}<>"$_yadPipe"
+        yad --progress --pulsate --no-buttons --auto-close \
+            --title="ReShade" --text="$text" --width=520 <"$_yadPipe" >/dev/null 2>&1 &
+        _yadPid=$!
         (
             set +x
             local _lastText=""
             while [[ -f "$_stopFile" ]]; do
-                printf '1\n' 2>/dev/null || true
+                printf '1\n' >&$_yadPipeFd || break
                 if [[ -f "$_progressFile" ]]; then
                     local _currentText
                     _currentText=$(<"$_progressFile")
                     if [[ "$_currentText" != "$_lastText" ]]; then
-                        printf '#%s\n' "$_currentText" 2>/dev/null || true
+                        printf '#%s\n' "$_currentText" >&$_yadPipeFd || break
                         _lastText="$_currentText"
                     fi
                 fi
                 sleep 0.1
             done
-        ) \
-            | yad --progress --pulsate --no-buttons --auto-close \
-                  --title="ReShade" --text="$text" --width=520 >/dev/null 2>&1 &
-        _yadPid=$!
+        ) &
+        _writerPid=$!
         "$@"
         _ret=$?
         rm -f "$_stopFile"    # tell the loop to exit on next check
-        sleep 0.15            # allow one loop cycle to complete and the subshell to exit
+        wait "$_writerPid" 2>/dev/null || true
+        exec {_yadPipeFd}>&-
         kill "$_yadPid" 2>/dev/null || true
         wait "$_yadPid" 2>/dev/null || true
-        rm -f "$_progressFile"
+        rm -f "$_progressFile" "$_yadPipe"
         unset _WITH_PROGRESS_FILE _WITH_PROGRESS_TEXT
+        logDebug "withProgress finish backend=yad status=$_ret elapsed=$(( $(date +%s) - _startTs ))s text=${text//$'\n'/ | }"
         return $_ret
     fi
     if [[ $_UI_BACKEND != cli ]]; then
@@ -65,6 +80,9 @@ function withProgress() {
         ui_refresh_screen
     fi
     "$@"
+    _status=$?
+    logDebug "withProgress finish backend=${_UI_BACKEND:-unknown} status=$_status elapsed=$(( $(date +%s) - _startTs ))s text=${text//$'\n'/ | }"
+    return $_status
 }
 
 function copyToClipboard() {

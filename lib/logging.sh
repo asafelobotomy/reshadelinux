@@ -16,3 +16,11 @@ function printErr() {
     [[ ${_UI_BACKEND:-cli} == yad ]] && yad --error --title="ReShade - Error" --text="$*" --width=520 >/dev/null 2>&1 || true
     exit 1
 }
+
+function logDebug() {
+    [[ -n ${RESHADE_DEBUG_LOG:-} ]] || return 0
+    local _dir
+    _dir=$(dirname "$RESHADE_DEBUG_LOG")
+    mkdir -p "$_dir" 2>/dev/null || return 0
+    printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" >> "$RESHADE_DEBUG_LOG" 2>/dev/null || true
+}

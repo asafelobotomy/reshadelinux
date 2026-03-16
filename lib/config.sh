@@ -60,6 +60,8 @@ function init_runtime_config() {
     RESHADE_VERSION=${RESHADE_VERSION:-"latest"}
     RESHADE_ADDON_SUPPORT=${RESHADE_ADDON_SUPPORT:-0}
     FORCE_RESHADE_UPDATE_CHECK=${FORCE_RESHADE_UPDATE_CHECK:-0}
+    PROGRESS_UI=${PROGRESS_UI:-1}
+    RESHADE_DEBUG_LOG=${RESHADE_DEBUG_LOG:-""}
     # shellcheck disable=SC2034
     RESHADE_URL="https://reshade.me"
     # shellcheck disable=SC2034

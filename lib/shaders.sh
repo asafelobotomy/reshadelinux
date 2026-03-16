@@ -7,7 +7,10 @@ function parseShaderRepoEntry() {
     local _savedIFS="$IFS"
     IFS='|' read -r _shaderRepoUri _shaderRepoName _shaderRepoBranch _shaderRepoDesc <<< "$_entry"
     IFS="$_savedIFS"
-    [[ -z $_shaderRepoDesc ]] && _shaderRepoDesc="$_shaderRepoUri"
+    if [[ -z $_shaderRepoDesc ]]; then
+        _shaderRepoDesc="$_shaderRepoUri"
+    fi
+    return 0
 }
 
 # Return a comma-separated list of all configured shader repo names.
@@ -58,6 +61,7 @@ function getAvailableSelectedRepos() {
 function buildGameShaderDir() {
     local _gameKey="$1" _selectedRepos="$2"
     [[ -z $_gameKey ]] && return 1
+    logDebug "buildGameShaderDir start gameKey=$_gameKey repos=${_selectedRepos:-<none>}"
     local _gameShaderDir="$MAIN_PATH/game-shaders/$_gameKey"
     rm -rf "$_gameShaderDir"
     mkdir -p "$_gameShaderDir/Merged/Shaders" "$_gameShaderDir/Merged/Textures"
@@ -85,12 +89,14 @@ function buildGameShaderDir() {
         [[ ! -d "$MAIN_PATH/ReShade_shaders/$_shaderRepoName" ]] && continue
         _currentIndex=$((_currentIndex + 1))
         setProgressText "Building shader directory\n[$_currentIndex/$_selectedCount] Merging $_shaderRepoName"
+        logDebug "buildGameShaderDir repo $_currentIndex/$_selectedCount name=$_shaderRepoName"
         printf '%b[%d/%d] Merging shader repo:%b %s\n' \
             "$_CYN$_B" "$_currentIndex" "$_selectedCount" "$_R" "$_shaderRepoName"
         mergeShaderDirsTo "ReShade_shaders" "$_shaderRepoName" "$_outBase"
     done
     if [[ -d "$MAIN_PATH/External_shaders" ]]; then
         setProgressText "Building shader directory\n[extra] Merging external shaders"
+        logDebug "buildGameShaderDir external shaders"
         printf '%b[extra] Merging external shaders%b\n' "$_CYN$_B" "$_R"
         mergeShaderDirsTo "External_shaders" "" "$_outBase"
         local _file _basename
@@ -101,6 +107,7 @@ function buildGameShaderDir() {
             ln -s "$(realpath "$_file")" "$_outBase/Shaders/"
         done
     fi
+    logDebug "buildGameShaderDir finish gameKey=$_gameKey"
 }
 
 # Clone and update selected shader repositories with error tracking.
@@ -220,7 +227,9 @@ function selectShaders() {
             "Select which shader repositories to install for this game. Unticking a repo removes its shaders from this game." \
             "$_box_h" 100 "$_list_h" "${_rows[@]}") || return 1
         _result=${_result//\"/}
-        IFS=' ' read -ra _selected_names <<< "$_result"
+        if [[ -n $_result ]]; then
+            mapfile -t _selected_names < <(printf '%s' "$_result" | tr '|\n\r\t ' '\n\n\n\n\n' | sed '/^$/d')
+        fi
     else
         printf '%bSelect shader repositories to install for this game:%b\n' "$_CYN" "$_R" >&2
         local _i _ans

@@ -287,6 +287,7 @@ function autoDetectWineprefixFromGamePath() {
 }
 
 function linkGameFilesForInstall() {
+    logDebug "linkGameFilesForInstall start gamePath=$gamePath dll=$wantedDll arch=$exeArch repos=${_selectedRepos:-<none>}"
     printStep "Linking ReShade files to game directory"
     [[ -L $gamePath/$wantedDll.dll ]] && unlink "$gamePath/$wantedDll.dll"
     if [[ $exeArch == 32 ]]; then
@@ -308,4 +309,5 @@ function linkGameFilesForInstall() {
     ln -sf "$(realpath "$MAIN_PATH/game-shaders/$_selectedGameKey")" "$gamePath/ReShade_shaders"
     ensureGameIni "$gamePath"
     ensureGamePreset "$gamePath"
+    logDebug "linkGameFilesForInstall finish gamePath=$gamePath dll=$wantedDll arch=$exeArch"
 }

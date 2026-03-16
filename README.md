@@ -110,6 +110,8 @@ VARIABLE=value ./reshade-linux.sh
 | `WINEPREFIX` | *(auto)* | Force a specific Wine prefix; auto-detected from `compatdata/` otherwise. |
 | `DELETE_RESHADE_FILES` | `0` | Also delete `ReShade.log` and `ReShadePreset.ini` when uninstalling. |
 | `FORCE_RESHADE_UPDATE_CHECK` | `0` | Bypass the 4-hour update check throttle. |
+| `PROGRESS_UI` | `1` | Set to `0` to disable progress widgets while keeping the selected non-CLI backend for dialogs and menus. Useful for diagnosing TUI/GUI stalls. |
+| `RESHADE_DEBUG_LOG` | *(empty)* | Append timestamped progress and linking trace messages to this file for debugging non-CLI hangs. |
 
 For full documentation of every variable and flag, see the [comments at the top of the script](https://github.com/asafelobotomy/reshade-steam/blob/main/reshade-linux.sh#L21).
 

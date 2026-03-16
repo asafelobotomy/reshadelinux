@@ -98,6 +98,19 @@ test_state_shader_repo_parser_keeps_empty_branch_with_description() {
     [[ "$_shaderRepoDesc" == "Description text" ]]
 }
 
+test_state_shader_repo_parser_succeeds_with_description_under_set_e() {
+    local _status
+    set +e
+    (
+        set -e
+        parseShaderRepoEntry "https://example.com/repo|alpha||Description text"
+        [[ "$_shaderRepoDesc" == "Description text" ]]
+    )
+    _status=$?
+    set -e
+    [[ $_status -eq 0 ]]
+}
+
 test_shader_build_supports_description_without_branch() {
     export SHADER_REPOS="https://example.com/a|alpha||Alpha description"
     create_mock_shader_repo "alpha"
@@ -117,6 +130,53 @@ test_shader_cli_selection_returns_names_only() {
     _UI_BACKEND=cli
     _output=$(printf '\n' | selectShaders "alpha" 2>/dev/null)
     [[ "$_output" == "alpha" ]]
+}
+
+test_with_progress_yad_returns_after_command_finishes() {
+    local _fake_bin="$TEST_TEMP_DIR/bin"
+    local _pid _attempt
+
+    mkdir -p "$_fake_bin"
+    cat > "$_fake_bin/yad" <<'EOF'
+#!/bin/bash
+cat >/dev/null
+EOF
+    chmod +x "$_fake_bin/yad"
+
+    PATH="$_fake_bin:$PATH"
+    _UI_BACKEND=yad
+    PROGRESS_UI=1
+    export PATH PROGRESS_UI
+
+    ( withProgress "Testing progress..." true ) &
+    _pid=$!
+
+    for _attempt in $(seq 1 20); do
+        if ! kill -0 "$_pid" 2>/dev/null; then
+            wait "$_pid"
+            return $?
+        fi
+        sleep 0.1
+    done
+
+    kill "$_pid" 2>/dev/null || true
+    wait "$_pid" 2>/dev/null || true
+    return 1
+}
+
+test_shader_yad_selection_accepts_multiline_output() {
+    local _output
+
+    export SHADER_REPOS="https://example.com/a|alpha;https://example.com/b|beta;https://example.com/c|gamma"
+    _output=$( (
+        _UI_BACKEND=yad
+        ui_checklist() {
+            printf 'alpha\nbeta\ngamma\n'
+        }
+        selectShaders "alpha"
+    ) )
+
+    [[ "$_output" == "alpha,beta,gamma" ]]
 }
 
 test_batch_update_skips_invalid_state_file() {
@@ -268,6 +328,7 @@ run_state_and_shader_tests() {
     run_test "Formats installed game label" test_state_formats_installed_game_label
     run_test "Default repo parsing supports descriptions" test_state_default_repo_names_support_descriptions
     run_test "Shader repo parser keeps empty branch" test_state_shader_repo_parser_keeps_empty_branch_with_description
+    run_test "Shader repo parser succeeds under set -e" test_state_shader_repo_parser_succeeds_with_description_under_set_e
     echo ""
 
     echo -e "${BLUE}Release Metadata Tests${NC}"
@@ -284,6 +345,8 @@ run_state_and_shader_tests() {
     run_test "Build supports description without branch" test_shader_build_supports_description_without_branch
     run_test "Available repos only include existing dirs" test_shader_available_selected_repos_only_returns_existing_dirs
     run_test "CLI shader selection returns names only" test_shader_cli_selection_returns_names_only
+    run_test "YAD progress returns after command finishes" test_with_progress_yad_returns_after_command_finishes
+    run_test "YAD checklist accepts multiline output" test_shader_yad_selection_accepts_multiline_output
     run_test "Per-game ReShade.ini uses relative paths" test_game_ini_is_per_game_and_relative
     run_test "Batch update skips invalid state" test_batch_update_skips_invalid_state_file
     run_test "Batch update skips install prompt" test_batch_update_skips_install_prompt

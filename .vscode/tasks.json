@@ -1,0 +1,12 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "dialog-smoke-repro",
+			"type": "shell",
+			"command": "set -e; tmpdir=$(mktemp -d); mkdir -p \"$tmpdir/home\" \"$tmpdir/game\" \"$tmpdir/reshade/reshade/latest\" \"$tmpdir/reshade/game-state\" \"$tmpdir/reshade/game-shaders\"; touch \"$tmpdir/game/game.exe\" \"$tmpdir/reshade/reshade/latest/ReShade64.dll\" \"$tmpdir/reshade/reshade/latest/ReShade32.dll\" \"$tmpdir/reshade/d3dcompiler_47.dll.32\" \"$tmpdir/reshade/d3dcompiler_47.dll.64\"; cat > \"$tmpdir/input.txt\" <<EOF\ni\nm\n$tmpdir/game\ny\ny\nEOF\nHOME=\"$tmpdir/home\" MAIN_PATH=\"$tmpdir/reshade\" UPDATE_RESHADE=0 SHADER_REPOS=';' script -qec 'UI_BACKEND=dialog ./reshade-linux.sh < \"$0\"' /dev/null \"$tmpdir/input.txt\"",
+			"isBackground": false,
+			"group": "test"
+		}
+	]
+}
