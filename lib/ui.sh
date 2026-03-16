@@ -96,6 +96,7 @@ function ui_run() {
 function ui_msgbox() {
     local _title="$1" _text="$2" _height="${3:-14}" _width="${4:-70}"
     local _pxHeight _pxWidth
+    [[ ${UI_AUTO_CONFIRM:-0} == 1 ]] && return 0
     case $_UI_BACKEND in
         yad)
             read -r _pxHeight _pxWidth < <(ui_yad_dims "$_height" "$_width")
@@ -110,6 +111,7 @@ function ui_msgbox() {
 function ui_yesno() {
     local _title="$1" _text="$2" _height="${3:-12}" _width="${4:-70}"
     local _pxHeight _pxWidth
+    [[ ${UI_AUTO_CONFIRM:-0} == 1 ]] && return 0
     case $_UI_BACKEND in
         yad)
             read -r _pxHeight _pxWidth < <(ui_yad_dims "$_height" "$_width")

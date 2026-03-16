@@ -228,7 +228,7 @@ function selectShaders() {
             "$_box_h" 100 "$_list_h" "${_rows[@]}") || return 1
         _result=${_result//\"/}
         if [[ -n $_result ]]; then
-            mapfile -t _selected_names < <(printf '%s' "$_result" | tr '|\n\r\t ' '\n\n\n\n\n' | sed '/^$/d')
+            mapfile -t _selected_names < <(printf '%s' "$_result" | tr '|\n\r\t ' '\n' | sed '/^$/d')
         fi
     else
         printf '%bSelect shader repositories to install for this game:%b\n' "$_CYN" "$_R" >&2

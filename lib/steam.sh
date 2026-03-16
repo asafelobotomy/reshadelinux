@@ -1,4 +1,5 @@
 # shellcheck shell=bash
+# shellcheck disable=SC1091
 
 _STEAM_LIB_DIR="$(dirname "${BASH_SOURCE[0]}")"
 

@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# shellcheck disable=SC2154
+# shellcheck disable=SC2153,SC2154
 
 function checkRequiredExecutables() {
     local REQUIRED_EXECUTABLE _pkg
