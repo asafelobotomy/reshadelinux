@@ -9,6 +9,7 @@ The format is based on Keep a Changelog, adapted for this repository.
 ### Changed in 1.2.1
 
 - The VS Code `dialog-smoke-repro` task now uses `scripts/diagnostics/smoke_dialog.sh`, which avoids a hard dependency on the util-linux `script` command.
+- Diagnostics and test helpers now include explicit ShellCheck hints so repository-wide shell analysis passes cleanly.
 - Verification was re-run for the current codebase: shell tests, ShellCheck, and dialog smoke all pass in this environment.
 
 ## [1.2.0] - 2026-03-12

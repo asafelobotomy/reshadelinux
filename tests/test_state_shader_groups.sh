@@ -170,6 +170,7 @@ test_shader_yad_selection_accepts_multiline_output() {
     export SHADER_REPOS="https://example.com/a|alpha;https://example.com/b|beta;https://example.com/c|gamma"
     _output=$( (
         _UI_BACKEND=yad
+        # shellcheck disable=SC2329
         ui_checklist() {
             printf 'alpha\nbeta\ngamma\n'
         }
@@ -201,6 +202,7 @@ test_batch_update_skips_install_prompt() {
     _output=$( (
         _BATCH_UPDATE=1
         _UI_BACKEND=cli
+        # shellcheck disable=SC2329
         checkStdin() {
             printf 'prompted\n' >&2
             return 1
@@ -225,6 +227,7 @@ selected_repos=alpha,beta
 app_id=2000
 EOF
 
+    # shellcheck disable=SC2329
     ensureSelectedShaderRepos() {
         return 1
     }

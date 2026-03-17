@@ -19,18 +19,22 @@ TESTS_FAILED=0
 FAILED_TESTS=()
 
 # Source test utilities
+# shellcheck source=./fixtures.sh
 source "$SCRIPT_DIR/fixtures.sh" || {
     echo "Failed to source fixtures.sh"
     exit 1
 }
+# shellcheck source=./test_functions.sh
 source "$SCRIPT_DIR/test_functions.sh" || {
     echo "Failed to source test_functions.sh"
     exit 1
 }
+# shellcheck source=./test_detection_groups.sh
 source "$SCRIPT_DIR/test_detection_groups.sh" || {
     echo "Failed to source test_detection_groups.sh"
     exit 1
 }
+# shellcheck source=./test_state_shader_groups.sh
 source "$SCRIPT_DIR/test_state_shader_groups.sh" || {
     echo "Failed to source test_state_shader_groups.sh"
     exit 1

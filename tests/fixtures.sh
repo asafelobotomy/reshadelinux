@@ -169,7 +169,7 @@ load_functions_from_script() {
     
     if [[ -f "$script_file" ]]; then
         # Source the script but suppress version check and update messages
-        # shellcheck source=../reshade-linux.sh
+        # shellcheck disable=SC1090
         SKIP_RESHADE_CHECK=1 source "$script_file" 2>/dev/null || true
     fi
 }
