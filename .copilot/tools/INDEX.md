@@ -1,0 +1,3 @@
+| Tool | Lang | What it does | When to use | Output | Risk |
+|------|------|-------------|------------|--------|------|
+| `release-appimage.sh` | bash | Validate the repo, build the AppImage, commit tracked release changes, tag, push, and create or update the GitHub release | Publishing a new tagged AppImage release from the current `VERSION` and `CHANGELOG.md` | progress log, AppImage path, release URL | destructive |

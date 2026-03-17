@@ -125,6 +125,16 @@ If you want to launch the graphical wrapper directly, run:
 
 That wrapper prefers `UI_BACKEND=yad` when `yad` is installed and otherwise falls back to the default backend selection before starting [reshade-linux.sh](reshade-linux.sh). For desktop packaging, the repository also includes an AppImage-style launcher and desktop entry under `appimage/AppDir/`.
 
+## Release automation
+
+Maintainers can publish a new AppImage release from the current `VERSION` and top `CHANGELOG.md` entry with:
+
+```bash
+bash .copilot/tools/release-appimage.sh --yes
+```
+
+That helper runs the test suite and ShellCheck, builds `dist/reshade-linux-<version>-x86_64.AppImage`, commits tracked release changes, creates or reuses tag `v<version>`, pushes `main` and the tag, and creates or updates the GitHub release on `asafelobotomy/reshade-steam`.
+
 ## Repository layout
 
 - `reshade-linux.sh` and `reshade-linux-gui.sh` are the user-facing entrypoints kept at the repository root.
