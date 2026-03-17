@@ -2,3 +2,6 @@
 test_results.txt
 tests/bats/
 tests/test_helper/
+
+# Local release artifacts
+dist/
