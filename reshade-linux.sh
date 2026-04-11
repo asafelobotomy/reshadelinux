@@ -45,6 +45,7 @@ SCRIPT_DIR="$(dirname "$(realpath -- "$0")")"
 . "$SCRIPT_DIR/lib/logging.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/logging.sh" >&2; exit 1; }
 . "$SCRIPT_DIR/lib/ui.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/ui.sh" >&2; exit 1; }
 . "$SCRIPT_DIR/lib/utils.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/utils.sh" >&2; exit 1; }
+. "$SCRIPT_DIR/lib/cli.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/cli.sh" >&2; exit 1; }
 . "$SCRIPT_DIR/lib/config.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/config.sh" >&2; exit 1; }
 . "$SCRIPT_DIR/lib/state.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/state.sh" >&2; exit 1; }
 . "$SCRIPT_DIR/lib/shaders.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/shaders.sh" >&2; exit 1; }
@@ -58,19 +59,10 @@ SEPARATOR="---------------------------------------------------------------------
 # users who download just the .sh without the rest of the repository.
 # shellcheck disable=SC2034  # Consumed by flow helpers sourced from lib/flow.sh.
 SCRIPT_VERSION="$(cat "$SCRIPT_DIR/VERSION" 2>/dev/null || printf '1.3.0')"
+parseCliArgs "$@"
 init_runtime_config
-
-# Parse command-line arguments.
-_BATCH_UPDATE=0
-for _arg in "$@"; do
-    case "$_arg" in
-        --update-all) _BATCH_UPDATE=1 ;;
-        --help|-h)
-            printf 'Usage: %s [--update-all]\n' "$0"
-            printf '  --update-all  Re-link ReShade for all previously installed games (non-interactive).\n'
-            exit 0 ;;
-    esac
-done
+validateCliArgs
+handleCliInfoArgs
 
 checkRequiredExecutables
 
@@ -121,6 +113,11 @@ if [[ -f "$_stateFile" ]]; then
         printf '%bReusing stored settings for this game: %s-bit, %s.dll%b\n' \
             "$_GRN" "$exeArch" "$wantedDll" "$_R"
     fi
+fi
+
+if [[ ${CLI_DLL_OVERRIDE_SET:-0} -eq 1 ]]; then
+    wantedDll="$CLI_DLL_OVERRIDE"
+    printf '%bUsing CLI DLL override:%b %s.dll\n' "$_GRN" "$_R" "$wantedDll"
 fi
 
 if [[ -z $wantedDll ]]; then
@@ -183,7 +180,11 @@ _shaderDownloadSuccess=0
 _failedRepos=""
 if [[ -n $SHADER_REPOS ]]; then
     _prevRepos=$(readSelectedReposFromState "$_stateFile")
-    _selectedRepos=$(selectShaders "$_prevRepos") || exit 0
+    if [[ ${CLI_SHADER_REPOS_SET:-0} -eq 1 ]]; then
+        _selectedRepos="$CLI_SHADER_REPOS"
+    else
+        _selectedRepos=$(selectShaders "$_prevRepos") || exit 0
+    fi
     if [[ -n $_selectedRepos ]]; then
         _requestedSelectedRepos="$_selectedRepos"
         printf '%bSelected shader repos:%b %s\n' "$_GRN" "$_R" "$_selectedRepos"

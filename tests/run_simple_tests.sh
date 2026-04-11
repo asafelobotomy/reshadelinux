@@ -39,6 +39,11 @@ source "$SCRIPT_DIR/test_state_shader_groups.sh" || {
     echo "Failed to source test_state_shader_groups.sh"
     exit 1
 }
+# shellcheck source=./test_cli_groups.sh
+source "$SCRIPT_DIR/test_cli_groups.sh" || {
+    echo "Failed to source test_cli_groups.sh"
+    exit 1
+}
 
 run_test() {
     local test_name="$1"
@@ -69,6 +74,7 @@ main() {
 
     run_detection_tests
     run_state_and_shader_tests
+    run_cli_tests
 
     echo -e "${BLUE}========================================${NC}"
     echo -e "${BLUE}Test Summary${NC}"

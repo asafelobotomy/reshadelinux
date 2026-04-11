@@ -43,7 +43,7 @@ Systematically diagnose and resolve a failing CI pipeline or GitHub Actions work
 
 5. **Verify locally** — Run the equivalent check locally:
    - For lint: run the linter command from the workflow
-   - For tests: run the test command
+   - For tests: run the repository's main test command (for example, `npm test`, `pytest`, or `bash tests/run-all.sh`)
    - For structure: verify the file exists with `ls -la`
 
 6. **Check for cascade** — After fixing, scan for secondary failures that the primary fix might have introduced. Run the full three-check ritual if available.

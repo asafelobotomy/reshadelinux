@@ -1,0 +1,152 @@
+{
+  "$schema": "https://raw.githubusercontent.com/asafelobotomy/copilot-instructions-template/main/.copilot/schema/workspace-index.schema.json",
+  "schemaVersion": "1.0",
+  "updated": "2026-04-10",
+  "purpose": "Canonical machine-readable inventory for repository metadata.",
+  "counts": {
+    "agents": 13,
+    "agentSupportFiles": 1,
+    "skillsRepo": 16,
+    "skillsTemplate": 16,
+    "hookScriptsShell": 11,
+    "hookScriptsPowerShell": 12,
+    "hookScriptsPython": 6,
+    "hookScriptsJson": 1
+  },
+  "agents": [
+    "setup.agent.md",
+    "coding.agent.md",
+    "organise.agent.md",
+    "review.agent.md",
+    "fast.agent.md",
+    "audit.agent.md",
+    "explore.agent.md",
+    "extensions.agent.md",
+    "researcher.agent.md",
+    "commit.agent.md",
+    "debugger.agent.md",
+    "docs.agent.md",
+    "planner.agent.md"
+  ],
+  "agentSupportFiles": [
+    "routing-manifest.json"
+  ],
+  "skills": {
+    "repo": [
+      "skill-creator",
+      "fix-ci-failure",
+      "lean-pr-review",
+      "conventional-commit",
+      "create-adr",
+      "mcp-builder",
+      "webapp-testing",
+      "agentic-workflows",
+      "issue-triage",
+      "tool-protocol",
+      "skill-management",
+      "mcp-management",
+      "plugin-management",
+      "extension-review",
+      "test-coverage-review",
+      "commit-preflight"
+    ],
+    "template": [
+      "skill-creator",
+      "fix-ci-failure",
+      "lean-pr-review",
+      "conventional-commit",
+      "create-adr",
+      "mcp-builder",
+      "webapp-testing",
+      "agentic-workflows",
+      "issue-triage",
+      "tool-protocol",
+      "skill-management",
+      "mcp-management",
+      "plugin-management",
+      "extension-review",
+      "test-coverage-review",
+      "commit-preflight"
+    ]
+  },
+  "prompts": [
+    "commit-msg.prompt.md",
+    "context-map.prompt.md",
+    "explain.prompt.md",
+    "onboard-commit-style.prompt.md",
+    "refactor.prompt.md",
+    "review-file.prompt.md",
+    "test-gen.prompt.md"
+  ],
+  "instructions": [
+    "api-routes.instructions.md",
+    "config.instructions.md",
+    "docs.instructions.md",
+    "tests.instructions.md",
+    "terminal.instructions.md"
+  ],
+  "workspaceFiles": [
+    "identity/BOOTSTRAP.md",
+    "operations/HEARTBEAT.md",
+    "identity/IDENTITY.md",
+    "knowledge/MEMORY.md",
+    "knowledge/RESEARCH.md",
+    "identity/SOUL.md",
+    "knowledge/TOOLS.md",
+    "knowledge/USER.md",
+    "operations/commit-style.md",
+    "operations/workspace-index.json",
+    "knowledge/MEMORY-GUIDE.md",
+    "operations/ledger.md",
+    "knowledge/diaries/README.md"
+  ],
+  "workflowFiles": [
+    "copilot-setup-steps.yml"
+  ],
+  "hookScripts": {
+    "shell": [
+      "lib-hooks.sh",
+      "scan-secrets.sh",
+      "session-start.sh",
+      "guard-destructive.sh",
+      "post-edit-lint.sh",
+      "save-context.sh",
+      "subagent-start.sh",
+      "subagent-stop.sh",
+      "mcp-npx.sh",
+      "mcp-uvx.sh",
+      "pulse.sh"
+    ],
+    "powershell": [
+      "scan-secrets.ps1",
+      "session-start.ps1",
+      "guard-destructive.ps1",
+      "post-edit-lint.ps1",
+      "save-context.ps1",
+      "subagent-start.ps1",
+      "subagent-stop.ps1",
+      "pulse.ps1",
+      "pulse_intent.ps1",
+      "pulse_paths.ps1",
+      "pulse_runtime.ps1",
+      "pulse_state.ps1"
+    ],
+    "python": [
+      "heartbeat_clock_summary.py",
+      "mcp-heartbeat-server.py",
+      "pulse_intent.py",
+      "pulse_paths.py",
+      "pulse_runtime.py",
+      "pulse_state.py"
+    ],
+    "json": [
+      "heartbeat-policy.json"
+    ]
+  },
+  "notes": [
+    "This index is the canonical metadata source for drift checks.",
+    "Human-facing docs live on the docs branch.",
+    "Consumer template: template/copilot-instructions.md (with {{PLACEHOLDER}} tokens).",
+    "Developer instructions: .github/copilot-instructions.md (zero placeholder tokens, developer-only)."
+  ]
+}

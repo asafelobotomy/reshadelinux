@@ -7,6 +7,19 @@
 			"command": "bash ./scripts/diagnostics/smoke_dialog.sh",
 			"isBackground": false,
 			"group": "test"
+		},
+		{
+			"label": "dialog-smoke-debug",
+			"type": "shell",
+			"command": "env",
+			"args": [
+				"SMOKE_KEEP_WORKSPACE=1",
+				"DIALOG_TRACE=/tmp/reshade-dialog.trace",
+				"bash",
+				"./scripts/diagnostics/smoke_dialog.sh"
+			],
+			"isBackground": false,
+			"group": "test"
 		}
 	]
 }

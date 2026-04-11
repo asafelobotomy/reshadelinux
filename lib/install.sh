@@ -27,17 +27,43 @@ function downloadD3dcompiler_47() {
 # $1 => Version of ReShade
 # $2 -> Full URL of ReShade exe, ex.: https://reshade.me/downloads/ReShade_Setup_5.0.2.exe
 function downloadReshade() {
+    local exeFile resCurPath
     createTempDir
-    curl --fail "${_CURL_PROG[@]}" -LO "$2" || printErr "Could not download version $1 of ReShade."
+    if ! curl --fail "${_CURL_PROG[@]}" -LO "$2"; then
+        removeTempDir
+        printErr "Could not download version $1 of ReShade."
+        return 1
+    fi
     exeFile="${2##*/}"
-    ! [[ -f $exeFile ]] && printErr "Download of ReShade exe file failed."
-    file "$exeFile" | grep -q executable || printErr "The ReShade exe file is not an executable file, does the ReShade version exist?"
-    7z -y e "$exeFile" 1> /dev/null || printErr "Failed to extract ReShade using 7z."
+    if ! [[ -f "$exeFile" ]]; then
+        removeTempDir
+        printErr "Download of ReShade exe file failed."
+        return 1
+    fi
+    if ! file "$exeFile" | grep -q executable; then
+        removeTempDir
+        printErr "The ReShade exe file is not an executable file, does the ReShade version exist?"
+        return 1
+    fi
+    if ! 7z -y e "$exeFile" 1> /dev/null; then
+        removeTempDir
+        printErr "Failed to extract ReShade using 7z."
+        return 1
+    fi
     rm -f "$exeFile"
+    if ! compgen -G './*' > /dev/null; then
+        removeTempDir
+        printErr "ReShade archive extraction produced no files."
+        return 1
+    fi
     resCurPath="$RESHADE_PATH/$1"
     [[ -e $resCurPath ]] && rm -rf "$resCurPath"
     mkdir -p "$resCurPath"
-    mv ./* "$resCurPath"
+    if ! mv ./* "$resCurPath"; then
+        removeTempDir
+        printErr "Failed to move extracted ReShade files into $resCurPath."
+        return 1
+    fi
     removeTempDir
 }
 

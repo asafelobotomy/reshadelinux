@@ -6,21 +6,14 @@
 ## Project
 
 - **Name**: reshade-steam
-- **Language**: Bash
+- **Language**: Bash/Shell
 - **Test command**: `bash tests/run_simple_tests.sh`
 
-## Rules
+## Canonical instructions
 
-1. Run `bash tests/run_simple_tests.sh` before marking any task done.
-2. Plan-Do-Check-Act (PDCA) for every non-trivial change.
-3. Never modify a file not opened this session.
-4. Never delete existing rules without explicit user instruction.
-
-## Coding conventions
-
-- Shell scripts: `set -euo pipefail` required.
-- No silent error swallowing — log or re-throw.
-- No commented-out code — git history is the undo stack.
+- Primary project rules live in `.github/copilot-instructions.md`.
+- Use `bash tests/run_simple_tests.sh` as the full-suite gate.
+- Follow the project instructions file for workflow, testing, and editing rules.
 
 ## See also
 

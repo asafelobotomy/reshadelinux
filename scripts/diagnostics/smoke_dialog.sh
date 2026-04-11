@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # purpose:  Run an isolated dialog-backed smoke test without relying on the util-linux `script` command.
 # when:     Use for local end-to-end verification of the dialog TUI path on systems where `dialog` exists but `script` does not.
-# inputs:   Optional env vars TMPDIR, DIALOG_TRACE, and SMOKE_KEEP_WORKSPACE; no positional arguments.
+# inputs:   Optional env vars TMPDIR, DIALOG_TRACE, SMOKE_KEEP_WORKSPACE, and TERM; no positional arguments.
 # outputs:  Human-readable progress log to stdout and a final SMOKE_RESULT=PASS line on success.
 # risk:     safe
 # source:   original
@@ -46,20 +46,12 @@ start_dialog_key_feeder() {
         exec 3>"$fifo_path"
 
         wait_for_dialog_widget 'What would you like to do\?' "$feeder_log"
-        printf '\t\r' >&3
-        printf 'sent: radiolist tab-enter\n' >> "$feeder_log"
+        printf '\r' >&3
+        printf 'sent: radiolist enter\n' >> "$feeder_log"
 
         wait_for_dialog_widget 'Enter a directory path:' "$feeder_log"
         printf '\r' >&3
         printf 'sent: inputbox enter\n' >> "$feeder_log"
-
-        wait_for_dialog_widget 'Select which shader repositories to install for this game' "$feeder_log"
-        printf '\t\r' >&3
-        printf 'sent: checklist tab-enter\n' >> "$feeder_log"
-
-        wait_for_dialog_widget 'Shaders have been successfully downloaded and will be linked to your game\.' "$feeder_log"
-        printf '\r' >&3
-        printf 'sent: msgbox enter\n' >> "$feeder_log"
     ) >/dev/null 2>&1 &
 
     _DIALOG_FEEDER_PID="$!"
@@ -101,11 +93,13 @@ run_dialog_install_smoke() {
     local input_fifo="$workspace_dir/dialog-input.fifo"
     local installer_pid
     local state_file
+    local term_value="${TERM:-xterm-256color}"
 
     printf '==> Running dialog install smoke test\n'
     mkfifo "$input_fifo"
     (
         exec 9<"$input_fifo"
+        TERM="$term_value" \
         HOME="$workspace_dir/home" \
         MAIN_PATH="$workspace_dir/reshade" \
         UI_BACKEND=dialog \

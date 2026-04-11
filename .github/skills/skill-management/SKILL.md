@@ -6,11 +6,13 @@ compatibility: ">=1.4"
 
 # Skill Management
 
-> Skill metadata: version "1.0"; license MIT; tags [skills, workflow, discovery, management]; compatibility ">=1.4"; recommended tools [codebase, editFiles, fetch].
+> Skill metadata: version "1.1"; license MIT; tags [skills, workflow, discovery, management]; compatibility ">=1.4"; recommended tools [codebase, editFiles, fetch].
 
 Skills are reusable markdown-based **behavioural instructions** that teach the agent *how* to perform a specific workflow. Unlike tools (§11) which are executable scripts, skills are declarative — they shape the agent's approach rather than running code.
 
 Skills follow the [Agent Skills](https://agentskills.io) open standard. Each skill is a `SKILL.md` file with minimal YAML frontmatter (`name`, `description`) plus a markdown body that includes a `Skill metadata` note and step-by-step workflow instructions.
+
+Use the `description` field as the discovery surface. Do not rely on custom top-level keys such as `stacks`; VS Code does not use them when selecting a skill.
 
 ## When to use
 
@@ -25,7 +27,9 @@ Skills are loaded **on demand** — the agent reads a skill's `SKILL.md` only wh
 ```text
 Task requires a workflow
  │
- ├─ 1. SCAN — check .github/skills/*/SKILL.md descriptions
+ ├─ 1. SCAN — check local skill directories
+ │     Locations: .github/skills/, .claude/skills/, .agents/skills/
+ │     Also: installed agent plugins and extension-contributed skills
  │     ├─ Match found  → READ the full SKILL.md, follow its instructions
  │     └─ No match     → ↓
  │
@@ -44,11 +48,25 @@ Task requires a workflow
 | Priority | Location | Scope |
 |----------|----------|-------|
 | 1 (highest) | `.github/skills/<name>/SKILL.md` | Project — checked into version control |
-| 2 | `~/.copilot/skills/<name>/SKILL.md` | Personal — shared across all projects for one user |
-| 3 | Agent plugins (`@agentPlugins`) | Plugin — installed via Extensions view (VS Code 1.110+) |
-| 4 | Organization-level agents | Org — published at GitHub org level for all members |
+| 2 | `.claude/skills/<name>/SKILL.md`, `.agents/skills/<name>/SKILL.md` | Project (alt) — Claude/Agent-format directories |
+| 3 | `~/.copilot/skills/<name>/SKILL.md` | Personal — shared across all projects for one user |
+| 4 | `~/.claude/skills/<name>/SKILL.md`, `~/.agents/skills/<name>/SKILL.md` | Personal (alt) — alternative personal paths |
+| 5 | Agent plugins (`@agentPlugins`) | Plugin — installed via Extensions view (VS Code 1.110+) |
+| 6 | Extension `chatSkills` contribution | Extension — VS Code extensions contributing skills via `package.json` |
+| 7 | Organization-level agents | Org — published at GitHub org level for all members |
 
-> **Agent file discovery**: Use the `chat.agentFilesLocations` VS Code setting to add custom directories for skill/agent discovery beyond the default locations.
+> **Custom paths**: Use the `chat.agentSkillsLocations` VS Code setting to add custom directories for skill discovery beyond the default locations. Useful for sharing skills across projects or keeping them in a central location.
+
+## Visibility controls
+
+Control how each skill is accessed via SKILL.md frontmatter:
+
+| Setting | `/` menu | Auto-load | Use case |
+|---------|----------|-----------|----------|
+| Default (both omitted) | Yes | Yes | General-purpose skills |
+| `user-invocable: false` | No | Yes | Background knowledge skills the model loads when relevant |
+| `disable-model-invocation: true` | Yes | No | Skills you only want to run on demand |
+| Both set | No | No | Disabled skills |
 
 ## Subagent skill use
 

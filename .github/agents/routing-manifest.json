@@ -1,0 +1,389 @@
+{
+  "version": 1,
+  "default_cooldown_seconds": 900,
+  "notes": "Stage 4 routing pass: all base agents are active; Setup remains guarded, while Fast and Code require prompt-plus-behavior confirmation.",
+  "agents": [
+    {
+      "name": "Setup",
+      "summary": "Template lifecycle setup/update/restore specialist",
+      "route": "guarded",
+      "visibility": "picker-visible",
+      "min_prompt_confidence": 0.92,
+      "min_behavior_confidence": 0.86,
+      "min_behavior_events": 1,
+      "cooldown_seconds": 3600,
+      "require_prompt_and_behavior": true,
+      "block_in_template_repo": true,
+      "hint": "Routing hint: Setup specialist fits this lifecycle-only setup/update/restore flow.",
+      "prompt_patterns": [
+        "setup from asafelobotomy/copilot-instructions-template",
+        "\\bupdate your instructions\\b",
+        "\\bcheck for instruction updates\\b",
+        "\\brestore instructions from backup\\b",
+        "\\bfactory restore instructions\\b",
+        "\\breinstall instructions from scratch\\b"
+      ],
+      "suppress_patterns": [
+        "\\b(add|implement|refactor|fix|feature|bug|test|lint|build|code|script)\\b"
+      ],
+      "behavior": {
+        "tool_names": [
+          "run_in_terminal",
+          "runCommands"
+        ],
+        "command_patterns": [
+          "\\b(SETUP\\.md|UPDATE\\.md)\\b",
+          "\\b(update your instructions|factory restore|restore instructions from backup)\\b"
+        ],
+        "path_patterns": [
+          "^(SETUP|UPDATE)\\.md$"
+        ]
+      }
+    },
+    {
+      "name": "Code",
+      "summary": "Implementation and refactor specialist",
+      "route": "active",
+      "visibility": "picker-visible",
+      "min_prompt_confidence": 0.76,
+      "min_behavior_confidence": 0.78,
+      "min_behavior_events": 1,
+      "cooldown_seconds": 1200,
+      "require_prompt_and_behavior": true,
+      "hint": "Routing hint: Code specialist fits this multi-step implementation or refactor workflow.",
+      "prompt_patterns": [
+        "\\bimplement\\b",
+        "\\brefactor\\b",
+        "\\bfeature\\b",
+        "\\badd (?:pagination|support|workflow|behavior|tests?)\\b",
+        "\\bwrite (?:or update )?tests?\\b",
+        "\\bbugfix\\b"
+      ],
+      "suppress_patterns": [
+        "\\b(review|audit|health check|security|research|upstream|docs?|documentation|readme|plan|break down|roadmap|scoping|root cause|regression|debug(?:ger)?|extensions?|profile|setup(?: from)?|update your instructions|restore instructions|factory restore|reinstall instructions|organi[sz]e|reorgani[sz]e|move files?|fix paths?)\\b"
+      ],
+      "behavior": {
+        "tool_names": [
+          "create_file",
+          "replace_string_in_file",
+          "multi_replace_string_in_file",
+          "editFiles",
+          "writeFile"
+        ]
+      }
+    },
+    {
+      "name": "Organise",
+      "summary": "Repository structure and path-fix specialist",
+      "route": "active",
+      "visibility": "internal",
+      "min_prompt_confidence": 0.76,
+      "min_behavior_confidence": 0.78,
+      "min_behavior_events": 1,
+      "cooldown_seconds": 1200,
+      "hint": "Routing hint: Organise specialist fits this file-move, path-fix, or repository-reshape workflow.",
+      "prompt_patterns": [
+        "\\b(?:organize|organise|reorganize|reorganise)\\b",
+        "\\bmove files?\\b",
+        "\\bfix paths?\\b",
+        "\\brestructure\\b",
+        "\\brename (?:folders?|directories|files?)\\b"
+      ],
+      "behavior": {
+        "tool_names": [
+          "run_in_terminal",
+          "runCommands"
+        ],
+        "command_patterns": [
+          "\\bgit\\s+mv\\b",
+          "\\bmv\\s+[^\\n]+"
+        ]
+      }
+    },
+    {
+      "name": "Review",
+      "summary": "Formal code review and architecture critique specialist",
+      "route": "active",
+      "visibility": "picker-visible",
+      "min_prompt_confidence": 0.76,
+      "min_behavior_confidence": 0.78,
+      "min_behavior_events": 1,
+      "cooldown_seconds": 1200,
+      "hint": "Routing hint: Review specialist fits this formal code-review or architecture-critique workflow.",
+      "prompt_patterns": [
+        "\\breview\\b",
+        "\\bcode review\\b",
+        "\\bpr review\\b",
+        "\\barchitectural review\\b",
+        "\\bfindings\\b"
+      ],
+      "behavior": {
+        "tool_names": [
+          "get_changed_files",
+          "vscode_listCodeUsages"
+        ]
+      }
+    },
+    {
+      "name": "Fast",
+      "summary": "Quick question and tiny edit specialist",
+      "route": "active",
+      "visibility": "picker-visible",
+      "min_prompt_confidence": 0.76,
+      "min_behavior_confidence": 0.76,
+      "min_behavior_events": 1,
+      "cooldown_seconds": 900,
+      "require_prompt_and_behavior": true,
+      "hint": "Routing hint: Fast specialist fits this quick-question or lightweight single-file workflow.",
+      "prompt_patterns": [
+        "\\bquick question\\b",
+        "\\bsyntax lookup\\b",
+        "\\bwhat does this regex match\\b",
+        "\\bfix (?:the )?typo\\b",
+        "\\bsingle-file(?: edit)?\\b",
+        "\\bwc\\s+-l\\b"
+      ],
+      "suppress_patterns": [
+        "\\b(implement|refactor|feature|bugfix|write tests?|review|audit|health check|security|research|upstream|docs?|documentation|readme|plan|break down|roadmap|scoping|root cause|regression|debug(?:ger)?|extensions?|profile|setup(?: from)?|update your instructions|restore instructions|factory restore|reinstall instructions|organi[sz]e|reorgani[sz]e|move files?|fix paths?|stage(?: and)? commit|push(?: my changes| to origin)?|create (?:a )?release)\\b"
+      ],
+      "behavior": {
+        "tool_names": [
+          "run_in_terminal",
+          "read_file",
+          "editFiles"
+        ]
+      }
+    },
+    {
+      "name": "Audit",
+      "summary": "Health and security audit specialist",
+      "route": "active",
+      "visibility": "picker-visible",
+      "min_prompt_confidence": 0.78,
+      "min_behavior_confidence": 0.8,
+      "min_behavior_events": 1,
+      "cooldown_seconds": 1800,
+      "hint": "Routing hint: Audit specialist fits this health-check, security, or residual-risk assessment flow.",
+      "prompt_patterns": [
+        "\\baudit\\b",
+        "\\bhealth check\\b",
+        "\\bsecurity audit\\b",
+        "\\bscan for secrets?\\b",
+        "\\bvulnerabilit(?:y|ies)\\b",
+        "\\bresidual risk\\b"
+      ],
+      "behavior": {
+        "tool_names": [
+          "run_in_terminal",
+          "runCommands"
+        ],
+        "command_patterns": [
+          "\\b(copilot_audit\\.py|tests/scripts/test-copilot-audit\\.sh|scan-secrets)\\b",
+          "\\b(?:npm\\s+audit|pip-audit)\\b"
+        ]
+      }
+    },
+    {
+      "name": "Explore",
+      "summary": "Read-only inventory and search specialist",
+      "route": "active",
+      "visibility": "picker-visible",
+      "min_prompt_confidence": 0.74,
+      "min_behavior_confidence": 0.72,
+      "min_behavior_events": 2,
+      "cooldown_seconds": 1200,
+      "hint": "Routing hint: Explore specialist fits this read-only inventory/search workflow.",
+      "prompt_patterns": [
+        "\\bexplore\\b",
+        "\\bread-only\\b",
+        "\\bfind (?:all|where|which)\\b",
+        "\\binventory\\b",
+        "\\bsearch (?:the )?(?:repo|codebase|workspace)\\b",
+        "\\bwhere is\\b"
+      ],
+      "behavior": {
+        "tool_names": [
+          "read_file",
+          "file_search",
+          "grep_search",
+          "semantic_search",
+          "list_dir",
+          "vscode_listCodeUsages"
+        ]
+      }
+    },
+    {
+      "name": "Extensions",
+      "summary": "VS Code extension and profile specialist",
+      "route": "active",
+      "visibility": "internal",
+      "min_prompt_confidence": 0.78,
+      "min_behavior_confidence": 0.78,
+      "min_behavior_events": 1,
+      "cooldown_seconds": 1200,
+      "hint": "Routing hint: Extensions specialist fits this VS Code extension or profile-management workflow.",
+      "prompt_patterns": [
+        "\\bextensions?\\b",
+        "\\bvs code extensions?\\b",
+        "\\bprofile\\b",
+        "\\bworkspace recommendation\\b",
+        "\\bsync extensions?\\b"
+      ],
+      "behavior": {
+        "tool_names": [
+          "get_active_profile",
+          "list_profiles",
+          "get_workspace_profile_association",
+          "ensure_repo_profile",
+          "get_installed_extensions",
+          "install_extension",
+          "uninstall_extension",
+          "sync_extensions_with_recommendations"
+        ]
+      }
+    },
+    {
+      "name": "Researcher",
+      "summary": "External documentation and version behavior specialist",
+      "route": "active",
+      "visibility": "internal",
+      "min_prompt_confidence": 0.78,
+      "min_behavior_confidence": 0.78,
+      "min_behavior_events": 1,
+      "cooldown_seconds": 1800,
+      "hint": "Routing hint: Researcher specialist fits this external-docs and version-check request.",
+      "prompt_patterns": [
+        "\\bresearch\\b",
+        "\\blatest docs?\\b",
+        "\\bupstream\\b",
+        "\\bversion-specific\\b",
+        "\\bexternal docs?\\b",
+        "\\bapi behavior\\b"
+      ],
+      "behavior": {
+        "tool_names": [
+          "fetch_webpage",
+          "mcp_fetch_fetch",
+          "fetch",
+          "github_repo"
+        ]
+      }
+    },
+    {
+      "name": "Commit",
+      "summary": "Git lifecycle specialist for stage/commit/push/tag/release",
+      "route": "active",
+      "visibility": "picker-visible",
+      "min_prompt_confidence": 0.74,
+      "min_behavior_confidence": 0.75,
+      "min_behavior_events": 1,
+      "cooldown_seconds": 900,
+      "hint": "Routing hint: Commit specialist fits this git lifecycle flow (stage/commit/push/tag).",
+      "prompt_patterns": [
+        "\\bstage(?: and)? commit\\b",
+        "\\bcommit(?: message| my changes)?\\b",
+        "\\bpush(?: my changes| to origin)?\\b",
+        "\\btag(?: this version| as v)?\\b",
+        "\\bcreate (?:a )?release\\b"
+      ],
+      "behavior": {
+        "tool_names": [
+          "run_in_terminal",
+          "terminal",
+          "runCommands"
+        ],
+        "command_patterns": [
+          "\\bgit\\s+(add|commit|push|tag|switch|checkout|merge|rebase|cherry-pick)\\b",
+          "\\bgit\\s+status\\b"
+        ]
+      }
+    },
+    {
+      "name": "Planner",
+      "summary": "Read-only planning specialist",
+      "route": "active",
+      "visibility": "internal",
+      "min_prompt_confidence": 0.76,
+      "min_behavior_confidence": 0.76,
+      "min_behavior_events": 1,
+      "cooldown_seconds": 1200,
+      "hint": "Routing hint: Planner specialist fits this scoped execution-planning workflow.",
+      "prompt_patterns": [
+        "\\bplan\\b",
+        "\\bbreak down\\b",
+        "\\bexecution plan\\b",
+        "\\btask breakdown\\b",
+        "\\broadmap\\b",
+        "\\bscoping\\b"
+      ],
+      "behavior": {
+        "tool_names": [
+          "read_file",
+          "file_search",
+          "grep_search",
+          "semantic_search",
+          "list_dir"
+        ]
+      }
+    },
+    {
+      "name": "Docs",
+      "summary": "Documentation specialist",
+      "route": "active",
+      "visibility": "internal",
+      "min_prompt_confidence": 0.76,
+      "min_behavior_confidence": 0.76,
+      "min_behavior_events": 1,
+      "cooldown_seconds": 1200,
+      "hint": "Routing hint: Docs specialist fits this documentation or migration-note workflow.",
+      "prompt_patterns": [
+        "\\bdocument(?:ation)?\\b",
+        "\\bupdate (?:the )?(?:readme|docs?)\\b",
+        "\\bwrite (?:a )?(?:readme|guide|migration note)\\b",
+        "\\bwalkthrough\\b",
+        "\\buser-facing docs?\\b"
+      ],
+      "behavior": {
+        "tool_names": [
+          "create_file",
+          "replace_string_in_file",
+          "multi_replace_string_in_file",
+          "editFiles",
+          "writeFile"
+        ],
+        "path_patterns": [
+          "\\.md$"
+        ]
+      }
+    },
+    {
+      "name": "Debugger",
+      "summary": "Root-cause diagnosis specialist",
+      "route": "active",
+      "visibility": "internal",
+      "min_prompt_confidence": 0.78,
+      "min_behavior_confidence": 0.8,
+      "min_behavior_events": 1,
+      "cooldown_seconds": 1200,
+      "hint": "Routing hint: Debugger specialist fits this root-cause and regression-diagnosis workflow.",
+      "prompt_patterns": [
+        "\\bdebug(?:ger)?\\b",
+        "\\broot cause\\b",
+        "\\bregression\\b",
+        "\\bfailing test\\b",
+        "\\bdiagnos(?:e|is)\\b"
+      ],
+      "behavior": {
+        "tool_names": [
+          "run_in_terminal",
+          "runCommands",
+          "get_terminal_output"
+        ],
+        "command_patterns": [
+          "\\b(?:pytest|npm\\s+test|pnpm\\s+test|yarn\\s+test|go\\s+test|cargo\\s+test|bash\\s+tests/run-all\\.sh)\\b",
+          "\\btraceback\\b"
+        ]
+      }
+    }
+  ]
+}

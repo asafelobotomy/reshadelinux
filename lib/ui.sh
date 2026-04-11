@@ -48,7 +48,8 @@ function ui_yad_dims() {
 }
 
 function ui_capture() {
-    local _result _status
+    local _result _status _had_errexit=0
+    [[ $- == *e* ]] && _had_errexit=1
     set +e
     case $_UI_BACKEND in
         whiptail)
@@ -64,7 +65,7 @@ function ui_capture() {
             _status=$?
             ;;
     esac
-    set -e
+    [[ $_had_errexit -eq 1 ]] && set -e
     ui_refresh_screen
     printf '%s' "$_result"
     return $_status
@@ -84,11 +85,12 @@ function ui_refresh_screen() {
 }
 
 function ui_run() {
-    local _status
+    local _status _had_errexit=0
+    [[ $- == *e* ]] && _had_errexit=1
     set +e
     "$@"
     _status=$?
-    set -e
+    [[ $_had_errexit -eq 1 ]] && set -e
     ui_refresh_screen
     return $_status
 }

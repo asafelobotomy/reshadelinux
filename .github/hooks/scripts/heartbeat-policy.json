@@ -1,0 +1,24 @@
+{
+  "retrospective": {
+    "thresholds": {
+      "modified_files": {
+        "supporting": 5,
+        "strong": 8
+      },
+      "elapsed_minutes": {
+        "supporting": 15,
+        "strong": 30
+      },
+      "idle_gap_minutes": 10
+    },
+    "health_digest": {
+      "min_emit_spacing_seconds": 120
+    },
+    "messages": {
+      "session_start_guidance": "Open .copilot/workspace/operations/HEARTBEAT.md and run the Checks section. If the Stop hook later flags significant work, call the session_reflect MCP tool before stopping.",
+      "explicit_system": "Heartbeat trigger detected. Run .copilot/workspace/operations/HEARTBEAT.md checks now.",
+      "stop_reflect_instruction": "Significant session detected. Call the session_reflect MCP tool now, process its output silently, then stop normally. If the MCP tool is unavailable, briefly review: execution accuracy, scope completeness, and anything worth persisting to .copilot/workspace/identity/SOUL.md, .copilot/workspace/knowledge/MEMORY.md, and .copilot/workspace/knowledge/USER.md, then rerun session_reflect once the heartbeat MCP server is restored.",
+      "accepted_reason": "The user requested a retrospective. Call the session_reflect MCP tool, process its output, persist insights, then stop normally."
+    }
+  }
+}

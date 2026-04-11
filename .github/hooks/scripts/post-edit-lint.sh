@@ -38,10 +38,19 @@ if [[ -z "$FILES" ]]; then
   exit 0
 fi
 
+# Resolve workspace root for boundary checks
+WORKSPACE_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 
 while IFS= read -r filepath; do
   [[ -z "$filepath" ]] && continue
   [[ ! -f "$filepath" ]] && continue
+
+  # Workspace boundary check — reject paths outside the repo root
+  real_path=$(realpath "$filepath" 2>/dev/null) || continue
+  case "$real_path" in
+    "$WORKSPACE_ROOT"/*)  ;;
+    *) continue ;;
+  esac
 
   EXT="${filepath##*.}"
   case "$EXT" in

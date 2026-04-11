@@ -9,6 +9,7 @@ The format is based on Keep a Changelog, adapted for this repository.
 ### Added in 1.3.0
 
 - "Update all installed games" option in the install/uninstall dialog, so users no longer need the `--update-all` CLI flag.
+- Copilot instructions factory-restored from [copilot-instructions-template](https://github.com/asafelobotomy/copilot-instructions-template) v5.10.0 (upgraded from v3.3.2). Pre-restore backup at `.github/archive/pre-factory-restore-2026-04-10-v3.3.2/`.
 
 ### Fixed in 1.3.0
 

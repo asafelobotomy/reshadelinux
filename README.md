@@ -1,7 +1,6 @@
 # reshade-steam
 
 > Install [ReShade](https://reshade.me/) and shader repositories for any Windows game running under Wine or Proton on Linux — with automatic Steam game detection, per-game shader selection, and a graphical or terminal UI.
-
 > [!NOTE]
 > This is an independent continuation of [kevinlekiller/reshade-steam-proton](https://github.com/kevinlekiller/reshade-steam-proton). All original work and credit belongs to [kevinlekiller](https://github.com/kevinlekiller). This fork modernises the codebase, fixes active bugs, and adds substantial new features.
 
@@ -31,6 +30,19 @@ git clone https://github.com/asafelobotomy/reshade-steam.git
 cd reshade-steam
 ./reshade-linux.sh
 ```
+
+### Drive installs from the CLI
+
+Use the CLI path when you want deterministic scripting or automated testing:
+
+```bash
+./reshade-linux.sh --cli --app-id=255710 --dll-override=dxgi --shader-repos=all
+./reshade-linux.sh --cli --game-path="$HOME/Games/MyGame" --dll-override=d3d9 --shader-repos=none
+./reshade-linux.sh --list-shader-repos
+./reshade-linux.sh --version
+```
+
+The CLI options are the canonical scripted interface. The graphical and terminal UIs remain wrappers over the same install flow.
 
 > [!TIP]
 > Install `yad` for a graphical interface on Linux desktops. If `yad` is unavailable, the script uses `whiptail` or `dialog` for a terminal UI, then falls back to plain CLI prompts.
@@ -76,7 +88,30 @@ cd reshade-steam
 
 18 curated repos are included by default, covering anti-aliasing, ambient occlusion, depth of field, colour grading, LUTs, and more: SweetFX, iMMERSE, AstrayFX, prod80, reshade-shaders (official), fubax-shaders, OtisFX, qUINT, Insane-Shaders, NiceGuy-Shaders, daodan-shaders, Glamarye, FXShaders, CobraFX, CorgiFX, MLUT, dh-reshade-shaders, and lordbean-shaders.
 
-The checklist shows human-readable descriptions for each repo and adapts to terminal height.
+The checklist now uses a concise attribution-first format based on Creative Commons TASL guidance for constrained media: `Pack title by creator | highlights`. That keeps the most important credit visible in the installer while staying short enough for CLI, dialog, and YAD lists.
+
+Default shader pack sources:
+
+| Pack | Creator | Source |
+| --- | --- | --- |
+| SweetFX | CeeJayDK | `https://github.com/CeeJayDK/SweetFX` |
+| iMMERSE | martymcmodding | `https://github.com/martymcmodding/iMMERSE` |
+| AstrayFX | BlueSkyDefender | `https://github.com/BlueSkyDefender/AstrayFX` |
+| prod80 ReShade Repository | prod80 | `https://github.com/prod80/prod80-ReShade-Repository` |
+| ReShade Shaders | crosire | `https://github.com/crosire/reshade-shaders` |
+| Fubax Shaders | Fubaxiusz | `https://github.com/Fubaxiusz/fubax-shaders` |
+| OtisFX | FransBouma | `https://github.com/FransBouma/OtisFX` |
+| qUINT | martymcmodding | `https://github.com/martymcmodding/qUINT` |
+| Insane Shaders | LordOfLunacy | `https://github.com/LordOfLunacy/Insane-Shaders` |
+| NiceGuy Shaders | mj-ehsan | `https://github.com/mj-ehsan/NiceGuy-Shaders` |
+| Daodan Shaders | Daodan317081 | `https://github.com/Daodan317081/reshade-shaders` |
+| Glamarye Fast Effects | rj200 | `https://github.com/rj200/Glamarye_Fast_Effects_for_ReShade` |
+| FXShaders | luluco250 | `https://github.com/luluco250/FXShaders` |
+| CobraFX | LordKobra | `https://github.com/LordKobra/CobraFX` |
+| CorgiFX | originalnicodr | `https://github.com/originalnicodr/CorgiFX` |
+| MLUT | TheGordinho | `https://github.com/TheGordinho/MLUT` |
+| DH ReShade Shaders | AlucardDH | `https://github.com/AlucardDH/dh-reshade-shaders` |
+| LordBean Shaders | lordbean-git | `https://github.com/lordbean-git/reshade-shaders` |
 
 ### Code quality vs. upstream
 
@@ -100,6 +135,18 @@ Re-link ReShade and shaders for every previously installed game at once:
 
 ```bash
 ./reshade-linux.sh --update-all
+```
+
+To override the tracked shader selection for every game in the batch, add `--shader-repos`:
+
+```bash
+./reshade-linux.sh --update-all --shader-repos=alpha,beta
+```
+
+You can also target a specific install path from the CLI with explicit inputs:
+
+```bash
+./reshade-linux.sh --cli --game-path="$HOME/Games/MyGame" --dll-override=dxgi --shader-repos=alpha,beta
 ```
 
 State files in `~/.local/share/reshade/game-state/` record the DLL, architecture, game path, and selected shader repos for each game. The update rebuilds each game's `ReShade_shaders/` link and per-game config. If a tracked repo is unavailable, the state file is rewritten to match whatever is actually available locally.
@@ -130,6 +177,23 @@ VARIABLE=value ./reshade-linux.sh
 | `FORCE_RESHADE_UPDATE_CHECK` | `0` | Bypass the 4-hour update check throttle. |
 | `PROGRESS_UI` | `1` | Set to `0` to disable progress widgets while keeping the selected backend for dialogs. |
 | `RESHADE_DEBUG_LOG` | *(empty)* | Append timestamped trace messages to this file for debugging non-CLI hangs. |
+
+## Command-line options
+
+Use flags when you want the CLI path to drive the install directly:
+
+| Option | Description |
+| --- | --- |
+| `--update-all` | Re-link ReShade for every tracked game without entering the per-game install flow. May be combined with `--shader-repos` to override the tracked shader selection for the whole batch. |
+| `--cli` | Force the plain CLI backend even when a terminal UI or desktop session is available. This is shorthand for `--ui-backend=cli`, so do not combine the two flags. |
+| `--ui-backend=<backend>` | Force `auto`, `yad`, `whiptail`, `dialog`, or `cli`. Do not combine this flag with `--cli`. |
+| `--game-path=<path>` | Use an explicit game directory or `.exe` path instead of prompting or scanning Steam. |
+| `--app-id=<appid>` | Select a detected Steam game by App ID, or persist the App ID alongside `--game-path`. |
+| `--dll-override=<name>` | Use an explicit DLL override such as `dxgi`, `d3d9`, `opengl32`, or `dinput8`. |
+| `--shader-repos=<value>` | Use `all`, `none`, or a comma-separated list of configured repo names. With `--update-all`, this becomes the shader selection override for every tracked game in the batch. |
+| `--list-shader-repos` | Print the configured shader repo names and human-readable labels, then exit. |
+| `--version`, `-V` | Print the current script version, then exit. |
+| `--help`, `-h` | Show the built-in usage summary. |
 
 ---
 

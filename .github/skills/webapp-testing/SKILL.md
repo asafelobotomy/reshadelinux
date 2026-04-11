@@ -6,25 +6,34 @@ compatibility: ">=2.0"
 
 # Web Application Testing
 
-> Skill metadata: version "2.0"; license MIT; tags [testing, e2e, playwright, browser, ci, browser-tools]; compatibility ">=2.0"; recommended tools [codebase, editFiles, runCommands].
+> Skill metadata: version "2.1"; license MIT; tags [testing, e2e, playwright, browser, ci, browser-tools, mcp]; compatibility ">=2.0"; recommended tools [codebase, editFiles, runCommands].
 
-Set up browser testing for a web application. This skill offers two paths:
+Set up browser testing for a web application. This skill offers three paths:
 
 - **Path A — Built-in browser tools** (VS Code 1.110+): lightweight, interactive verification using VS Code's agentic browser tools. No dependencies to install. Ideal for development-time checks and exploratory testing.
 - **Path B — Playwright**: full end-to-end testing framework with CI integration. Ideal for automated regression testing in CI/CD pipelines.
+- **Path C — Playwright MCP server**: expose Playwright browser automation as MCP tools. Ideal for agent-driven testing workflows that need Playwright capabilities without a full test suite.
 
 ## Decision criteria
 
-| Factor | Path A (Browser tools) | Path B (Playwright) |
-|--------|----------------------|---------------------|
-| **Setup effort** | Zero — built-in, no install | Moderate — install + configure |
-| **CI integration** | No — interactive only | Yes — runs headless in CI |
-| **Test persistence** | No — conversational | Yes — test files committed to repo |
-| **Browser coverage** | Chromium only | Chromium + Firefox + WebKit |
-| **Best for** | Quick verification, dev-time checks, debugging | Regression testing, PR gates, cross-browser |
-| **Requires** | `workbench.browser.enableChatTools: true` (Preview) | Node.js + Playwright package |
+| Factor | Path A (Browser tools) | Path B (Playwright) | Path C (Playwright MCP) |
+|--------|----------------------|---------------------|------------------------|
+| **Setup effort** | Zero — built-in, no install | Moderate — install + configure | Low — add MCP server config |
+| **CI integration** | No — interactive only | Yes — runs headless in CI | No — agent-driven only |
+| **Test persistence** | No — conversational | Yes — test files committed to repo | No — on-demand via MCP tools |
+| **Browser coverage** | Chromium only | Chromium + Firefox + WebKit | Chromium (default) |
+| **Best for** | Quick verification, dev-time checks, debugging | Regression testing, PR gates, cross-browser | Agent-driven automation, scraping, form testing |
+| **Requires** | `workbench.browser.enableChatTools: true` (Preview) | Node.js + Playwright package | `@playwright/mcp` package |
 
-**Recommendation**: Use Path A for interactive verification during development, Path B for CI. They complement each other — Path A validates quickly, Path B prevents regressions.
+**Recommendation**: Use Path A for interactive verification during development, Path B for CI, Path C when you want Playwright browser control available as MCP tools to agents. They complement each other.
+
+### Maintainer note
+
+Use Path A when the agent only needs to inspect or click through a page during a live session in VS Code. It is the cheapest option and keeps browser access local to the current conversation.
+
+Use Path C when website navigation should become part of the repo's repeatable agent tooling. Prefer it for agents that need reliable page navigation, form automation, or structured browser actions across Copilot, MCP-aware subagents, and CLI sessions.
+
+Do not use Path C as a replacement for committed regression tests. When the behavior needs CI coverage or long-term safety, add Path B as well.
 
 ## When to activate
 
@@ -278,6 +287,51 @@ jobs:
   }
   ```
 
+## Path C — Playwright MCP Server
+
+The `@playwright/mcp` package exposes Playwright browser automation as MCP tools, allowing agents to navigate pages, take screenshots, click elements, fill forms, and execute JavaScript — all through the MCP protocol.
+
+### C1. Install and configure
+
+Add to `.vscode/mcp.json`:
+
+```json
+{
+  "servers": {
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest",
+        "--headless",
+        "--browser=chromium"
+      ],
+      "disabled": true
+    }
+  }
+}
+```
+
+Remove `"disabled": true` when you want the server to start. If the repo uses
+agent-level `mcp-servers` allowlists, add `playwright` only to the agents that
+should be allowed to drive websites.
+
+### C2. Available MCP tools
+
+The server exposes tools including: `browser_navigate`, `browser_screenshot`, `browser_click`, `browser_type`, `browser_select_option`, `browser_hover`, `browser_evaluate`, `browser_handle_dialog`, `browser_tab_list`, `browser_tab_create`, `browser_tab_close`, `browser_pdf_save`, `browser_console_messages`.
+
+### C3. When to prefer over Path A
+
+- You need Playwright's engine (more reliable element targeting, network interception)
+- The agent workflow benefits from structured MCP tool calls rather than ad-hoc browser tool usage
+- You want the same automation capabilities available to Copilot CLI or external agents via MCP bridge
+
+### C4. Limitations
+
+- No built-in CI integration (use Path B for CI)
+- Tests are not persisted as files — they run on-demand through agent interaction
+- Requires Node.js runtime for the MCP server process
+
 ## Verify
 
 - [ ] Path A (browser tools): `workbench.browser.enableChatTools` is enabled when using built-in tools
@@ -286,3 +340,5 @@ jobs:
 - [ ] Path B (Playwright): CI workflow file is valid YAML (`actionlint .github/workflows/playwright.yml`)
 - [ ] Path B (Playwright): `.gitignore` excludes Playwright artifacts
 - [ ] Path B (Playwright): `package.json` has `test:e2e` script
+- [ ] Path C (Playwright MCP): `@playwright/mcp` entry exists in `.vscode/mcp.json`
+- [ ] Path C (Playwright MCP): `browser_navigate` tool is available after server starts

@@ -9,7 +9,7 @@ tools: [editFiles, runCommands, codebase]
 
 Generate tests for the selected code following project conventions.
 
-1. Use the project test framework: Custom shell test runner.
+1. Use the project test framework: `custom bash (run_simple_tests.sh)`.
 2. Mirror the source file path in the test directory.
 3. Cover:
    - The main success path

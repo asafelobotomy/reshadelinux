@@ -111,11 +111,29 @@ test_state_shader_repo_parser_succeeds_with_description_under_set_e() {
     [[ $_status -eq 0 ]]
 }
 
+test_shader_display_label_includes_title_creator_and_summary() {
+    local _label
+    _label=$(formatShaderRepoDisplayLabel \
+        "https://github.com/martymcmodding/qUINT" \
+        "quintfx" \
+        "Lightroom grading, SSR, MXAO, Bloom, Deband")
+    [[ "$_label" == "qUINT by martymcmodding | Lightroom grading, SSR, MXAO, Bloom, Deband" ]]
+}
+
 test_shader_build_supports_description_without_branch() {
     export SHADER_REPOS="https://example.com/a|alpha||Alpha description"
     create_mock_shader_repo "alpha"
     buildGameShaderDir "55555" "alpha"
     [[ -L "$MAIN_PATH/game-shaders/55555/Merged/Shaders/alpha.fx" ]]
+}
+
+test_shader_build_discovers_nested_layouts() {
+    export SHADER_REPOS="https://example.com/a|nested-repo"
+    create_nested_shader_repo "nested-repo"
+    buildGameShaderDir "56565" "nested-repo"
+    [[ -L "$MAIN_PATH/game-shaders/56565/Merged/Shaders/nested-repo.fx" ]]
+    [[ -L "$MAIN_PATH/game-shaders/56565/Merged/Shaders/Lighting/nested-repo.fxh" ]]
+    [[ -L "$MAIN_PATH/game-shaders/56565/Merged/Textures/Noise/nested-repo.png" ]]
 }
 
 test_shader_available_selected_repos_only_returns_existing_dirs() {
@@ -130,6 +148,23 @@ test_shader_cli_selection_returns_names_only() {
     _UI_BACKEND=cli
     _output=$(printf '\n' | selectShaders "alpha" 2>/dev/null)
     [[ "$_output" == "alpha" ]]
+}
+
+test_shader_auto_confirm_keeps_current_selection() {
+    local _output
+    export SHADER_REPOS="https://example.com/a|alpha||Alpha repo;https://example.com/b|beta||Beta repo"
+    _output=$( (
+        _UI_BACKEND=dialog
+        UI_AUTO_CONFIRM=1
+        # shellcheck disable=SC2329
+        ui_checklist() {
+            printf 'unexpected\n' >&2
+            return 1
+        }
+        selectShaders "alpha,beta"
+    ) )
+
+    [[ "$_output" == "alpha,beta" ]]
 }
 
 test_with_progress_yad_returns_after_command_finishes() {
@@ -172,12 +207,106 @@ test_shader_yad_selection_accepts_multiline_output() {
         _UI_BACKEND=yad
         # shellcheck disable=SC2329
         ui_checklist() {
-            printf 'alpha\nbeta\ngamma\n'
+            printf '1\n2\n3\n'
         }
         selectShaders "alpha"
     ) )
 
     [[ "$_output" == "alpha,beta,gamma" ]]
+}
+
+test_ui_capture_preserves_errexit_disabled_state() {
+    local _state
+    _state=$( (
+        set +e
+        _UI_BACKEND=cli
+        ui_capture bash -c 'exit 7' >/dev/null 2>&1 || true
+        if [[ $- == *e* ]]; then
+            printf 'on\n'
+        else
+            printf 'off\n'
+        fi
+    ) )
+
+    [[ "$_state" == "off" ]]
+}
+
+test_ui_run_preserves_errexit_enabled_state() {
+    local _state
+    _state=$( (
+        set -e
+        _UI_BACKEND=cli
+        ui_run true
+        if [[ $- == *e* ]]; then
+            printf 'on\n'
+        else
+            printf 'off\n'
+        fi
+    ) )
+
+    [[ "$_state" == "on" ]]
+}
+
+test_reshade_update_creates_latest_symlink_when_missing() {
+    local _target
+    (
+        RESHADE_VERSION=latest
+        RESHADE_ADDON_SUPPORT=0
+        FORCE_RESHADE_UPDATE_CHECK=1
+        UPDATE_RESHADE=1
+        RESHADE_URL="https://reshade.example.invalid"
+        RESHADE_URL_ALT="https://reshade-alt.example.invalid"
+
+        curl() {
+            printf '<a href="/downloads/ReShade_Setup_9.9.9.exe">download</a>'
+        }
+
+        withProgress() {
+            local _text="$1"
+            shift
+            "$@"
+        }
+
+        downloadReshade() {
+            local _version="$1"
+            mkdir -p "$RESHADE_PATH/$_version"
+            touch "$RESHADE_PATH/$_version/ReShade64.dll" "$RESHADE_PATH/$_version/ReShade32.dll"
+        }
+
+        ensureRequestedReshadeVersion
+    ) || return 1
+    [[ -L "$RESHADE_PATH/latest" ]] || return 1
+    _target=$(readlink "$RESHADE_PATH/latest")
+    [[ "$_target" == *"/9.9.9" ]]
+}
+
+test_download_reshade_fails_when_extraction_is_empty() {
+    local _fake_bin="$TEST_TEMP_DIR/fakebin"
+    mkdir -p "$_fake_bin"
+
+    cat > "$_fake_bin/curl" <<'EOF'
+#!/bin/bash
+touch "${*: -1##*/}"
+EOF
+    cat > "$_fake_bin/file" <<'EOF'
+#!/bin/bash
+printf '%s: PE32 executable\n' "$1"
+EOF
+    cat > "$_fake_bin/7z" <<'EOF'
+#!/bin/bash
+exit 0
+EOF
+    chmod +x "$_fake_bin/curl" "$_fake_bin/file" "$_fake_bin/7z"
+
+    PATH="$_fake_bin:$PATH"
+    export PATH
+    set +e
+    downloadReshade "1.2.3" "https://example.com/ReShade_Setup_1.2.3.exe" >/dev/null 2>&1
+    local _rc=$?
+    set -e
+
+    [[ $_rc -ne 0 ]]
+    [[ ! -e "$RESHADE_PATH/1.2.3/ReShade64.dll" ]]
 }
 
 test_batch_update_skips_invalid_state_file() {
@@ -238,6 +367,32 @@ EOF
     [[ -L "$_game_dir/ReShade_shaders" ]]
     [[ -L "$MAIN_PATH/game-shaders/2000/Merged/Shaders/alpha.fx" ]]
     [[ ! -e "$MAIN_PATH/game-shaders/2000/Merged/Shaders/beta.fx" ]]
+}
+
+test_batch_update_honors_cli_shader_repo_override() {
+    local _game_dir="$TEST_TEMP_DIR/batch-cli-repos"
+    mkdir -p "$MAIN_PATH/game-state" "$RESHADE_PATH/latest" "$_game_dir"
+    touch "$RESHADE_PATH/latest/ReShade64.dll" "$RESHADE_PATH/latest/ReShade32.dll"
+    touch "$MAIN_PATH/d3dcompiler_47.dll.64"
+    export SHADER_REPOS="https://example.com/a|alpha;https://example.com/b|beta"
+    create_mock_shader_repo "alpha"
+    create_mock_shader_repo "beta"
+    cat > "$MAIN_PATH/game-state/3000.state" <<EOF
+dll=dxgi
+arch=64
+gamePath=$_game_dir
+selected_repos=alpha
+app_id=3000
+EOF
+
+    CLI_SHADER_REPOS="beta"
+    CLI_SHADER_REPOS_SET=1
+    _BATCH_UPDATE=1
+    ( maybeHandleBatchUpdate ) >/dev/null 2>&1
+
+    grep -q '^selected_repos=beta$' "$MAIN_PATH/game-state/3000.state"
+    [[ -L "$MAIN_PATH/game-shaders/3000/Merged/Shaders/beta.fx" ]]
+    [[ ! -e "$MAIN_PATH/game-shaders/3000/Merged/Shaders/alpha.fx" ]]
 }
 
 test_release_metadata_version_matches_changelog_headline() {
@@ -343,6 +498,7 @@ run_state_and_shader_tests() {
     run_test "Default repo parsing supports descriptions" test_state_default_repo_names_support_descriptions
     run_test "Shader repo parser keeps empty branch" test_state_shader_repo_parser_keeps_empty_branch_with_description
     run_test "Shader repo parser succeeds under set -e" test_state_shader_repo_parser_succeeds_with_description_under_set_e
+    run_test "Shader display label includes creator" test_shader_display_label_includes_title_creator_and_summary
     echo ""
 
     echo -e "${BLUE}Release Metadata Tests${NC}"
@@ -358,13 +514,20 @@ run_state_and_shader_tests() {
     run_test "Includes external shaders" test_shader_build_includes_external
     run_test "Rebuild replaces previous" test_shader_rebuild_replaces_previous
     run_test "Build supports description without branch" test_shader_build_supports_description_without_branch
+    run_test "Build discovers nested shader layouts" test_shader_build_discovers_nested_layouts
     run_test "Available repos only include existing dirs" test_shader_available_selected_repos_only_returns_existing_dirs
     run_test "CLI shader selection returns names only" test_shader_cli_selection_returns_names_only
+    run_test "Auto-confirm keeps current shader selection" test_shader_auto_confirm_keeps_current_selection
     run_test "YAD progress returns after command finishes" test_with_progress_yad_returns_after_command_finishes
     run_test "YAD checklist accepts multiline output" test_shader_yad_selection_accepts_multiline_output
+    run_test "UI capture preserves disabled errexit" test_ui_capture_preserves_errexit_disabled_state
+    run_test "UI run preserves enabled errexit" test_ui_run_preserves_errexit_enabled_state
+    run_test "ReShade update creates latest symlink" test_reshade_update_creates_latest_symlink_when_missing
+    run_test "Empty ReShade extraction fails" test_download_reshade_fails_when_extraction_is_empty
     run_test "Per-game ReShade.ini uses relative paths" test_game_ini_is_per_game_and_relative
     run_test "Batch update skips invalid state" test_batch_update_skips_invalid_state_file
     run_test "Batch update skips install prompt" test_batch_update_skips_install_prompt
     run_test "Batch update persists available shader subset" test_batch_update_persists_available_shader_subset
+    run_test "Batch update honors CLI shader repo override" test_batch_update_honors_cli_shader_repo_override
     echo ""
 }

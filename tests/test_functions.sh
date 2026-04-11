@@ -20,6 +20,9 @@ source "$REPO_DIR/lib/config.sh"
 source "$REPO_DIR/lib/state.sh"
 source "$REPO_DIR/lib/shaders.sh"
 source "$REPO_DIR/lib/steam.sh"
+source "$REPO_DIR/lib/game_selection.sh"
+source "$REPO_DIR/lib/cli.sh"
+source "$REPO_DIR/lib/install.sh"
 source "$REPO_DIR/lib/flow.sh"
 
 _UI_BACKEND=cli

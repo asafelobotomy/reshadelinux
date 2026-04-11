@@ -1,5 +1,26 @@
 # shellcheck shell=bash
 
+function selectExplicitGamePath() {
+    local _requestedPath="$1"
+    local _resolvedPath=""
+
+    _requestedPath="${_requestedPath/#\~/$HOME}"
+    if [[ -f $_requestedPath || -d $_requestedPath ]]; then
+        _resolvedPath=$(realpath "$_requestedPath" 2>/dev/null || true)
+    fi
+    [[ -n $_resolvedPath ]] || printErr "The path supplied via --game-path does not exist: $_requestedPath"
+    [[ -f $_resolvedPath ]] && _resolvedPath=$(dirname "$_resolvedPath")
+    [[ -d $_resolvedPath ]] || printErr "The path supplied via --game-path is not a directory: $_requestedPath"
+
+    gamePath="$_resolvedPath"
+    _selectedAppId="${CLI_APP_ID:-}"
+    if ! compgen -G "$gamePath/*.exe" &>/dev/null; then
+        printf '%bWarning:%b No .exe file found in %s, continuing because --game-path was supplied explicitly.\n' \
+            "$_YLW$_B" "$_R" "$gamePath"
+    fi
+    printf '%bUsing CLI game path:%b %s\n' "$_GRN" "$_R" "$gamePath"
+}
+
 # Prompt user for a game path manually (TUI or CLI).
 function promptGamePathManual() {
     if [[ $_UI_BACKEND != cli ]]; then
@@ -55,7 +76,25 @@ function promptGamePathManual() {
 
 # Try to get game directory from user, preferring auto-detected Steam games.
 function getGamePath() {
+    if [[ ${CLI_GAME_PATH_SET:-0} -eq 1 ]]; then
+        selectExplicitGamePath "$CLI_GAME_PATH"
+        return
+    fi
+
     detectSteamGames
+    if [[ ${CLI_APP_ID_SET:-0} -eq 1 ]]; then
+        local _i
+        for ((_i=0; _i<${#DETECTED_GAME_APPIDS[@]}; _i++)); do
+            if [[ ${DETECTED_GAME_APPIDS[_i]} == "$CLI_APP_ID" ]]; then
+                gamePath="${DETECTED_GAME_PATHS[_i]}"
+                _selectedAppId="${DETECTED_GAME_APPIDS[_i]}"
+                printf '%bSelected CLI AppID path:%b %s\n' "$_GRN" "$_R" "$gamePath"
+                return
+            fi
+        done
+        printErr "Could not find a detected Steam game for App ID '$CLI_APP_ID'."
+    fi
+
     if [[ ${#DETECTED_GAME_PATHS[@]} -eq 0 ]]; then
         _selectedAppId=""
         promptGamePathManual

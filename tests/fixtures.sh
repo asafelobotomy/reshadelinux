@@ -155,6 +155,19 @@ create_mock_shader_repo() {
     echo "texture"   > "$_textures/$_name.png"
 }
 
+# Create a fake shader repository where Shaders and Textures live below a nested directory.
+# $1: repo local name
+create_nested_shader_repo() {
+    local _name="$1"
+    local _base="$MAIN_PATH/ReShade_shaders/$_name/release/package"
+    local _shaders="$_base/Shaders/Lighting"
+    local _textures="$_base/Textures/Noise"
+    mkdir -p "$_shaders" "$_textures"
+    echo "// shader" > "$_base/Shaders/$_name.fx"
+    echo "// nested header" > "$_shaders/$_name.fxh"
+    echo "texture" > "$_textures/$_name.png"
+}
+
 # Source the main script functions (for testing)
 # This function extracts and loads only the functions we need to test
 load_functions_from_script() {

@@ -1,16 +1,9 @@
 {
+  "chat.mcp.autostart": "newAndOutdated",
+  "chat.subagents.allowInvocationsFromSubagents": true,
   "chat.useAgentsMdFile": true,
   "chat.useNestedAgentsMdFiles": true,
   "chat.useCustomAgentHooks": true,
-  "chat.promptFilesRecommendations": {
-    "commit-msg": true,
-    "explain": true,
-    "refactor": true,
-    "review-file": true,
-    "test-gen": true
-  },
-  "chat.plugins.enabled": true,
-  "json.schemaDownload.trustedDomains": {
-    "https://raw.githubusercontent.com/": true
-  }
+  "chat.promptFilesRecommendations": true,
+  "chat.plugins.enabled": true
 }

@@ -94,7 +94,7 @@ function ensureRequestedReshadeVersion() {
             [[ -L $RESHADE_PATH/latest ]] && unlink "$RESHADE_PATH/latest"
             printf '%bUpdating ReShade to version %s...%b\n' "$_GRN" "$RVERS" "$_R"
             withProgress "Downloading ReShade $RVERS..." downloadReshade "$RVERS" "$RLINK"
-            ln -sf "$(realpath "$RESHADE_PATH/$RVERS")" "$(realpath "$RESHADE_PATH/latest")"
+            ln -sfn "$(realpath "$RESHADE_PATH/$RVERS")" "$RESHADE_PATH/latest"
             echo "$RVERS" > LVERS
             LVERS="$RVERS"
             printf '%bReShade updated to %b%s%b.%b\n' "$_GRN" "$_CYN$_B" "$RVERS" "$_R$_GRN" "$_R"
@@ -230,7 +230,11 @@ function maybeHandleBatchUpdate() {
     for _sf in "$_stateDir"/*.state; do
         _gameKey="${_sf##*/}"
         _gameKey="${_gameKey%.state}"
-        _requestedRepos=$(readSelectedReposFromState "$_sf")
+        if [[ ${CLI_SHADER_REPOS_SET:-0} -eq 1 ]]; then
+            _requestedRepos="$CLI_SHADER_REPOS"
+        else
+            _requestedRepos=$(readSelectedReposFromState "$_sf")
+        fi
         if ! _resolvedState=$(resolveBatchUpdateState "$_sf"); then
             printf '%bSkipping game %s — invalid or stale state file: %s%b\n' \
                 "$_YLW" "$_gameKey" "$_sf" "$_R"

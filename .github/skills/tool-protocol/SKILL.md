@@ -6,7 +6,7 @@ compatibility: ">=1.4"
 
 # Tool Protocol
 
-> Skill metadata: version "1.0"; license MIT; tags [tools, automation, scripting, toolbox]; compatibility ">=1.4"; recommended tools [codebase, editFiles, runCommands, fetch].
+> Skill metadata: version "1.1"; license MIT; tags [tools, automation, scripting, toolbox, plugins, mcp-apps]; compatibility ">=1.4"; recommended tools [codebase, editFiles, runCommands, fetch].
 
 When a task requires automation, a scripted command sequence, or a repeatable utility, follow this decision tree before writing anything ad-hoc.
 
@@ -27,13 +27,20 @@ Need a tool for task X
  │     └─ No match     → ↓
  │
  ├─ 1.5 BUILT-IN — check VS Code's native tool capabilities
- │     ├─ `list_code_usages`  → find all references, implementations, callers of a symbol
- │     ├─ `get_errors`        → get compile/lint errors for a file or the entire workspace
- │     ├─ `fetch_webpage`     → fetch web pages, docs, APIs (use for documentation lookups)
- │     ├─ `semantic_search`   → natural language search across the codebase
- │     ├─ `grep_search`       → fast text/regex search in workspace files
+ │     ├─ Use the exact tool names surfaced by the active runtime; identifiers differ across clients
+ │     ├─ Symbol/reference lookup → find all references, implementations, callers of a symbol
+ │     ├─ Problems/errors lookup  → get compile or lint errors for a file or the entire workspace
+ │     ├─ Web fetch               → fetch web pages, docs, or API references
+ │     ├─ Semantic search         → natural language search across the codebase
+ │     ├─ Text/regex search       → fast exact-match or pattern search in workspace files
  │     ├─ Sufficient → USE built-in tool
  │     └─ Not sufficient → ↓
+ │
+ ├─ 1.6 PLUGIN TOOLS — check installed agent plugins for contributed tools
+ │     ├─ Search Extensions view with `@agentPlugins`
+ │     ├─ Inspect plugin docs for commands, skills, hooks, and MCP servers
+ │     ├─ Suitable existing capability → USE plugin-contributed capability
+ │     └─ No suitable capability → ↓
  │
  ├─ 2. SEARCH online (try in order)
  │     a. MCP server registry  github.com/modelcontextprotocol/servers
@@ -56,7 +63,7 @@ Need a tool for task X
             # purpose:  <what this tool does — one precise sentence>
             # when:     <when to invoke it | when NOT to invoke it>
             # inputs:   <argument list with types and valid values>
-            # outputs:  <what it returns — type and structure>
+            # outputs:  <what it returns — type and structure; include MCP Apps output when interactive UI is beneficial>
             # risk:     safe | destructive
             # source:   <url or "original" if built from scratch>
           │
@@ -96,6 +103,7 @@ Files: `INDEX.md` (catalogue) · `*.sh` · `*.py` · `*.js`/`*.ts` · `*.mcp.jso
 - Retire unused tools: mark `[DEPRECATED]` in INDEX.md; counts as W1 (Overproduction)
 - Tools follow the same LOC baseline as source code (§3 hard limit: 400 lines)
 - Output efficiency — prefer targeted reads (`grep`, `head`, `jq`) over raw dumps; return the minimum token payload the callsite requires.
+- For interactive workflows (forms, tabular drill-down, visual states), prefer MCP Apps output over plain text when the runtime supports it.
 
 ## Subagent tool use
 

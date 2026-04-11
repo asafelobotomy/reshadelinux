@@ -13,6 +13,53 @@ function parseShaderRepoEntry() {
     return 0
 }
 
+function getShaderRepoCreator() {
+    local _repoUri="$1"
+    if [[ $_repoUri =~ github\.com/([^/]+)/[^/]+/?$ ]]; then
+        printf '%s\n' "${BASH_REMATCH[1]}"
+        return
+    fi
+    printf '\n'
+}
+
+function getShaderRepoDisplayTitle() {
+    local _repoName="$1"
+    case "$_repoName" in
+        sweetfx-shaders) printf 'SweetFX\n' ;;
+        immerse-shaders) printf 'iMMERSE\n' ;;
+        astrayfx-shaders) printf 'AstrayFX\n' ;;
+        prod80-shaders) printf 'prod80 ReShade Repository\n' ;;
+        reshade-shaders) printf 'ReShade Shaders\n' ;;
+        fubax-shaders) printf 'Fubax Shaders\n' ;;
+        otis-fx) printf 'OtisFX\n' ;;
+        quintfx) printf 'qUINT\n' ;;
+        insane-shaders) printf 'Insane Shaders\n' ;;
+        niceguy-shaders) printf 'NiceGuy Shaders\n' ;;
+        daodan-shaders) printf 'Daodan Shaders\n' ;;
+        glamarye-fx) printf 'Glamarye Fast Effects\n' ;;
+        luluco250-fx) printf 'FXShaders\n' ;;
+        cobra-fx) printf 'CobraFX\n' ;;
+        corgi-fx) printf 'CorgiFX\n' ;;
+        mlut-shaders) printf 'MLUT\n' ;;
+        alucard-shaders) printf 'DH ReShade Shaders\n' ;;
+        lordbean-shaders) printf 'LordBean Shaders\n' ;;
+        *) printf '%s\n' "$_repoName" ;;
+    esac
+}
+
+function formatShaderRepoDisplayLabel() {
+    local _repoUri="$1" _repoName="$2" _repoDesc="$3"
+    local _title _creator
+
+    _title=$(getShaderRepoDisplayTitle "$_repoName")
+    _creator=$(getShaderRepoCreator "$_repoUri")
+    if [[ -n $_creator ]]; then
+        printf '%s by %s | %s\n' "$_title" "$_creator" "$_repoDesc"
+        return
+    fi
+    printf '%s | %s\n' "$_title" "$_repoDesc"
+}
+
 # Return a comma-separated list of all configured shader repo names.
 function getDefaultSelectedRepos() {
     local -a _names=()
@@ -29,6 +76,57 @@ function getDefaultSelectedRepos() {
     done
     local IFS=','
     printf '%s\n' "${_names[*]}"
+}
+
+function normalizeRequestedShaderRepos() {
+    local _requested="$1"
+    local _savedIFS="$IFS" _entry _requestedName _normalized
+    local -a _requestedNames=() _selectedNames=() _allRepos=()
+    local -A _known=() _selected=()
+
+    _requested="${_requested#"${_requested%%[![:space:]]*}"}"
+    _requested="${_requested%"${_requested##*[![:space:]]}"}"
+    case "$_requested" in
+        ""|none|NONE)
+            printf '\n'
+            return 0
+            ;;
+        all|ALL)
+            getDefaultSelectedRepos
+            return 0
+            ;;
+    esac
+
+    IFS=';' read -ra _allRepos <<< "$SHADER_REPOS"
+    IFS="$_savedIFS"
+    for _entry in "${_allRepos[@]}"; do
+        parseShaderRepoEntry "$_entry"
+        [[ -z $_shaderRepoName ]] && continue
+        _known["$_shaderRepoName"]=1
+    done
+
+    IFS=',' read -ra _requestedNames <<< "$_requested"
+    IFS="$_savedIFS"
+    for _requestedName in "${_requestedNames[@]}"; do
+        _normalized="${_requestedName#"${_requestedName%%[![:space:]]*}"}"
+        _normalized="${_normalized%"${_normalized##*[![:space:]]}"}"
+        [[ -z $_normalized ]] && continue
+        [[ -n ${_known["$_normalized"]+x} ]] || {
+            printf 'Unknown shader repository: %s\n' "$_normalized" >&2
+            return 1
+        }
+        _selected["$_normalized"]=1
+    done
+
+    for _entry in "${_allRepos[@]}"; do
+        parseShaderRepoEntry "$_entry"
+        [[ -z $_shaderRepoName ]] && continue
+        [[ -n ${_selected["$_shaderRepoName"]+x} ]] || continue
+        _selectedNames+=("$_shaderRepoName")
+    done
+
+    local IFS=','
+    printf '%s\n' "${_selectedNames[*]}"
 }
 
 function getAvailableSelectedRepos() {
@@ -209,12 +307,16 @@ function ensureGamePreset() {
 # The 4th field (description) is shown in the UI; it falls back to the URL when absent.
 function selectShaders() {
     local _current="$1"
-    local -a _names=() _uris=() _descs=() _rows=()
+    local -a _names=() _uris=() _descs=() _labels=() _rows=()
     local -A _seen=()
     local _savedIFS="$IFS"
+    if [[ ${UI_AUTO_CONFIRM:-0} == 1 && $_UI_BACKEND != cli ]]; then
+        printf '%s\n' "$_current"
+        return 0
+    fi
     IFS=';' read -ra _allRepos <<< "$SHADER_REPOS"
     IFS="$_savedIFS"
-    local _entry _checked
+    local _entry _checked _rowKey
     for _entry in "${_allRepos[@]}"; do
         parseShaderRepoEntry "$_entry"
         [[ -z $_shaderRepoName ]] && continue
@@ -224,7 +326,9 @@ function selectShaders() {
         _names+=("$_shaderRepoName")
         _uris+=("$_shaderRepoUri")
         _descs+=("$_shaderRepoDesc")
-        _rows+=("$_shaderRepoName" "$_shaderRepoDesc" "$_checked")
+        _labels+=("$(formatShaderRepoDisplayLabel "$_shaderRepoUri" "$_shaderRepoName" "$_shaderRepoDesc")")
+        _rowKey="${#_names[@]}"
+        _rows+=("$_rowKey" "${_labels[-1]}" "$_checked")
     done
     local -a _selected_names=()
     if [[ $_UI_BACKEND != cli ]]; then
@@ -236,11 +340,15 @@ function selectShaders() {
         _box_h=$(( _list_h + 8 ))
         local _result
         _result=$(ui_checklist "ReShade - Shader Repositories" \
-            "Select which shader repositories to install for this game. Unticking a repo removes its shaders from this game." \
+            "Select which shader repositories to install for this game. Each entry shows the pack title, creator, and a short highlight summary." \
             "$_box_h" 100 "$_list_h" "${_rows[@]}") || return 1
         _result=${_result//\"/}
         if [[ -n $_result ]]; then
-            mapfile -t _selected_names < <(printf '%s' "$_result" | tr '|\n\r\t ' '\n' | sed '/^$/d')
+            local _selected_index
+            while IFS= read -r _selected_index || [[ -n $_selected_index ]]; do
+                [[ $_selected_index =~ ^[0-9]+$ ]] || continue
+                _selected_names+=("${_names[$((_selected_index - 1))]}")
+            done < <(printf '%s' "$_result" | tr '|\n\r\t ' '\n' | sed '/^$/d')
         fi
     else
         printf '%bSelect shader repositories to install for this game:%b\n' "$_CYN" "$_R" >&2
@@ -248,8 +356,8 @@ function selectShaders() {
         for (( _i=0; _i<${#_names[@]}; _i++ )); do
             local _def="y"
             [[ "${_rows[$(( (_i * 3) + 2 ))]}" == "OFF" ]] && _def="n"
-            printf '  [%s] %s - %s\n     Include? [%s]: ' \
-                "$(( _i + 1 ))" "${_names[$_i]}" "${_descs[$_i]}" "$_def" >&2
+            printf '  [%s] %s\n     Include? [%s]: ' \
+                "$(( _i + 1 ))" "${_labels[$_i]}" "$_def" >&2
             read -r _ans
             [[ -z $_ans ]] && _ans="$_def"
             [[ "$_ans" =~ ^(y|Y|yes|YES)$ ]] && _selected_names+=("${_names[$_i]}")

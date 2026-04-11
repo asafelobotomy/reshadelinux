@@ -18,28 +18,83 @@ Write a well-structured commit message following the [Conventional Commits](http
 
 ## When NOT to use
 
-- The user has their own commit message format documented in §10
-- The project uses a different commit convention (check §4 and §10 first)
+- The user has their own commit message format documented in §10 of their project's Copilot instructions
+- The project uses a different commit convention (check §4 and §10 of the project's Copilot instructions first)
 
 ## Steps
 
-1. **Read the staged changes** — Run `git diff --cached --stat` and `git diff --cached`.
+1. **Read the staged changes** — Run `git diff --cached --stat` to see which files changed, then `git diff --cached` for the full diff.
 
-2. **Determine the type** — Choose: feat, fix, docs, style, refactor, perf, test, build, ci, chore.
+2. **Determine the type** — Choose the most appropriate type:
 
-3. **Determine the scope** — Identify the primary area affected. Omit if spanning many areas.
+   | Type | When to use |
+   |------|------------|
+   | `feat` | A new feature or capability |
+   | `fix` | A bug fix |
+   | `docs` | Documentation-only changes |
+   | `style` | Formatting, whitespace, semicolons — no logic change |
+   | `refactor` | Code change that neither fixes a bug nor adds a feature |
+   | `perf` | Performance improvement |
+   | `test` | Adding or correcting tests |
+   | `build` | Build system or external dependency changes |
+   | `ci` | CI configuration changes |
+   | `chore` | Maintenance tasks that don't modify src or test files |
 
-4. **Write the subject line** — Format: `<type>(<scope>): <imperative summary>` (max 72 chars).
+3. **Determine the scope** — Identify the primary area affected (e.g., `auth`, `api`, `ci`, `docs`). Use the directory name or module name. Omit scope if the change spans many areas.
 
-5. **Write the body** (if non-trivial) — Explain what and why, wrap at 72 chars.
+4. **Write the subject line** — Format: `<type>(<scope>): <imperative summary>`
+   - Use imperative mood ("add", not "added" or "adds")
+   - Lowercase first letter after the colon
+   - No period at the end
+   - Maximum 72 characters
 
-6. **Add breaking change footer** (if applicable).
+5. **Write the body** (if the change is non-trivial):
+   - Blank line after the subject
+   - Explain *what* changed and *why* (not *how* — the diff shows how)
+   - Wrap at 72 characters
+   - Reference issue numbers if applicable: `Fixes #123`, `Closes #456`
 
-7. **Present the message** — Show for user review.
+6. **Add breaking change footer** (if applicable):
+   - Add `!` after the type/scope: `feat(api)!: remove v1 endpoints`
+   - Add footer: `BREAKING CHANGE: <description of what breaks and migration path>`
 
-8. **Wait for approval** — Do not run `git commit` until approved.
+7. **Present the message** — Show the complete commit message for user review:
 
-9. **Execute** — Once approved, run git commit and confirm with `git log --oneline -1`.
+   ```text
+   <type>(<scope>): <subject>
+
+   <body>
+
+   <footer>
+   ```
+
+8. **Wait for approval** — Present the message and wait. Do not run `git commit` until the user approves or modifies the message.
+
+9. **Execute** — Once the user approves, run:
+
+   ```bash
+   git commit -m "<subject>" -m "<body>"
+   ```
+
+   For multi-line messages with footers, use a heredoc or a temporary file to avoid shell escaping issues:
+
+   ```bash
+   git commit -F - <<'EOF'
+   <type>(<scope>): <subject>
+
+   <body>
+
+   <footer>
+   EOF
+   ```
+
+   Confirm the commit was created: `git log --oneline -1`
+
+## Co-author attribution
+
+VS Code 1.110+ supports `git.addAICoAuthor` (enabled by default), which automatically appends a `Co-authored-by: GitHub Copilot` trailer to commits made with AI assistance. If this setting is enabled, the trailer is added automatically — you do not need to include it manually in the commit message.
+
+To check or change the setting: search for `git.addAICoAuthor` in VS Code Settings.
 
 ## Verify
 
@@ -48,3 +103,4 @@ Write a well-structured commit message following the [Conventional Commits](http
 - [ ] Body explains what and why (if present)
 - [ ] Breaking changes have both `!` marker and `BREAKING CHANGE:` footer
 - [ ] The message accurately describes all staged changes
+- [ ] `git log --oneline -1` confirms the commit was created

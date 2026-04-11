@@ -1,36 +1,132 @@
 {
-  "inputs": [
-    {
-      "type": "promptString",
-      "id": "github-token",
-      "description": "GitHub Personal Access Token",
-      "password": true
-    }
-  ],
-  "servers": {
-    "github": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-github"
-      ],
-      "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "${input:github-token}"
-      }
-    },
-    "fetch": {
-      "command": "uvx",
-      "args": [
-        "mcp-server-fetch"
-      ]
-    },
-    "git": {
-      "command": "uvx",
-      "args": [
-        "mcp-server-git",
-        "--repository",
-        "."
-      ]
-    }
-  }
+	"sandbox": {
+		"network": {
+			"allowedDomains": [
+				"pypi.org",
+				"files.pythonhosted.org",
+				"creativecommons.org",
+				"clig.dev",
+				"example.com",
+				"raw.githubusercontent.com"
+			]
+		},
+		"filesystem": {
+			"allowWrite": [
+				"${userHome}/.npm",
+				"${userHome}/.cache/uv",
+				"${userHome}/.local/share/uv"
+			]
+		}
+	},
+	"servers": {
+		"filesystem": {
+			"type": "stdio",
+			"command": "npx",
+			"args": [
+				"-y",
+				"@modelcontextprotocol/server-filesystem",
+				"${workspaceFolder}"
+			],
+			"sandboxEnabled": true,
+			"sandbox": {
+				"filesystem": {
+					"allowWrite": [
+						"${workspaceFolder}",
+						"${userHome}/.npm"
+					],
+					"denyRead": [
+						"${userHome}/.ssh",
+						"${userHome}/.gnupg",
+						"${userHome}/.aws"
+					]
+				}
+			}
+		},
+		"git": {
+			"type": "stdio",
+			"command": "uvx",
+			"args": [
+				"mcp-server-git",
+				"--repository",
+				"${workspaceFolder}"
+			],
+			"sandboxEnabled": true,
+			"sandbox": {
+				"filesystem": {
+					"allowWrite": [
+						"${workspaceFolder}"
+					],
+					"denyRead": [
+						"${userHome}/.ssh",
+						"${userHome}/.gnupg",
+						"${userHome}/.aws"
+					]
+				}
+			}
+		},
+		"github": {
+			"type": "http",
+			"url": "https://api.githubcopilot.com/mcp/"
+		},
+		"fetch": {
+			"type": "stdio",
+			"command": "uvx",
+			"args": [
+				"--with",
+				"httpx[socks]>=0.28",
+				"mcp-server-fetch"
+			],
+			"sandboxEnabled": true,
+			"sandbox": {
+				"filesystem": {
+					"denyRead": [
+						"${userHome}/.ssh",
+						"${userHome}/.gnupg",
+						"${userHome}/.aws"
+					]
+				}
+			}
+		},
+		"context7": {
+			"type": "http",
+			"url": "https://mcp.context7.com/mcp"
+		},
+		"playwright": {
+			"type": "stdio",
+			"command": "npx",
+			"args": [
+				"-y",
+				"@playwright/mcp@latest",
+				"--headless",
+				"--browser=chromium"
+			],
+			"sandboxEnabled": true,
+			"sandbox": {
+				"filesystem": {
+					"allowWrite": [
+						"${workspaceFolder}",
+						"${userHome}/.npm",
+						"${userHome}/.cache/ms-playwright"
+					],
+					"denyRead": [
+						"${userHome}/.ssh",
+						"${userHome}/.gnupg",
+						"${userHome}/.aws"
+					]
+				}
+			}
+		},
+		"heartbeat": {
+			"type": "stdio",
+			"command": "${workspaceFolder}/.github/hooks/scripts/mcp-uvx.sh",
+			"args": [
+				"--from",
+				"mcp[cli]",
+				"mcp",
+				"run",
+				"${workspaceFolder}/.github/hooks/scripts/mcp-heartbeat-server.py"
+			],
+			"sandboxEnabled": false
+		}
+	}
 }
