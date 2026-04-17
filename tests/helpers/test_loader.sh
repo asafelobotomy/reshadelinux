@@ -4,7 +4,7 @@
 set -euo pipefail
 
 TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_DIR="$(cd "$TESTS_DIR/.." && pwd)"
+REPO_DIR="$(cd "$TESTS_DIR/../.." && pwd)"
 
 source "$REPO_DIR/lib/logging.sh"
 
@@ -19,7 +19,8 @@ source "$REPO_DIR/lib/utils.sh"
 source "$REPO_DIR/lib/config.sh"
 source "$REPO_DIR/lib/state.sh"
 source "$REPO_DIR/lib/shaders.sh"
-source "$REPO_DIR/lib/steam.sh"
+source "$REPO_DIR/lib/steam_detection.sh"
+source "$REPO_DIR/lib/steam_metadata.sh"
 source "$REPO_DIR/lib/game_selection.sh"
 source "$REPO_DIR/lib/cli.sh"
 source "$REPO_DIR/lib/install.sh"

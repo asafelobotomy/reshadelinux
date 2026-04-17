@@ -31,6 +31,22 @@ function readGameStateField() {
     grep "^${_field}=" "$_stateFile" | cut -d= -f2- | head -1
 }
 
+function loadGameState() {
+    local _stateFile="$1"
+    local -n _dllRef="$2"
+    local -n _archRef="$3"
+    local -n _gamePathRef="$4"
+    local -n _selectedReposRef="$5"
+    local -n _appIdRef="$6"
+
+    [[ -f $_stateFile ]] || return 1
+    _dllRef=$(readGameStateField "$_stateFile" dll)
+    _archRef=$(readGameStateField "$_stateFile" arch)
+    _gamePathRef=$(readGameStateField "$_stateFile" gamePath)
+    _selectedReposRef=$(readSelectedReposFromState "$_stateFile")
+    _appIdRef=$(readGameStateField "$_stateFile" app_id)
+}
+
 # Read selected shader repos from a state file.
 # Missing fields default to all repos for backward compatibility.
 # An explicit empty field means no repos selected.

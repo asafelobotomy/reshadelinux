@@ -19,17 +19,14 @@ function printCliVersion() {
 }
 
 function printAvailableShaderRepos() {
-    local _savedIFS="$IFS" _entry _label
-    IFS=';' read -ra _allRepos <<< "$SHADER_REPOS"
-    IFS="$_savedIFS"
+    local _entry _label
 
     printf 'Configured shader repositories:\n'
-    for _entry in "${_allRepos[@]}"; do
+    while IFS= read -r _entry || [[ -n $_entry ]]; do
         parseShaderRepoEntry "$_entry"
-        [[ -z $_shaderRepoName ]] && continue
-        _label=$(formatShaderRepoDisplayLabel "$_shaderRepoUri" "$_shaderRepoName" "$_shaderRepoDesc")
+        _label=$(formatShaderRepoDisplayLabel "$_shaderRepoUri" "$_shaderRepoTitle" "$_shaderRepoDesc")
         printf '  %s\t%s\n' "$_shaderRepoName" "$_label"
-    done
+    done < <(listConfiguredShaderRepoEntries)
 }
 
 function handleCliInfoArgs() {

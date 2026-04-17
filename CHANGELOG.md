@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, adapted for this repository.
 
+## [1.3.1] - 2026-04-17
+
+### Changed in 1.3.1
+
+- AppImage startup now goes through `reshade-linux-gui.sh`, so packaged launches use the same GUI backend fallback path as direct script launches.
+- AppImage release validation now exercises startup with `--update-all` instead of checking `--help` only.
+
+### Fixed in 1.3.1
+
+- Forced UI backend selection now fails immediately when the requested backend command is missing.
+- TUI and CLI dependency checks now run by operation phase, so uninstall and game-selection flows do not require download tooling up front.
+- ReShade downloads now accept only the expected official hosts, support optional `RESHADE_SETUP_SHA256` pinning, and verify the extracted DLL payload before install.
+
 ## [1.3.0] - 2026-03-17
 
 ### Added in 1.3.0

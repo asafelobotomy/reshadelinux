@@ -57,6 +57,19 @@ test_state_can_read_named_field() {
     [[ "$(readGameStateField "$MAIN_PATH/game-state/field.state" dll)" == "dxgi" ]]
 }
 
+test_state_loader_reads_complete_state_payload() {
+    local _dll="" _arch="" _game_path="" _selected_repos="" _app_id=""
+
+    writeGameState "loaded" "/games/loaded" "d3d9" "32" "alpha,beta" "777"
+    loadGameState "$MAIN_PATH/game-state/loaded.state" _dll _arch _game_path _selected_repos _app_id
+
+    [[ "$_dll" == "d3d9" ]]
+    [[ "$_arch" == "32" ]]
+    [[ "$_game_path" == "/games/loaded" ]]
+    [[ "$_selected_repos" == "alpha,beta" ]]
+    [[ "$_app_id" == "777" ]]
+}
+
 test_state_checklist_marks_saved_repo_on() {
     local _state
     _state=$(repoChecklistState "alpha,beta" "alpha")
@@ -83,27 +96,56 @@ test_state_formats_installed_game_label() {
 
 test_state_default_repo_names_support_descriptions() {
     local _repos
-    export SHADER_REPOS="https://example.com/a|alpha||First repo;https://example.com/b|beta|main|Second repo"
+    export SHADER_REPOS="https://example.com/a|alpha||Alpha Title|First repo;https://example.com/b|beta|main|Beta Title|Second repo"
     _repos=$(getDefaultSelectedRepos)
     [[ "$_repos" == "alpha,beta" ]]
 }
 
-test_state_shader_repo_parser_keeps_empty_branch_with_description() {
-    local _shaderRepoUri="" _shaderRepoName="" _shaderRepoBranch="" _shaderRepoDesc=""
-    export SHADER_REPOS="https://example.com/repo|alpha||Description text"
+test_state_first_run_repo_subset_prefers_curated_names() {
+    local _repos
+    export SHADER_REPOS="https://example.com/a|alpha||Alpha Title|First repo;https://example.com/b|beta|main|Beta Title|Second repo;https://example.com/c|gamma||Gamma Title|Third repo"
+    export FIRST_RUN_SHADER_REPOS="beta,gamma,missing"
+    _repos=$(getFirstRunSelectedRepos)
+    [[ "$_repos" == "beta,gamma" ]]
+}
+
+test_state_first_run_repo_subset_falls_back_to_all_when_curated_names_missing() {
+    local _repos
+    export SHADER_REPOS="https://example.com/a|alpha||Alpha Title|First repo;https://example.com/b|beta|main|Beta Title|Second repo"
+    export FIRST_RUN_SHADER_REPOS="missing-one,missing-two"
+    _repos=$(getFirstRunSelectedRepos)
+    [[ "$_repos" == "alpha,beta" ]]
+}
+
+test_state_shader_repo_parser_keeps_empty_branch_with_title_and_description() {
+    local _shaderRepoUri="" _shaderRepoName="" _shaderRepoBranch="" _shaderRepoTitle="" _shaderRepoDesc=""
+    export SHADER_REPOS="https://example.com/repo|alpha||Alpha Title|Description text"
+    parseShaderRepoEntry "https://example.com/repo|alpha||Alpha Title|Description text"
+    [[ "$_shaderRepoUri" == "https://example.com/repo" ]] || return 1
+    [[ "$_shaderRepoName" == "alpha" ]] || return 1
+    [[ -z "$_shaderRepoBranch" ]] || return 1
+    [[ "$_shaderRepoTitle" == "Alpha Title" ]] || return 1
+    [[ "$_shaderRepoDesc" == "Description text" ]]
+}
+
+test_state_shader_repo_parser_remains_backward_compatible_with_four_fields() {
+    local _shaderRepoUri="" _shaderRepoName="" _shaderRepoBranch="" _shaderRepoTitle="" _shaderRepoDesc=""
+
     parseShaderRepoEntry "https://example.com/repo|alpha||Description text"
     [[ "$_shaderRepoUri" == "https://example.com/repo" ]] || return 1
     [[ "$_shaderRepoName" == "alpha" ]] || return 1
     [[ -z "$_shaderRepoBranch" ]] || return 1
+    [[ "$_shaderRepoTitle" == "alpha" ]] || return 1
     [[ "$_shaderRepoDesc" == "Description text" ]]
 }
 
-test_state_shader_repo_parser_succeeds_with_description_under_set_e() {
+test_state_shader_repo_parser_succeeds_with_title_and_description_under_set_e() {
     local _status
     set +e
     (
         set -e
-        parseShaderRepoEntry "https://example.com/repo|alpha||Description text"
+        parseShaderRepoEntry "https://example.com/repo|alpha||Alpha Title|Description text"
+        [[ "$_shaderRepoTitle" == "Alpha Title" ]]
         [[ "$_shaderRepoDesc" == "Description text" ]]
     )
     _status=$?
@@ -115,7 +157,7 @@ test_shader_display_label_includes_title_creator_and_summary() {
     local _label
     _label=$(formatShaderRepoDisplayLabel \
         "https://github.com/martymcmodding/qUINT" \
-        "quintfx" \
+        "qUINT" \
         "Lightroom grading, SSR, MXAO, Bloom, Deband")
     [[ "$_label" == "qUINT by martymcmodding | Lightroom grading, SSR, MXAO, Bloom, Deband" ]]
 }
@@ -156,15 +198,74 @@ test_shader_auto_confirm_keeps_current_selection() {
     _output=$( (
         _UI_BACKEND=dialog
         UI_AUTO_CONFIRM=1
-        # shellcheck disable=SC2329
-        ui_checklist() {
-            printf 'unexpected\n' >&2
-            return 1
-        }
         selectShaders "alpha,beta"
     ) )
 
     [[ "$_output" == "alpha,beta" ]]
+}
+
+test_shader_auto_confirm_defaults_to_all_repos_when_selection_is_empty() {
+    local _output
+    export SHADER_REPOS="https://example.com/a|alpha||Alpha repo;https://example.com/b|beta||Beta repo"
+    _output=$( (
+        _UI_BACKEND=dialog
+        UI_AUTO_CONFIRM=1
+        selectShaders ""
+    ) )
+
+    [[ "$_output" == "alpha,beta" ]]
+}
+
+test_install_first_run_defaults_to_curated_subset() {
+    local _game_dir="$TEST_TEMP_DIR/first-run-game"
+    local _output
+    mkdir -p "$_game_dir"
+    export SHADER_REPOS="https://example.com/a|alpha||Alpha repo;https://example.com/b|beta||Beta repo;https://example.com/c|gamma||Gamma repo"
+    export FIRST_RUN_SHADER_REPOS="gamma,alpha"
+
+    _output=$( (
+        _stateFile="$MAIN_PATH/game-state/non-existent.state"
+
+        selectShaders() {
+            printf '%s\n' "$1"
+        }
+
+        ensureSelectedShaderReposWithRetry() {
+            return 0
+        }
+
+        getAvailableSelectedRepos() {
+            printf '%s\n' "$1"
+        }
+
+        resolveInstallShaderSelection >/dev/null
+        printf '%s\n' "$_selectedRepos"
+    ) )
+
+    [[ "$_output" == "alpha,gamma" ]]
+}
+
+test_ui_inputbox_auto_confirm_uses_override_response() {
+    local _output
+    _output=$( (
+        _UI_BACKEND=dialog
+        UI_AUTO_CONFIRM=1
+        UI_AUTO_INPUTBOX_RESPONSE="/tmp/reshade-game"
+        ui_inputbox "ReShade" "Enter a directory path:" "/tmp/default"
+    ) )
+
+    [[ "$_output" == "/tmp/reshade-game" ]]
+}
+
+test_ui_radiolist_auto_confirm_returns_default_on_tag() {
+    local _output
+    _output=$( (
+        _UI_BACKEND=dialog
+        UI_AUTO_CONFIRM=1
+        ui_radiolist "ReShade" "Pick one" 10 60 2 install "Install" ON uninstall "Uninstall" OFF
+    ) )
+
+    [[ "$_output" == "install" ]]
 }
 
 test_with_progress_yad_returns_after_command_finishes() {
@@ -247,6 +348,57 @@ test_ui_run_preserves_errexit_enabled_state() {
     [[ "$_state" == "on" ]]
 }
 
+test_required_executables_selection_mode_skips_download_tools() {
+    local -a _required=()
+    local _tool
+    local _has_grep=0 _has_python3=0 _has_sed=0 _has_sha256sum=0
+    local _has_curl=0 _has_7z=0 _has_file=0 _has_git=0
+
+    mapfile -t _required < <(listRequiredExecutablesForMode selection)
+
+    for _tool in "${_required[@]}"; do
+        [[ $_tool == grep ]] && _has_grep=1
+        [[ $_tool == python3 ]] && _has_python3=1
+        [[ $_tool == sed ]] && _has_sed=1
+        [[ $_tool == sha256sum ]] && _has_sha256sum=1
+        [[ $_tool == curl ]] && _has_curl=1
+        [[ $_tool == 7z ]] && _has_7z=1
+        [[ $_tool == file ]] && _has_file=1
+        [[ $_tool == git ]] && _has_git=1
+    done
+
+    [[ $_has_grep -eq 1 ]]
+    [[ $_has_python3 -eq 1 ]]
+    [[ $_has_sed -eq 1 ]]
+    [[ $_has_sha256sum -eq 1 ]]
+    [[ $_has_curl -eq 0 ]]
+    [[ $_has_7z -eq 0 ]]
+    [[ $_has_file -eq 0 ]]
+    [[ $_has_git -eq 0 ]]
+}
+
+test_required_executables_install_mode_includes_download_tools() {
+    local -a _required=()
+    local _tool
+    local _has_curl=0 _has_7z=0 _has_file=0 _has_git=0
+
+    init_runtime_config
+
+    mapfile -t _required < <(listRequiredExecutablesForMode install)
+
+    for _tool in "${_required[@]}"; do
+        [[ $_tool == curl ]] && _has_curl=1
+        [[ $_tool == 7z ]] && _has_7z=1
+        [[ $_tool == file ]] && _has_file=1
+        [[ $_tool == git ]] && _has_git=1
+    done
+
+    [[ $_has_curl -eq 1 ]]
+    [[ $_has_7z -eq 1 ]]
+    [[ $_has_file -eq 1 ]]
+    [[ $_has_git -eq 1 ]]
+}
+
 test_reshade_update_creates_latest_symlink_when_missing() {
     local _target
     (
@@ -280,6 +432,15 @@ test_reshade_update_creates_latest_symlink_when_missing() {
     [[ "$_target" == *"/9.9.9" ]]
 }
 
+test_download_reshade_rejects_untrusted_url() {
+    set +e
+    downloadReshade "1.2.3" "https://example.com/ReShade_Setup_1.2.3.exe" >/dev/null 2>&1
+    local _rc=$?
+    set -e
+
+    [[ $_rc -ne 0 ]]
+}
+
 test_download_reshade_fails_when_extraction_is_empty() {
     local _fake_bin="$TEST_TEMP_DIR/fakebin"
     mkdir -p "$_fake_bin"
@@ -301,12 +462,66 @@ EOF
     PATH="$_fake_bin:$PATH"
     export PATH
     set +e
-    downloadReshade "1.2.3" "https://example.com/ReShade_Setup_1.2.3.exe" >/dev/null 2>&1
+    downloadReshade "1.2.3" "https://reshade.me/downloads/ReShade_Setup_1.2.3.exe" >/dev/null 2>&1
     local _rc=$?
     set -e
 
     [[ $_rc -ne 0 ]]
     [[ ! -e "$RESHADE_PATH/1.2.3/ReShade64.dll" ]]
+}
+
+test_download_reshade_fails_when_hash_mismatches() {
+    local _fake_bin="$TEST_TEMP_DIR/fakebin-hash"
+    mkdir -p "$_fake_bin"
+
+    cat > "$_fake_bin/curl" <<'EOF'
+#!/bin/bash
+touch "${*: -1##*/}"
+EOF
+    cat > "$_fake_bin/file" <<'EOF'
+#!/bin/bash
+printf '%s: PE32 executable\n' "$1"
+EOF
+    chmod +x "$_fake_bin/curl" "$_fake_bin/file"
+
+    PATH="$_fake_bin:$PATH"
+    export PATH RESHADE_SETUP_SHA256=deadbeef
+    set +e
+    downloadReshade "1.2.3" "https://reshade.me/downloads/ReShade_Setup_1.2.3.exe" >/dev/null 2>&1
+    local _rc=$?
+    set -e
+    unset RESHADE_SETUP_SHA256
+
+    [[ $_rc -ne 0 ]]
+}
+
+test_download_reshade_fails_when_payload_is_missing_dlls() {
+    local _fake_bin="$TEST_TEMP_DIR/fakebin-payload"
+    mkdir -p "$_fake_bin"
+
+    cat > "$_fake_bin/curl" <<'EOF'
+#!/bin/bash
+touch "${*: -1##*/}"
+EOF
+    cat > "$_fake_bin/file" <<'EOF'
+#!/bin/bash
+printf '%s: PE32 executable\n' "$1"
+EOF
+    cat > "$_fake_bin/7z" <<'EOF'
+#!/bin/bash
+touch not-reshade.txt
+exit 0
+EOF
+    chmod +x "$_fake_bin/curl" "$_fake_bin/file" "$_fake_bin/7z"
+
+    PATH="$_fake_bin:$PATH"
+    export PATH
+    set +e
+    downloadReshade "1.2.3" "https://reshade.me/downloads/ReShade_Setup_1.2.3.exe" >/dev/null 2>&1
+    local _rc=$?
+    set -e
+
+    [[ $_rc -ne 0 ]]
 }
 
 test_batch_update_skips_invalid_state_file() {
@@ -491,13 +706,17 @@ run_state_and_shader_tests() {
     run_test "Legacy state defaults to all repos" test_state_missing_selected_repos_defaults_to_all
     run_test "Explicit empty repo state stays empty" test_state_explicit_empty_selected_repos_stays_empty
     run_test "Read named state field" test_state_can_read_named_field
+    run_test "Load complete state payload" test_state_loader_reads_complete_state_payload
     run_test "Checklist marks saved repo on" test_state_checklist_marks_saved_repo_on
     run_test "Checklist uses exact repo match" test_state_checklist_uses_exact_repo_match
     run_test "Recognizes known DLL override" test_state_detects_known_dll_override
     run_test "Formats installed game label" test_state_formats_installed_game_label
     run_test "Default repo parsing supports descriptions" test_state_default_repo_names_support_descriptions
-    run_test "Shader repo parser keeps empty branch" test_state_shader_repo_parser_keeps_empty_branch_with_description
-    run_test "Shader repo parser succeeds under set -e" test_state_shader_repo_parser_succeeds_with_description_under_set_e
+    run_test "First-run subset prefers curated names" test_state_first_run_repo_subset_prefers_curated_names
+    run_test "First-run subset falls back to all repos" test_state_first_run_repo_subset_falls_back_to_all_when_curated_names_missing
+    run_test "Shader repo parser keeps empty branch" test_state_shader_repo_parser_keeps_empty_branch_with_title_and_description
+    run_test "Shader repo parser stays backward compatible" test_state_shader_repo_parser_remains_backward_compatible_with_four_fields
+    run_test "Shader repo parser succeeds under set -e" test_state_shader_repo_parser_succeeds_with_title_and_description_under_set_e
     run_test "Shader display label includes creator" test_shader_display_label_includes_title_creator_and_summary
     echo ""
 
@@ -518,12 +737,21 @@ run_state_and_shader_tests() {
     run_test "Available repos only include existing dirs" test_shader_available_selected_repos_only_returns_existing_dirs
     run_test "CLI shader selection returns names only" test_shader_cli_selection_returns_names_only
     run_test "Auto-confirm keeps current shader selection" test_shader_auto_confirm_keeps_current_selection
+    run_test "Auto-confirm defaults shader selection" test_shader_auto_confirm_defaults_to_all_repos_when_selection_is_empty
+    run_test "Install first run defaults to curated subset" test_install_first_run_defaults_to_curated_subset
+    run_test "Auto-confirm inputbox uses override" test_ui_inputbox_auto_confirm_uses_override_response
+    run_test "Auto-confirm radiolist picks default" test_ui_radiolist_auto_confirm_returns_default_on_tag
     run_test "YAD progress returns after command finishes" test_with_progress_yad_returns_after_command_finishes
     run_test "YAD checklist accepts multiline output" test_shader_yad_selection_accepts_multiline_output
     run_test "UI capture preserves disabled errexit" test_ui_capture_preserves_errexit_disabled_state
     run_test "UI run preserves enabled errexit" test_ui_run_preserves_errexit_enabled_state
+    run_test "Selection mode skips download-only tools" test_required_executables_selection_mode_skips_download_tools
+    run_test "Install mode includes download tools" test_required_executables_install_mode_includes_download_tools
     run_test "ReShade update creates latest symlink" test_reshade_update_creates_latest_symlink_when_missing
+    run_test "ReShade download rejects untrusted URL" test_download_reshade_rejects_untrusted_url
     run_test "Empty ReShade extraction fails" test_download_reshade_fails_when_extraction_is_empty
+    run_test "ReShade download rejects hash mismatch" test_download_reshade_fails_when_hash_mismatches
+    run_test "ReShade download rejects missing DLL payload" test_download_reshade_fails_when_payload_is_missing_dlls
     run_test "Per-game ReShade.ini uses relative paths" test_game_ini_is_per_game_and_relative
     run_test "Batch update skips invalid state" test_batch_update_skips_invalid_state_file
     run_test "Batch update skips install prompt" test_batch_update_skips_install_prompt

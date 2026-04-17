@@ -5,3 +5,7 @@ tests/test_helper/
 
 # Local release artifacts
 dist/
+appimagetool
+build_local/
+squashfs-root/
+temp/

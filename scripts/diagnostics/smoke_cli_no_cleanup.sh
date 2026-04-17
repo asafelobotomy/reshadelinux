@@ -9,6 +9,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Keep this legacy entrypoint as a thin compatibility wrapper around the
-# maintained no-cleanup CLI smoke runner.
-exec "$SCRIPT_DIR/smoke_cli_no_cleanup.sh" "$@"
+# shellcheck source=./helpers/smoke_cli_common.sh
+source "$SCRIPT_DIR/helpers/smoke_cli_common.sh"
+
+run_cli_smoke_suite 1

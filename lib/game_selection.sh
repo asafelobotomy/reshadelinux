@@ -74,6 +74,14 @@ function promptGamePathManual() {
     done
 }
 
+function selectDetectedGameByIndex() {
+    local _index="$1"
+
+    gamePath="${DETECTED_GAME_PATHS[_index]}"
+    _selectedAppId="${DETECTED_GAME_APPIDS[_index]}"
+    printf '%bSelected auto-detected game path:%b %s\n' "$_GRN" "$_R" "$gamePath"
+}
+
 # Try to get game directory from user, preferring auto-detected Steam games.
 function getGamePath() {
     if [[ ${CLI_GAME_PATH_SET:-0} -eq 1 ]]; then
@@ -86,9 +94,7 @@ function getGamePath() {
         local _i
         for ((_i=0; _i<${#DETECTED_GAME_APPIDS[@]}; _i++)); do
             if [[ ${DETECTED_GAME_APPIDS[_i]} == "$CLI_APP_ID" ]]; then
-                gamePath="${DETECTED_GAME_PATHS[_i]}"
-                _selectedAppId="${DETECTED_GAME_APPIDS[_i]}"
-                printf '%bSelected CLI AppID path:%b %s\n' "$_GRN" "$_R" "$gamePath"
+                selectDetectedGameByIndex "$_i"
                 return
             fi
         done
@@ -137,9 +143,7 @@ function getGamePath() {
             promptGamePathManual
         else
             _i=$((_pick - 1))
-            gamePath="${DETECTED_GAME_PATHS[_i]}"
-            _selectedAppId="${DETECTED_GAME_APPIDS[_i]}"
-            printf '%bSelected auto-detected game path:%b %s\n' "$_GRN" "$_R" "$gamePath"
+            selectDetectedGameByIndex "$_i"
         fi
         return
     fi
@@ -164,9 +168,7 @@ function getGamePath() {
             return
         fi
         if [[ $_choice =~ ^[0-9]+$ ]] && (( _choice >= 1 && _choice <= ${#DETECTED_GAME_PATHS[@]} )); then
-            gamePath="${DETECTED_GAME_PATHS[$((_choice-1))]}"
-            _selectedAppId="${DETECTED_GAME_APPIDS[$((_choice-1))]}"
-            printf '%bSelected auto-detected game path:%b %s\n' "$_GRN" "$_R" "$gamePath"
+            selectDetectedGameByIndex "$((_choice - 1))"
             return
         fi
     done

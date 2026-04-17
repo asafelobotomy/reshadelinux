@@ -126,14 +126,14 @@ function build_appimage() {
     local version="$2"
     local appimagetool_bin="$3"
     local artifact_path="$4"
-    local build_root app_dir
+    local build_root app_dir validation_home validation_main_path
 
     build_root="$(mktemp -d)"
     CLEANUP_PATHS+=("$build_root")
     app_dir="$build_root/AppDir"
 
     mkdir -p "$app_dir/usr/bin"
-    cp -a "$repo_root/appimage/AppDir/." "$app_dir/"
+    cp -a "$repo_root/packaging/appimage/AppDir/." "$app_dir/"
     cp "$repo_root/reshade-linux.sh" "$repo_root/reshade-linux-gui.sh" "$repo_root/VERSION" "$app_dir/usr/bin/"
     cp -a "$repo_root/lib" "$app_dir/usr/bin/"
 
@@ -141,21 +141,13 @@ function build_appimage() {
     sed -i "s/^X-AppImage-Version=.*/X-AppImage-Version=$version/" \
         "$app_dir/io.github.asafelobotomy.reshade-steam.desktop"
 
-    # Place the SVG icon at root (for .DirIcon) and in the standard hicolor path.
-    cat > "$app_dir/reshade-linux.svg" <<'EOF'
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
-  <rect width="256" height="256" rx="44" fill="#101820"/>
-  <rect x="28" y="28" width="200" height="200" rx="28" fill="#1d3557"/>
-  <path d="M76 76h54c42 0 50 23 50 41 0 22-14 38-39 42l39 47h-33l-35-43h-11v43H76V76zm25 22v43h24c20 0 29-8 29-22 0-15-10-21-29-21h-24z" fill="#f1faee"/>
-</svg>
-EOF
+        # Reuse the packaged SVG icon so README and AppImage branding stay in sync.
     ln -sf reshade-linux.svg "$app_dir/.DirIcon"
 
-    # Install icons in hicolor theme so AppImage managers find them.
+        # Install the scalable icon in hicolor so AppImage managers find it.
     local _icon_dir="$app_dir/usr/share/icons/hicolor"
-    mkdir -p "$_icon_dir/scalable/apps" "$_icon_dir/256x256/apps"
+        mkdir -p "$_icon_dir/scalable/apps"
     cp "$app_dir/reshade-linux.svg" "$_icon_dir/scalable/apps/reshade-linux.svg"
-    cp "$app_dir/reshade-linux.png" "$_icon_dir/256x256/apps/reshade-linux.png"
 
     # Install AppStream metainfo.
     mkdir -p "$app_dir/usr/share/metainfo"
@@ -164,7 +156,10 @@ EOF
     mkdir -p "$(dirname "$artifact_path")"
 
     ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 "$appimagetool_bin" "$app_dir" "$artifact_path"
-    UI_BACKEND=cli "$artifact_path" --help >/dev/null
+    validation_home="$build_root/home"
+    validation_main_path="$build_root/validation-main"
+    mkdir -p "$validation_home"
+    APPIMAGE_EXTRACT_AND_RUN=1 HOME="$validation_home" MAIN_PATH="$validation_main_path" "$artifact_path" --update-all >/dev/null
 }
 
 function create_or_update_release() {

@@ -144,9 +144,51 @@ test_ui_backend_honors_forced_cli_override() {
 }
 
 test_ui_backend_honors_forced_yad_override() {
+    local fakebin="$TEST_TEMP_DIR/fakebin"
     local result
-    result=$(UI_BACKEND=yad DISPLAY='' WAYLAND_DISPLAY='' chooseUiBackend 0)
+    mkdir -p "$fakebin"
+    printf '#!/bin/sh\nexit 0\n' > "$fakebin/yad"
+    chmod +x "$fakebin/yad"
+
+    result=$(PATH="$fakebin:$PATH" UI_BACKEND=yad DISPLAY='' WAYLAND_DISPLAY='' chooseUiBackend 0)
     [[ "$result" == "yad" ]]
+}
+
+test_ui_backend_rejects_missing_forced_backend_binary() {
+    local fakebin="$TEST_TEMP_DIR/emptybin"
+    local _output _rc
+
+    mkdir -p "$fakebin"
+
+    set +e
+    _output=$(PATH="$fakebin" UI_BACKEND=yad DISPLAY='' WAYLAND_DISPLAY='' chooseUiBackend 0 2>&1)
+    _rc=$?
+    set -e
+
+    [[ $_rc -ne 0 ]]
+    [[ $_output == *"Requested UI backend 'yad' is not installed or not on PATH."* ]]
+}
+
+test_init_runtime_config_fails_when_forced_backend_is_missing() {
+    local fakebin="$TEST_TEMP_DIR/config-emptybin"
+    local _rc
+
+    mkdir -p "$fakebin"
+
+    set +e
+    PATH="$fakebin" UI_BACKEND=yad init_runtime_config >/dev/null 2>&1
+    _rc=$?
+    set -e
+
+    [[ $_rc -ne 0 ]]
+}
+
+test_appimage_apprun_delegates_to_gui_wrapper() {
+    local _apprun_path="$SCRIPT_DIR/../packaging/appimage/AppDir/AppRun"
+    local _contents
+
+    _contents=$(<"$_apprun_path")
+    [[ $_contents == *'exec "$HERE/usr/bin/reshade-linux-gui.sh" "$@"'* ]]
 }
 
 test_ui_backend_rejects_invalid_override() {
@@ -252,6 +294,30 @@ test_install_dir_scan_fallback_finds_best_nested_exe() {
     [[ "$result" == "$game_root/CustomBuild/Shipping|scan" ]]
 }
 
+test_detect_steam_games_reads_manifest_install_path() {
+    local steamapps_dir="$HOME/.local/share/Steam/steamapps"
+    local game_root="$steamapps_dir/common/AutoDetectGame"
+
+    mkdir -p "$game_root/bin/x64"
+    touch "$game_root/bin/x64/AutoDetectGame.exe"
+    cat > "$steamapps_dir/appmanifest_424242.acf" <<'EOF'
+"AppState"
+{
+    "appid"        "424242"
+    "name"         "Auto Detect Game"
+    "installdir"   "AutoDetectGame"
+    "type"         "game"
+}
+EOF
+
+    detectSteamGames
+
+    [[ ${#DETECTED_GAME_APPIDS[@]} -eq 1 ]]
+    [[ ${DETECTED_GAME_APPIDS[0]} == "424242" ]]
+    [[ ${DETECTED_GAME_PATHS[0]} == "$game_root/bin/x64" ]]
+    [[ ${DETECTED_GAME_EXES[0]} == "AutoDetectGame.exe" ]]
+}
+
 run_detection_tests() {
     echo -e "${BLUE}Exe Detection Tests${NC}"
     run_test "Warhammer 40K exe selection" test_exe_warhammer
@@ -276,7 +342,10 @@ run_detection_tests() {
     run_test "No UI tools falls back to CLI" test_ui_backend_falls_back_to_cli_without_tools
     run_test "Forced CLI override wins" test_ui_backend_honors_forced_cli_override
     run_test "Forced YAD override wins" test_ui_backend_honors_forced_yad_override
+    run_test "Forced backend requires installed binary" test_ui_backend_rejects_missing_forced_backend_binary
+    run_test "Runtime init fails when forced backend missing" test_init_runtime_config_fails_when_forced_backend_is_missing
     run_test "Invalid UI_BACKEND is rejected" test_ui_backend_rejects_invalid_override
+    run_test "AppImage AppRun delegates to GUI wrapper" test_appimage_apprun_delegates_to_gui_wrapper
     echo ""
 
     echo -e "${BLUE}Preset Tests${NC}"
@@ -295,5 +364,6 @@ run_detection_tests() {
     run_test "Install dir prefers bin/x64 over root" test_install_dir_prefers_subdir_over_root
     run_test "Custom install-dir preset wins" test_install_dir_uses_custom_preset_when_present
     run_test "Install dir scan fallback finds nested exe" test_install_dir_scan_fallback_finds_best_nested_exe
+    run_test "Manifest autodetect resolves install path" test_detect_steam_games_reads_manifest_install_path
     echo ""
 }

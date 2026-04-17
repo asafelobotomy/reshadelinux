@@ -186,7 +186,7 @@ test_cli_version_flag_prints_current_version() {
 
 test_cli_list_shader_repos_prints_configured_repo_labels() {
     local _output _rc
-    export SHADER_REPOS="https://github.com/demo/alpha|alpha||Alpha repo;https://github.com/demo/beta|beta|main|Beta repo"
+    export SHADER_REPOS="https://github.com/demo/alpha|alpha||Alpha Collection|Alpha repo;https://github.com/demo/beta|beta|main|Beta Collection|Beta repo"
 
     parseCliArgs --list-shader-repos
     init_runtime_config
@@ -199,8 +199,8 @@ test_cli_list_shader_repos_prints_configured_repo_labels() {
 
     [[ $_rc -eq 0 ]]
     [[ $_output == *"Configured shader repositories:"* ]]
-    [[ $_output == *$'alpha\talpha by demo | Alpha repo'* ]]
-    [[ $_output == *$'beta\tbeta by demo | Beta repo'* ]]
+    [[ $_output == *$'alpha\tAlpha Collection by demo | Alpha repo'* ]]
+    [[ $_output == *$'beta\tBeta Collection by demo | Beta repo'* ]]
 }
 
 run_cli_tests() {

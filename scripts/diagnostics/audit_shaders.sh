@@ -8,8 +8,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=./common.sh
-source "$SCRIPT_DIR/common.sh"
+# shellcheck source=./helpers/common.sh
+source "$SCRIPT_DIR/helpers/common.sh"
 
 AUDIT_ROOT=""
 
@@ -69,7 +69,7 @@ list_shader_repo_entries() {
         [[ -z $_shaderRepoName ]] && continue
         [[ -n ${seen["$_shaderRepoName"]+x} ]] && continue
         seen["$_shaderRepoName"]=1
-        printf '%s|%s|%s|%s\n' "$_shaderRepoName" "$_shaderRepoUri" "$_shaderRepoBranch" "$_shaderRepoDesc"
+        printf '%s|%s|%s|%s|%s\n' "$_shaderRepoName" "$_shaderRepoUri" "$_shaderRepoBranch" "$_shaderRepoTitle" "$_shaderRepoDesc"
     done
 }
 

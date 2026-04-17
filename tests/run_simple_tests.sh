@@ -19,29 +19,29 @@ TESTS_FAILED=0
 FAILED_TESTS=()
 
 # Source test utilities
-# shellcheck source=./fixtures.sh
-source "$SCRIPT_DIR/fixtures.sh" || {
-    echo "Failed to source fixtures.sh"
+# shellcheck source=./helpers/fixtures.sh
+source "$SCRIPT_DIR/helpers/fixtures.sh" || {
+    echo "Failed to source helpers/fixtures.sh"
     exit 1
 }
-# shellcheck source=./test_functions.sh
-source "$SCRIPT_DIR/test_functions.sh" || {
-    echo "Failed to source test_functions.sh"
+# shellcheck source=./helpers/test_loader.sh
+source "$SCRIPT_DIR/helpers/test_loader.sh" || {
+    echo "Failed to source helpers/test_loader.sh"
     exit 1
 }
-# shellcheck source=./test_detection_groups.sh
-source "$SCRIPT_DIR/test_detection_groups.sh" || {
-    echo "Failed to source test_detection_groups.sh"
+# shellcheck source=./suites/detection_suite.sh
+source "$SCRIPT_DIR/suites/detection_suite.sh" || {
+    echo "Failed to source suites/detection_suite.sh"
     exit 1
 }
-# shellcheck source=./test_state_shader_groups.sh
-source "$SCRIPT_DIR/test_state_shader_groups.sh" || {
-    echo "Failed to source test_state_shader_groups.sh"
+# shellcheck source=./suites/state_shader_suite.sh
+source "$SCRIPT_DIR/suites/state_shader_suite.sh" || {
+    echo "Failed to source suites/state_shader_suite.sh"
     exit 1
 }
-# shellcheck source=./test_cli_groups.sh
-source "$SCRIPT_DIR/test_cli_groups.sh" || {
-    echo "Failed to source test_cli_groups.sh"
+# shellcheck source=./suites/cli_suite.sh
+source "$SCRIPT_DIR/suites/cli_suite.sh" || {
+    echo "Failed to source suites/cli_suite.sh"
     exit 1
 }
 

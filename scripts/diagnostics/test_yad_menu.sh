@@ -1,7 +1,9 @@
 #!/bin/bash
 
-# shellcheck source=./common.sh
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck source=./helpers/common.sh
+source "$SCRIPT_DIR/helpers/common.sh"
 
 rm -f /tmp/game_detection.log
 

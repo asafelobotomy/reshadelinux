@@ -9,4 +9,4 @@ Categories=Game;Utility;
 Terminal=false
 StartupNotify=true
 X-AppImage-Name=ReShade Linux
-X-AppImage-Version=1.3.0
+X-AppImage-Version=1.3.1

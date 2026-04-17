@@ -4,10 +4,9 @@ set -euo pipefail
 HERE="$(dirname "$(readlink -f "$0")")"
 
 export PATH="$HERE/usr/bin:$PATH"
-export UI_BACKEND="${UI_BACKEND:-yad}"
 
 if [[ -d "$HERE/usr/lib" ]]; then
     export LD_LIBRARY_PATH="$HERE/usr/lib:${LD_LIBRARY_PATH:-}"
 fi
 
-exec "$HERE/usr/bin/reshade-linux.sh" "$@"
+exec "$HERE/usr/bin/reshade-linux-gui.sh" "$@"

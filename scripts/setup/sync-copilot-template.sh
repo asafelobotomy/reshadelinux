@@ -1,4 +1,10 @@
-cd /mnt/SteamLibrary/git/reshade-steam
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+cd "$REPO_DIR"
 BASE="https://raw.githubusercontent.com/asafelobotomy/copilot-instructions-template/main"
 OK_COUNT=0
 FAIL_COUNT=0

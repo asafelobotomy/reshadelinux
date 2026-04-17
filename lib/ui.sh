@@ -1,11 +1,33 @@
 # shellcheck shell=bash
 
+function ensureUiBackendAvailable() {
+    local _backend="$1"
+
+    case "$_backend" in
+        cli)
+            return 0
+            ;;
+        yad|whiptail|dialog)
+            if ! command -v "$_backend" &>/dev/null; then
+                printErr "Requested UI backend '$_backend' is not installed or not on PATH."
+                return 1
+            fi
+            return 0
+            ;;
+        *)
+            printErr "Invalid UI backend '$_backend'."
+            return 1
+            ;;
+    esac
+}
+
 function chooseUiBackend() {
     local _hasTty="${1:-0}"
     local _forced="${UI_BACKEND:-auto}"
     case $_forced in
         auto) ;;
         yad|whiptail|dialog|cli)
+            ensureUiBackendAvailable "$_forced" || return 1
             printf '%s\n' "$_forced"
             return
             ;;
@@ -95,6 +117,47 @@ function ui_run() {
     return $_status
 }
 
+function ui_auto_respond_enabled() {
+    [[ ${UI_AUTO_CONFIRM:-0} == 1 && $_UI_BACKEND != cli ]]
+}
+
+function ui_auto_select_first_tag() {
+    local _tag _label _state
+
+    while [[ $# -ge 3 ]]; do
+        _tag="$1"
+        _label="$2"
+        _state="$3"
+        if [[ $_state == ON ]]; then
+            printf '%s\n' "$_tag"
+            return 0
+        fi
+        shift 3
+    done
+
+    if [[ $# -ge 1 ]]; then
+        printf '%s\n' "$1"
+        return 0
+    fi
+    return 1
+}
+
+function ui_auto_select_checked_tags() {
+    local _tag _label _state
+    local -a _selected=()
+
+    while [[ $# -ge 3 ]]; do
+        _tag="$1"
+        _label="$2"
+        _state="$3"
+        [[ $_state == ON ]] && _selected+=("$_tag")
+        shift 3
+    done
+
+    local IFS=' '
+    printf '%s\n' "${_selected[*]}"
+}
+
 function ui_msgbox() {
     local _title="$1" _text="$2" _height="${3:-14}" _width="${4:-70}"
     local _pxHeight _pxWidth
@@ -128,6 +191,12 @@ function ui_yesno() {
 function ui_inputbox() {
     local _title="$1" _text="$2" _default="${3:-}" _height="${4:-14}" _width="${5:-78}"
     local _pxHeight _pxWidth
+
+    if ui_auto_respond_enabled; then
+        printf '%s\n' "${UI_AUTO_INPUTBOX_RESPONSE:-$_default}"
+        return 0
+    fi
+
     case $_UI_BACKEND in
         yad)
             read -r _pxHeight _pxWidth < <(ui_yad_dims "$_height" "$_width")
@@ -157,6 +226,16 @@ function ui_menu() {
     local _title="$1" _text="$2" _height="$3" _width="$4" _menuHeight="$5"
     local _pxHeight _pxWidth
     shift 5
+
+    if ui_auto_respond_enabled; then
+        if [[ -n ${UI_AUTO_MENU_RESPONSE:-} ]]; then
+            printf '%s\n' "$UI_AUTO_MENU_RESPONSE"
+            return 0
+        fi
+        ui_auto_select_first_tag "$@"
+        return $?
+    fi
+
     case $_UI_BACKEND in
         yad)
             local -a _yadArgs=()
@@ -186,6 +265,16 @@ function ui_radiolist() {
     local _pxHeight _pxWidth _tag _label _state _yadState
     local -a _rows=()
     shift 5
+
+    if ui_auto_respond_enabled; then
+        if [[ -n ${UI_AUTO_RADIOLIST_RESPONSE:-} ]]; then
+            printf '%s\n' "$UI_AUTO_RADIOLIST_RESPONSE"
+            return 0
+        fi
+        ui_auto_select_first_tag "$@"
+        return $?
+    fi
+
     case $_UI_BACKEND in
         yad)
             while [[ $# -ge 3 ]]; do
@@ -210,6 +299,16 @@ function ui_checklist() {
     local _pxHeight _pxWidth _tag _label _state _yadState
     local -a _rows=()
     shift 5
+
+    if ui_auto_respond_enabled; then
+        if [[ -n ${UI_AUTO_CHECKLIST_RESPONSE:-} ]]; then
+            printf '%s\n' "$UI_AUTO_CHECKLIST_RESPONSE"
+            return 0
+        fi
+        ui_auto_select_checked_tags "$@"
+        return 0
+    fi
+
     case $_UI_BACKEND in
         yad)
             while [[ $# -ge 3 ]]; do

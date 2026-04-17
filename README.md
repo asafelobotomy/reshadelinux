@@ -1,29 +1,36 @@
 # reshade-steam
 
-> Install [ReShade](https://reshade.me/) and shader repositories for any Windows game running under Wine or Proton on Linux — with automatic Steam game detection, per-game shader selection, and a graphical or terminal UI.
+![ReShade Steam logo](packaging/appimage/AppDir/reshade-linux.svg)
+
+**Install the official ReShade runtime for Wine and Proton games on Linux.**
+
+Automatic Steam game detection, per-game shader selection, AppImage packaging, and a CLI path for scripted installs.
+
+| Version | License | Delivery |
+| --- | --- | --- |
+| See [CHANGELOG.md](CHANGELOG.md) | [GPL-2.0-or-later](LICENSE) | AppImage or source checkout |
+
+## Understand credit and scope
+
+> [!IMPORTANT]
+> ReShade itself is created and maintained by [crosire](https://reshade.me/) and the wider ReShade contributor community. This repository does not replace ReShade. It automates downloading the official ReShade release, selecting shader packs, and wiring everything into Wine or Proton game installs on Linux.
 > [!NOTE]
-> This is an independent continuation of [kevinlekiller/reshade-steam-proton](https://github.com/kevinlekiller/reshade-steam-proton). All original work and credit belongs to [kevinlekiller](https://github.com/kevinlekiller). This fork modernises the codebase, fixes active bugs, and adds substantial new features.
+> This project continues the work started in [kevinlekiller/reshade-steam-proton](https://github.com/kevinlekiller/reshade-steam-proton). Credit for the original Linux installer flow belongs to [kevinlekiller](https://github.com/kevinlekiller). Credit for ReShade itself belongs to [crosire](https://github.com/crosire) and ReShade contributors.
 
-See [CHANGELOG.md](CHANGELOG.md) for release history.
+## Start with the AppImage
 
----
-
-## Quick start
-
-### AppImage (recommended)
-
-Download the latest AppImage from the [Releases](https://github.com/asafelobotomy/reshade-steam/releases) page:
+Download the latest AppImage from the [Releases](https://github.com/asafelobotomy/reshade-steam/releases) page.
 
 ```bash
 chmod +x reshade-linux-*-x86_64.AppImage
 ./reshade-linux-*-x86_64.AppImage
 ```
 
-The AppImage bundles everything — no dependencies to install.
+The AppImage bundles the launcher and project scripts. The first run still downloads the official ReShade payload from [reshade.me](https://reshade.me/).
 
-### Run from source
+## Run from source
 
-Requirements: `grep`, `7z`, `curl`, `git`, `file`, `python3`, `sed`, and `sha256sum`.
+Install `grep`, `7z`, `curl`, `git`, `file`, `python3`, `sed`, and `sha256sum`.
 
 ```bash
 git clone https://github.com/asafelobotomy/reshade-steam.git
@@ -31,9 +38,35 @@ cd reshade-steam
 ./reshade-linux.sh
 ```
 
-### Drive installs from the CLI
+Install `yad` when you want the graphical flow. If `yad` is unavailable, the script falls back to `whiptail`, then `dialog`, then plain CLI prompts.
 
-Use the CLI path when you want deterministic scripting or automated testing:
+## See what the installer handles
+
+| Capability | What it does |
+| --- | --- |
+| Steam detection | Scans every Steam library and reads `appinfo.vdf` metadata to find the real launch executable. |
+| DLL selection | Uses PE import analysis to choose the most likely ReShade hook such as `dxgi`, `d3d9`, `opengl32`, `ddraw`, or `dinput8`. |
+| Per-game state | Saves DLL, architecture, path, App ID, and selected shader repos per game in `~/.local/share/reshade/game-state/`. |
+| Shader curation | Lets each game keep its own selected shader packs while still linking shared `.fxh` headers needed for compile-time includes. |
+| Prefix support | Detects the right Wine or Proton prefix and installs `d3dcompiler_47.dll` where ReShade 6.5+ expects it. |
+| Repeat updates | Reuses tracked state for reinstall runs and supports `--update-all` for every known game. |
+| Multiple interfaces | Supports `yad`, `whiptail`, `dialog`, and direct CLI execution over the same install flow. |
+
+## Choose how first-run installs behave
+
+Brand-new installs do not preselect the entire shader catalog anymore. The first shader checklist now starts with a curated starter set:
+
+- `reshade-shaders`
+- `sweetfx-shaders`
+- `quintfx`
+- `prod80-shaders`
+- `astrayfx-shaders`
+
+Legacy installs still keep backward-compatible behavior. If an older state file has no `selected_repos` entry, the script falls back to all configured repos.
+
+## Drive installs from the CLI
+
+Use the CLI path when you want deterministic automation or test coverage.
 
 ```bash
 ./reshade-linux.sh --cli --app-id=255710 --dll-override=dxgi --shader-repos=all
@@ -42,120 +75,60 @@ Use the CLI path when you want deterministic scripting or automated testing:
 ./reshade-linux.sh --version
 ```
 
-The CLI options are the canonical scripted interface. The graphical and terminal UIs remain wrappers over the same install flow.
+The graphical and terminal UIs are wrappers over the same install logic. The CLI path is the canonical scripted interface.
 
-> [!TIP]
-> Install `yad` for a graphical interface on Linux desktops. If `yad` is unavailable, the script uses `whiptail` or `dialog` for a terminal UI, then falls back to plain CLI prompts.
->
-> To force a backend manually, set `UI_BACKEND` to `auto`, `yad`, `whiptail`, `dialog`, or `cli`.
+## Update every tracked install
 
----
-
-## Features
-
-### Game detection
-
-| | |
-| --- | --- |
-| **Steam library scan** | Finds all Steam library folders automatically; no manual path entry needed. |
-| **`appinfo.vdf` parsing** | Reads Steam's binary metadata to identify the exact launch executable for every game. |
-| **PE import table analysis** | Inspects the Windows PE import table to pick the correct DLL override (`dxgi`, `d3d9`, `opengl32`, `ddraw`, `dinput8`, …) instead of blindly defaulting to `dxgi`. |
-| **Built-in directory presets** | Knows where the real executable lives for games with non-root layouts (Cyberpunk 2077, Witcher 3, Oblivion Remastered, ESO, and more). |
-| **Custom directory presets** | Override any game's exe directory via `GAME_DIR_PRESETS="<AppID>\|<subdir>"`. |
-
-### Install, update & uninstall
-
-| | |
-| --- | --- |
-| **Installed-game indicator** | Game picker marks already-configured games with ✔ so repeat runs are immediately obvious. |
-| **Per-game state** | Installation settings (DLL, architecture, shader selection) are saved per game in `~/.local/share/reshade/game-state/`. Re-running a game skips the DLL dialog and reuses stored settings. |
-| **Per-game shader selection** | Choose which shader repositories to install for each game. Unticking a repo removes its shaders from that game only. |
-| **Shared shader headers** | Core `.fxh` include files (e.g. `ReShade.fxh`, `ReShadeUI.fxh`) are always linked from all installed repos, even when their parent repo is deselected, so shaders compile correctly. |
-| **Per-game config** | Every install gets its own `ReShade.ini` and `ReShade_shaders/` link; no shared global config. |
-| **Update all** | Re-link ReShade and shaders for every tracked game at once — available from the main dialog or via `--update-all` on the command line. |
-| **Wineprefix auto-detection** | Finds the correct Wine prefix from `compatdata/` automatically; installs `d3dcompiler_47.dll` into the prefix for ReShade 6.5+. |
-| **Steam launch option output** | Prints the required `WINEDLLOVERRIDES` launch option and copies it to the clipboard when supported. |
-
-### Flatpak & interface
-
-| | |
-| --- | --- |
-| **Flatpak auto-detection** | Detects native vs. Flatpak Steam and sets `MAIN_PATH` accordingly; prompts if both are found. |
-| **Graphical UI** | Uses `yad` automatically on graphical sessions for folder pickers, lists, prompts, and progress windows. |
-| **Terminal UI** | Falls back to `whiptail`, then `dialog`, then plain CLI prompts. |
-
-### Shader repositories
-
-18 curated repos are included by default, covering anti-aliasing, ambient occlusion, depth of field, colour grading, LUTs, and more: SweetFX, iMMERSE, AstrayFX, prod80, reshade-shaders (official), fubax-shaders, OtisFX, qUINT, Insane-Shaders, NiceGuy-Shaders, daodan-shaders, Glamarye, FXShaders, CobraFX, CorgiFX, MLUT, dh-reshade-shaders, and lordbean-shaders.
-
-The checklist now uses a concise attribution-first format based on Creative Commons TASL guidance for constrained media: `Pack title by creator | highlights`. That keeps the most important credit visible in the installer while staying short enough for CLI, dialog, and YAD lists.
-
-Default shader pack sources:
-
-| Pack | Creator | Source |
-| --- | --- | --- |
-| SweetFX | CeeJayDK | `https://github.com/CeeJayDK/SweetFX` |
-| iMMERSE | martymcmodding | `https://github.com/martymcmodding/iMMERSE` |
-| AstrayFX | BlueSkyDefender | `https://github.com/BlueSkyDefender/AstrayFX` |
-| prod80 ReShade Repository | prod80 | `https://github.com/prod80/prod80-ReShade-Repository` |
-| ReShade Shaders | crosire | `https://github.com/crosire/reshade-shaders` |
-| Fubax Shaders | Fubaxiusz | `https://github.com/Fubaxiusz/fubax-shaders` |
-| OtisFX | FransBouma | `https://github.com/FransBouma/OtisFX` |
-| qUINT | martymcmodding | `https://github.com/martymcmodding/qUINT` |
-| Insane Shaders | LordOfLunacy | `https://github.com/LordOfLunacy/Insane-Shaders` |
-| NiceGuy Shaders | mj-ehsan | `https://github.com/mj-ehsan/NiceGuy-Shaders` |
-| Daodan Shaders | Daodan317081 | `https://github.com/Daodan317081/reshade-shaders` |
-| Glamarye Fast Effects | rj200 | `https://github.com/rj200/Glamarye_Fast_Effects_for_ReShade` |
-| FXShaders | luluco250 | `https://github.com/luluco250/FXShaders` |
-| CobraFX | LordKobra | `https://github.com/LordKobra/CobraFX` |
-| CorgiFX | originalnicodr | `https://github.com/originalnicodr/CorgiFX` |
-| MLUT | TheGordinho | `https://github.com/TheGordinho/MLUT` |
-| DH ReShade Shaders | AlucardDH | `https://github.com/AlucardDH/dh-reshade-shaders` |
-| LordBean Shaders | lordbean-git | `https://github.com/lordbean-git/reshade-shaders` |
-
-### Code quality vs. upstream
-
-| | |
-| --- | --- |
-| **Security** | Removed unsafe `eval`; tilde expansion handled with `${var/#\~/$HOME}`; `curl --fail` throughout. |
-| **Correctness** | `ls` replaced with `[[ -d ]]`/`compgen -G`; indirect `$?` checks eliminated (ShellCheck SC2181). |
-| **Performance** | Shader repo loop rewritten to remove 4+ subshells per iteration; pure-Bash path construction. |
-| **D3D compiler** | `downloadD3dcompiler_47()` uses [mozilla/fxc2](https://github.com/mozilla/fxc2) (same source as Winetricks) with sha256 verification instead of a 50 MB Firefox installer. |
-| **ShellCheck** | Entry scripts and all sourced libraries pass ShellCheck cleanly. |
-
----
-
-## Update all installed games
-
-Re-link ReShade and shaders for every previously installed game at once:
-
-**From the dialog**: Select "Update all installed games" in the install/uninstall menu (shown when at least one game is already installed).
-
-**From the command line**:
+Use the dialog entry named `Update all installed games`, or run:
 
 ```bash
 ./reshade-linux.sh --update-all
 ```
 
-To override the tracked shader selection for every game in the batch, add `--shader-repos`:
+Override the tracked shader selection for every game in that batch with:
 
 ```bash
 ./reshade-linux.sh --update-all --shader-repos=alpha,beta
 ```
 
-You can also target a specific install path from the CLI with explicit inputs:
+When a requested repo is missing locally, the script relinks only what is available and rewrites the stored state to match the actual result.
+
+## Inspect shader repositories
+
+The built-in registry covers official ReShade shaders plus a wide set of community packs for sharpening, SSR, AO, CRT effects, HDR workflows, LUT grading, cinematic blur, and VR-specific adjustments.
+
+Inspect the active registry with:
 
 ```bash
-./reshade-linux.sh --cli --game-path="$HOME/Games/MyGame" --dll-override=dxgi --shader-repos=alpha,beta
+./reshade-linux.sh --list-shader-repos
 ```
 
-State files in `~/.local/share/reshade/game-state/` record the DLL, architecture, game path, and selected shader repos for each game. The update rebuilds each game's `ReShade_shaders/` link and per-game config. If a tracked repo is unavailable, the state file is rewritten to match whatever is actually available locally.
+Every picker label is attribution-first:
 
----
+```text
+Pack title by creator | highlights
+```
 
-## Environment variables
+That keeps credit visible in CLI, `dialog`, `whiptail`, and `yad` pickers.
 
-Customise behaviour at the command line without editing the script:
+Replace or trim the registry with `SHADER_REPOS`. Each entry uses this format:
+
+```text
+URI|local-name[|branch[|title[|description]]]
+```
+
+Examples:
+
+```bash
+SHADER_REPOS='https://github.com/crosire/reshade-shaders|reshade-shaders|slim|ReShade Shaders|Official built-ins' ./reshade-linux.sh
+SHADER_REPOS='https://github.com/martymcmodding/qUINT|quintfx||qUINT|MXAO, SSR, Bloom' ./reshade-linux.sh --list-shader-repos
+```
+
+Older four-field overrides still work. When `title` is omitted, the script falls back to the repo name.
+
+## Configure runtime behavior
+
+Set environment variables inline when you need a different runtime profile.
 
 ```bash
 VARIABLE=value ./reshade-linux.sh
@@ -163,68 +136,63 @@ VARIABLE=value ./reshade-linux.sh
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `MAIN_PATH` | `~/.local/share/reshade` | Where ReShade files and state are stored. Auto-detected for Flatpak Steam. |
-| `UI_BACKEND` | `auto` | Force the interface backend: `auto`, `yad`, `whiptail`, `dialog`, or `cli`. |
-| `UPDATE_RESHADE` | `1` | Set to `0` to skip checking for new ReShade/shader versions. |
-| `RESHADE_VERSION` | `latest` | Pin to a specific ReShade version, e.g. `4.9.1`. |
-| `RESHADE_ADDON_SUPPORT` | `0` | Set to `1` to use the addon-enabled build (single-player use only). |
-| `SHADER_REPOS` | *(18 repos)* | Semicolon-separated list of `URI\|local-name[\|branch[\|description]]` shader repositories. |
-| `GAME_DIR_PRESETS` | *(empty)* | Per-game exe subdirectory overrides, e.g. `12345\|Binaries/Win64`. |
-| `GLOBAL_INI` | `ReShade.ini` | Template for per-game `ReShade.ini`. Set to `0` to let ReShade create it on first launch. |
-| `LINK_PRESET` | *(empty)* | Preset `.ini` file in `MAIN_PATH` to copy into a game's directory on first install. |
-| `WINEPREFIX` | *(auto)* | Force a specific Wine prefix; auto-detected from `compatdata/` otherwise. |
-| `DELETE_RESHADE_FILES` | `0` | Also delete `ReShade.log` and `ReShadePreset.ini` when uninstalling. |
-| `FORCE_RESHADE_UPDATE_CHECK` | `0` | Bypass the 4-hour update check throttle. |
-| `PROGRESS_UI` | `1` | Set to `0` to disable progress widgets while keeping the selected backend for dialogs. |
-| `RESHADE_DEBUG_LOG` | *(empty)* | Append timestamped trace messages to this file for debugging non-CLI hangs. |
+| `MAIN_PATH` | `~/.local/share/reshade` | Store ReShade payloads, shader clones, and per-game state here. Flatpak Steam is auto-detected. |
+| `UI_BACKEND` | `auto` | Force `auto`, `yad`, `whiptail`, `dialog`, or `cli`. Forced non-CLI backends must exist on `PATH`. |
+| `UPDATE_RESHADE` | `1` | Skip update checks when set to `0`. |
+| `RESHADE_VERSION` | `latest` | Pin a specific ReShade version such as `4.9.1`. |
+| `RESHADE_ADDON_SUPPORT` | `0` | Use the addon-enabled ReShade build when set to `1`. |
+| `SHADER_REPOS` | built-in registry | Provide a semicolon-separated list of `URI\|local-name[\|branch[\|title[\|description]]]` entries. |
+| `FIRST_RUN_SHADER_REPOS` | `reshade-shaders,sweetfx-shaders,quintfx,prod80-shaders,astrayfx-shaders` | Pick the default first-run shader subset. Unknown names are ignored. If none match, the full configured list is used. |
+| `GAME_DIR_PRESETS` | empty | Override exe subdirectories for specific App IDs such as `12345\|Binaries/Win64`. |
+| `GLOBAL_INI` | `ReShade.ini` | Use this as the per-game template. Set to `0` to let ReShade create it later. |
+| `LINK_PRESET` | empty | Copy a preset `.ini` from `MAIN_PATH` into a game directory on first install. |
+| `WINEPREFIX` | auto | Force a specific Wine or Proton prefix instead of auto-detecting from `compatdata`. |
+| `DELETE_RESHADE_FILES` | `0` | Also remove `ReShade.log` and `ReShadePreset.ini` during uninstall. |
+| `FORCE_RESHADE_UPDATE_CHECK` | `0` | Bypass the four-hour update throttle. |
+| `PROGRESS_UI` | `1` | Disable progress widgets without changing the selected dialog backend. |
+| `RESHADE_DEBUG_LOG` | empty | Append timestamped debug lines here for backend or flow debugging. |
+| `RESHADE_SETUP_SHA256` | empty | Require the downloaded official ReShade setup executable to match this sha256 before extraction continues. |
 
-## Command-line options
+## Pass explicit command-line options
 
-Use flags when you want the CLI path to drive the install directly:
+Use flags when you want to drive the installer directly.
 
 | Option | Description |
 | --- | --- |
-| `--update-all` | Re-link ReShade for every tracked game without entering the per-game install flow. May be combined with `--shader-repos` to override the tracked shader selection for the whole batch. |
-| `--cli` | Force the plain CLI backend even when a terminal UI or desktop session is available. This is shorthand for `--ui-backend=cli`, so do not combine the two flags. |
-| `--ui-backend=<backend>` | Force `auto`, `yad`, `whiptail`, `dialog`, or `cli`. Do not combine this flag with `--cli`. |
-| `--game-path=<path>` | Use an explicit game directory or `.exe` path instead of prompting or scanning Steam. |
-| `--app-id=<appid>` | Select a detected Steam game by App ID, or persist the App ID alongside `--game-path`. |
+| `--update-all` | Re-link ReShade for every tracked game without entering the per-game install flow. Combine with `--shader-repos` when you want a batch-wide override. |
+| `--cli` | Force the plain CLI backend. This is shorthand for `--ui-backend=cli`. |
+| `--ui-backend=<backend>` | Force `auto`, `yad`, `whiptail`, `dialog`, or `cli`. Do not combine with `--cli`. |
+| `--game-path=<path>` | Use an explicit game directory or `.exe` path. |
+| `--app-id=<appid>` | Select a detected Steam game by App ID, or persist that App ID alongside `--game-path`. |
 | `--dll-override=<name>` | Use an explicit DLL override such as `dxgi`, `d3d9`, `opengl32`, or `dinput8`. |
-| `--shader-repos=<value>` | Use `all`, `none`, or a comma-separated list of configured repo names. With `--update-all`, this becomes the shader selection override for every tracked game in the batch. |
-| `--list-shader-repos` | Print the configured shader repo names and human-readable labels, then exit. |
-| `--version`, `-V` | Print the current script version, then exit. |
+| `--shader-repos=<value>` | Use `all`, `none`, or a comma-separated list of repo names. With `--update-all`, this becomes the batch override. |
+| `--list-shader-repos` | Print configured shader repo names and human-readable labels, then exit. |
+| `--version`, `-V` | Print the current script version. |
 | `--help`, `-h` | Show the built-in usage summary. |
 
----
-
-## GUI launcher
-
-Launch the graphical wrapper directly:
+## Launch the GUI wrapper directly
 
 ```bash
 ./reshade-linux-gui.sh
 ```
 
-This wrapper prefers `UI_BACKEND=yad` when `yad` is installed and otherwise falls back to the default backend selection. The repository also includes an AppImage launcher and desktop entry under [appimage/AppDir/](appimage/AppDir/).
+This wrapper prefers `UI_BACKEND=yad` when `yad` is installed and otherwise falls back to the normal backend selection. AppImage launcher assets live in [packaging/appimage/AppDir](packaging/appimage/AppDir).
 
----
-
-## Repository layout
+## Explore the repository
 
 | Path | Purpose |
 | --- | --- |
-| `reshade-linux.sh` | Main entrypoint — orchestrates the full install/update/uninstall flow. |
-| `reshade-linux-gui.sh` | GUI wrapper — sets `yad` as the preferred backend and launches the main script. |
-| `lib/` | Production Bash libraries grouped by concern: config, state, shaders, Steam detection, UI, install flow. |
-| `tests/` | Automated shell regression suite and fixtures. |
-| `scripts/diagnostics/` | Local debugging and manual inspection scripts. |
-| `appimage/` | Desktop-packaging assets (AppRun, `.desktop` entry). |
+| `reshade-linux.sh` | Main entrypoint for install, update, and uninstall flows. |
+| `reshade-linux-gui.sh` | Small wrapper that prefers the graphical backend when `yad` exists. |
+| `lib/` | Production Bash modules for config, UI, state, shaders, Steam detection, and flow orchestration. |
+| `packaging/appimage/` | AppImage launcher assets, metadata, and icon files. |
+| `scripts/diagnostics/` | Local smoke scripts and troubleshooting helpers. |
+| `tests/` | Shell regression suites, fixtures, and helper loaders. |
+| `.copilot/tools/` | Project-specific developer tooling such as release automation. |
 
----
+## Pick alternatives for Vulkan-native games
 
-## Alternatives
+For native Vulkan games, or Windows games running through DXVK or VKD3D, use one of these instead:
 
-For native Vulkan games, or Windows games running through DXVK/VKD3D, use:
-
-- **[vkBasalt](https://github.com/DadSchoorse/vkBasalt)** — post-processing layer for Vulkan; works with native Linux games, DXVK (D3D9–D3D11), and VKD3D (D3D12).
-- **vkBasalt via [Gamescope](https://github.com/Plagman/gamescope/)** — run vkBasalt on the compositor instead of the game, which works for any game Gamescope wraps.
+- [vkBasalt](https://github.com/DadSchoorse/vkBasalt) for a Vulkan post-processing layer that works with native Linux games, DXVK, and VKD3D.
+- [Gamescope](https://github.com/Plagman/gamescope/) plus vkBasalt when you want compositor-level post-processing instead of injecting into the game itself.

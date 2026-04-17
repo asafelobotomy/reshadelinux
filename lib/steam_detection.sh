@@ -99,21 +99,12 @@ function getBuiltInGameDirPreset() {
 
 # Pick the most likely game executable from a directory.
 function pickBestExeInDir() {
-    local _dir="$1" _parentDir _exe _name _lname _score _best="" _bestScore=-999999
+    local _dir="$1" _exe _name _score _best="" _bestScore=-999999
 
-    _parentDir=$(basename "$_dir" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9')
     for _exe in "$_dir"/*.exe; do
         [[ -f $_exe ]] || continue
         _name=${_exe##*/}
-        _lname=${_name,,}
-        _score=50
-        [[ $_lname =~ (unityplayer|unitycrash|crashhandler|easyanticheat|battleye|asp|unins|uninstall|setup|installer|vcredist|redist|eac|crashreport|crashpad|benchmark|test|launcher|update|check|remov|error|consultant) ]] && _score=$((_score - 200))
-        [[ $_lname =~ ^mono\. ]] && _score=$((_score - 200))
-        [[ $_lname =~ debug ]] && _score=$((_score - 80))
-        [[ "$_lname" == *"${_parentDir}"* ]] && _score=$((_score + 150))
-        [[ $_lname =~ (game|main|app|engine|client|server|game_?setup) ]] && _score=$((_score + 80))
-        [[ $_lname =~ (win64|x64|win32|i386|64|x86|ia32) ]] && _score=$((_score + 40))
-        [[ $_lname =~ ^[a-z][a-z0-9]?$ || $_lname == "app.exe" ]] && _score=$((_score - 30))
+        _score=$(scoreExeCandidate "$_dir" "$_name")
         if [[ $_score -gt $_bestScore ]]; then
             _bestScore=$_score
             _best=$_name

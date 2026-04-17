@@ -1,7 +1,11 @@
 #!/bin/bash
 
-# shellcheck source=./common.sh
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck source=./helpers/common.sh
+source "$SCRIPT_DIR/helpers/common.sh"
+# shellcheck source=./helpers/steam_report_common.sh
+source "$SCRIPT_DIR/helpers/steam_report_common.sh"
 
 echo "=== Steam Libraries Found ==="
 listSteamAppsDirs | nl
@@ -14,8 +18,8 @@ while read -r lib; do
     echo "Library: $lib"
     for manifest in "$lib"/appmanifest_*.acf; do
         [[ -f "$manifest" ]] || continue
-        appid=$(grep -m1 -o '"appid"[[:space:]]*"[0-9]*"' "$manifest" | grep -o '[0-9]*')
-        name=$(grep -m1 -o '"name"[[:space:]]*"[^"]*"' "$manifest" | sed -E 's/.*"name"[[:space:]]*"([^"]*)".*/\1/')
+        appid=$(extract_manifest_appid "$manifest")
+        name=$(extract_manifest_name "$manifest")
         name="${name:0:50}"
         printf '  %s | %s | %s\n' "$appid" "$name" "$manifest"
         manifest_count["$appid"]=$((manifest_count["$appid"] + 1))
@@ -24,8 +28,4 @@ done < <(listSteamAppsDirs)
 
 echo ""
 echo "=== Duplicate AppIDs Found Across Libraries ==="
-for appid in "${!manifest_count[@]}"; do
-    if (( manifest_count["$appid"] > 1 )); then
-        echo "AppID $appid found ${manifest_count[$appid]} times"
-    fi
-done
+print_duplicate_manifest_appids manifest_count

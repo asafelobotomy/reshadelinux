@@ -1,28 +1,20 @@
 #!/bin/bash
 
-# shellcheck source=./common.sh
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck source=./helpers/common.sh
+source "$SCRIPT_DIR/helpers/common.sh"
+# shellcheck source=./helpers/steam_report_common.sh
+source "$SCRIPT_DIR/helpers/steam_report_common.sh"
 
 detectSteamGames
 
 echo "=== DETECTED GAMES ==="
-for i in "${!DETECTED_GAME_APPIDS[@]}"; do
-    echo "$((i + 1)). ${DETECTED_GAME_NAMES[i]} (AppID: ${DETECTED_GAME_APPIDS[i]}, Exe: ${DETECTED_GAME_EXES[i]})"
-done
+print_detected_games_debug_list
 
 echo ""
 echo "=== CHECKING FOR DUPLICATES ==="
-declare -A appid_counts=()
-for appid in "${DETECTED_GAME_APPIDS[@]}"; do
-    ((appid_counts["$appid"]++))
-done
-
-for appid in "${!appid_counts[@]}"; do
-    count=${appid_counts["$appid"]}
-    if [[ $count -gt 1 ]]; then
-        echo "AppID $appid appears $count times"
-    fi
-done
+print_detected_game_duplicate_counts
 
 echo ""
 echo "Total games detected: ${#DETECTED_GAME_APPIDS[@]}"

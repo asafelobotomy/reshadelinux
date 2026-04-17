@@ -1,12 +1,29 @@
 # shellcheck shell=bash
 
 # Parse a SHADER_REPOS entry into shared variables.
-# Format: URL|localname[|branch[|description]]
+# Format: URL|localname[|branch[|title[|description]]]
 function parseShaderRepoEntry() {
     local _entry="$1"
     local _savedIFS="$IFS"
-    IFS='|' read -r _shaderRepoUri _shaderRepoName _shaderRepoBranch _shaderRepoDesc <<< "$_entry"
+    local -a _parts=()
+
+    IFS='|' read -r -a _parts <<< "$_entry"
     IFS="$_savedIFS"
+
+    _shaderRepoUri="${_parts[0]:-}"
+    _shaderRepoName="${_parts[1]:-}"
+    _shaderRepoBranch="${_parts[2]:-}"
+    _shaderRepoTitle="${_parts[1]:-}"
+    _shaderRepoDesc=""
+
+    if (( ${#_parts[@]} == 4 )); then
+        _shaderRepoDesc="${_parts[3]:-}"
+    elif (( ${#_parts[@]} >= 5 )); then
+        _shaderRepoTitle="${_parts[3]:-}"
+        _shaderRepoDesc="${_parts[4]:-}"
+    fi
+
+    [[ -n $_shaderRepoTitle ]] || _shaderRepoTitle="$_shaderRepoName"
     if [[ -z $_shaderRepoDesc ]]; then
         _shaderRepoDesc="$_shaderRepoUri"
     fi
@@ -22,49 +39,22 @@ function getShaderRepoCreator() {
     printf '\n'
 }
 
-function getShaderRepoDisplayTitle() {
-    local _repoName="$1"
-    case "$_repoName" in
-        sweetfx-shaders) printf 'SweetFX\n' ;;
-        immerse-shaders) printf 'iMMERSE\n' ;;
-        astrayfx-shaders) printf 'AstrayFX\n' ;;
-        prod80-shaders) printf 'prod80 ReShade Repository\n' ;;
-        reshade-shaders) printf 'ReShade Shaders\n' ;;
-        fubax-shaders) printf 'Fubax Shaders\n' ;;
-        otis-fx) printf 'OtisFX\n' ;;
-        quintfx) printf 'qUINT\n' ;;
-        insane-shaders) printf 'Insane Shaders\n' ;;
-        niceguy-shaders) printf 'NiceGuy Shaders\n' ;;
-        daodan-shaders) printf 'Daodan Shaders\n' ;;
-        glamarye-fx) printf 'Glamarye Fast Effects\n' ;;
-        luluco250-fx) printf 'FXShaders\n' ;;
-        cobra-fx) printf 'CobraFX\n' ;;
-        corgi-fx) printf 'CorgiFX\n' ;;
-        mlut-shaders) printf 'MLUT\n' ;;
-        alucard-shaders) printf 'DH ReShade Shaders\n' ;;
-        lordbean-shaders) printf 'LordBean Shaders\n' ;;
-        *) printf '%s\n' "$_repoName" ;;
-    esac
-}
-
 function formatShaderRepoDisplayLabel() {
-    local _repoUri="$1" _repoName="$2" _repoDesc="$3"
-    local _title _creator
+    local _repoUri="$1" _repoTitle="$2" _repoDesc="$3"
+    local _creator
 
-    _title=$(getShaderRepoDisplayTitle "$_repoName")
     _creator=$(getShaderRepoCreator "$_repoUri")
     if [[ -n $_creator ]]; then
-        printf '%s by %s | %s\n' "$_title" "$_creator" "$_repoDesc"
+        printf '%s by %s | %s\n' "$_repoTitle" "$_creator" "$_repoDesc"
         return
     fi
-    printf '%s | %s\n' "$_title" "$_repoDesc"
+    printf '%s | %s\n' "$_repoTitle" "$_repoDesc"
 }
 
-# Return a comma-separated list of all configured shader repo names.
-function getDefaultSelectedRepos() {
-    local -a _names=()
-    local -A _seen=()
+function listConfiguredShaderRepoEntries() {
     local _savedIFS="$IFS" _entry
+    local -A _seen=()
+
     IFS=';' read -ra _allRepos <<< "$SHADER_REPOS"
     IFS="$_savedIFS"
     for _entry in "${_allRepos[@]}"; do
@@ -72,16 +62,79 @@ function getDefaultSelectedRepos() {
         [[ -z $_shaderRepoName ]] && continue
         [[ -n ${_seen["$_shaderRepoName"]+x} ]] && continue
         _seen["$_shaderRepoName"]=1
-        _names+=("$_shaderRepoName")
+        printf '%s\n' "$_entry"
     done
+}
+
+function collectSelectedInstalledShaderRepos() {
+    local _selectedRepos="$1"
+    local -n _reposRef="$2"
+    local _entry
+
+    _reposRef=()
+    [[ -z $_selectedRepos ]] && return 0
+
+    while IFS= read -r _entry || [[ -n $_entry ]]; do
+        parseShaderRepoEntry "$_entry"
+        repoIsSelected "$_selectedRepos" "$_shaderRepoName" || continue
+        [[ -d "$MAIN_PATH/ReShade_shaders/$_shaderRepoName" ]] || continue
+        _reposRef+=("$_shaderRepoName")
+    done < <(listConfiguredShaderRepoEntries)
+}
+
+# Return a comma-separated list of all configured shader repo names.
+function getDefaultSelectedRepos() {
+    local -a _names=()
+    local _entry
+
+    while IFS= read -r _entry || [[ -n $_entry ]]; do
+        parseShaderRepoEntry "$_entry"
+        _names+=("$_shaderRepoName")
+    done < <(listConfiguredShaderRepoEntries)
+
     local IFS=','
     printf '%s\n' "${_names[*]}"
 }
 
+# Return the curated first-run subset, preserving configured repo order.
+# Falls back to all configured repos if none of the preferred names exist.
+function getFirstRunSelectedRepos() {
+    local _preferred="${FIRST_RUN_SHADER_REPOS:-}"
+    local _entry
+    local -a _preferredNames=() _selectedNames=()
+    local -A _preferredMap=()
+
+    [[ -n $_preferred ]] || {
+        getDefaultSelectedRepos
+        return
+    }
+
+    IFS=',' read -ra _preferredNames <<< "$_preferred"
+    for _entry in "${_preferredNames[@]}"; do
+        _entry="${_entry#"${_entry%%[![:space:]]*}"}"
+        _entry="${_entry%"${_entry##*[![:space:]]}"}"
+        [[ -n $_entry ]] && _preferredMap["$_entry"]=1
+    done
+
+    while IFS= read -r _entry || [[ -n $_entry ]]; do
+        parseShaderRepoEntry "$_entry"
+        [[ -n ${_preferredMap["$_shaderRepoName"]+x} ]] || continue
+        _selectedNames+=("$_shaderRepoName")
+    done < <(listConfiguredShaderRepoEntries)
+
+    if [[ ${#_selectedNames[@]} -eq 0 ]]; then
+        getDefaultSelectedRepos
+        return
+    fi
+
+    local IFS=','
+    printf '%s\n' "${_selectedNames[*]}"
+}
+
 function normalizeRequestedShaderRepos() {
     local _requested="$1"
-    local _savedIFS="$IFS" _entry _requestedName _normalized
-    local -a _requestedNames=() _selectedNames=() _allRepos=()
+    local _entry _requestedName _normalized
+    local -a _requestedNames=() _selectedNames=()
     local -A _known=() _selected=()
 
     _requested="${_requested#"${_requested%%[![:space:]]*}"}"
@@ -97,16 +150,12 @@ function normalizeRequestedShaderRepos() {
             ;;
     esac
 
-    IFS=';' read -ra _allRepos <<< "$SHADER_REPOS"
-    IFS="$_savedIFS"
-    for _entry in "${_allRepos[@]}"; do
+    while IFS= read -r _entry || [[ -n $_entry ]]; do
         parseShaderRepoEntry "$_entry"
-        [[ -z $_shaderRepoName ]] && continue
         _known["$_shaderRepoName"]=1
-    done
+    done < <(listConfiguredShaderRepoEntries)
 
     IFS=',' read -ra _requestedNames <<< "$_requested"
-    IFS="$_savedIFS"
     for _requestedName in "${_requestedNames[@]}"; do
         _normalized="${_requestedName#"${_requestedName%%[![:space:]]*}"}"
         _normalized="${_normalized%"${_normalized##*[![:space:]]}"}"
@@ -118,12 +167,11 @@ function normalizeRequestedShaderRepos() {
         _selected["$_normalized"]=1
     done
 
-    for _entry in "${_allRepos[@]}"; do
+    while IFS= read -r _entry || [[ -n $_entry ]]; do
         parseShaderRepoEntry "$_entry"
-        [[ -z $_shaderRepoName ]] && continue
         [[ -n ${_selected["$_shaderRepoName"]+x} ]] || continue
         _selectedNames+=("$_shaderRepoName")
-    done
+    done < <(listConfiguredShaderRepoEntries)
 
     local IFS=','
     printf '%s\n' "${_selectedNames[*]}"
@@ -132,30 +180,14 @@ function normalizeRequestedShaderRepos() {
 function getAvailableSelectedRepos() {
     local _selectedRepos="$1"
     local -a _available=()
-    local -A _seen=()
-    local _savedIFS="$IFS" _entry
 
-    [[ -z $_selectedRepos ]] && return 0
-
-    IFS=';' read -ra _allRepos <<< "$SHADER_REPOS"
-    IFS="$_savedIFS"
-    for _entry in "${_allRepos[@]}"; do
-        parseShaderRepoEntry "$_entry"
-        [[ -z $_shaderRepoName ]] && continue
-        [[ -n ${_seen["$_shaderRepoName"]+x} ]] && continue
-        _seen["$_shaderRepoName"]=1
-        [[ ",$_selectedRepos," != *",$_shaderRepoName,"* ]] && continue
-        [[ ! -d "$MAIN_PATH/ReShade_shaders/$_shaderRepoName" ]] && continue
-        _available+=("$_shaderRepoName")
-    done
+    collectSelectedInstalledShaderRepos "$_selectedRepos" _available
 
     local IFS=','
     printf '%s\n' "${_available[*]}"
 }
 
-# Build (or rebuild) a per-game shader directory containing only the selected repos.
-# Creates $MAIN_PATH/game-shaders/<gameKey>/Merged/{Shaders,Textures}/.
-# $1: game key  $2: comma-separated selected repo names
+# Rebuild a per-game shader directory from the selected repos.
 function buildGameShaderDir() {
     local _gameKey="$1" _selectedRepos="$2"
     [[ -z $_gameKey ]] && return 1
@@ -163,47 +195,27 @@ function buildGameShaderDir() {
     local _gameShaderDir="$MAIN_PATH/game-shaders/$_gameKey"
     rm -rf "$_gameShaderDir"
     mkdir -p "$_gameShaderDir/Merged/Shaders" "$_gameShaderDir/Merged/Textures"
-    local _outBase="$_gameShaderDir/Merged" _entry _selectedCount=0 _currentIndex=0
-    local -A _seen=()
+    local _outBase="$_gameShaderDir/Merged" _entry _currentIndex=0
+    local -a _reposToMerge=()
 
-    IFS=';' read -ra _allRepos <<< "$SHADER_REPOS"
-    for _entry in "${_allRepos[@]}"; do
-        parseShaderRepoEntry "$_entry"
-        [[ -z $_shaderRepoName ]] && continue
-        [[ -n ${_seen["$_shaderRepoName"]+x} ]] && continue
-        _seen["$_shaderRepoName"]=1
-        [[ ",$_selectedRepos," != *",$_shaderRepoName,"* ]] && continue
-        [[ ! -d "$MAIN_PATH/ReShade_shaders/$_shaderRepoName" ]] && continue
-        _selectedCount=$((_selectedCount + 1))
-    done
+    collectSelectedInstalledShaderRepos "$_selectedRepos" _reposToMerge
 
-    _seen=()
-    for _entry in "${_allRepos[@]}"; do
-        parseShaderRepoEntry "$_entry"
-        [[ -z $_shaderRepoName ]] && continue
-        [[ -n ${_seen["$_shaderRepoName"]+x} ]] && continue
-        _seen["$_shaderRepoName"]=1
-        [[ ",$_selectedRepos," != *",$_shaderRepoName,"* ]] && continue
-        [[ ! -d "$MAIN_PATH/ReShade_shaders/$_shaderRepoName" ]] && continue
+    for _entry in "${_reposToMerge[@]}"; do
         _currentIndex=$((_currentIndex + 1))
-        setProgressText "Building shader directory\n[$_currentIndex/$_selectedCount] Merging $_shaderRepoName"
-        logDebug "buildGameShaderDir repo $_currentIndex/$_selectedCount name=$_shaderRepoName"
+        setProgressText "Building shader directory\n[$_currentIndex/${#_reposToMerge[@]}] Merging $_entry"
+        logDebug "buildGameShaderDir repo $_currentIndex/${#_reposToMerge[@]} name=$_entry"
         printf '%b[%d/%d] Merging shader repo:%b %s\n' \
-            "$_CYN$_B" "$_currentIndex" "$_selectedCount" "$_R" "$_shaderRepoName"
-        mergeShaderDirsTo "ReShade_shaders" "$_shaderRepoName" "$_outBase"
+            "$_CYN$_B" "$_currentIndex" "${#_reposToMerge[@]}" "$_R" "$_entry"
+        mergeShaderDirsTo "ReShade_shaders" "$_entry" "$_outBase"
     done
     # Always link .fxh include files from all installed repos, even those
     # not selected for this game.  Header files like ReShade.fxh/ReShadeUI.fxh
     # are shared dependencies that most shader effects #include at compile time.
-    _seen=()
-    for _entry in "${_allRepos[@]}"; do
+    while IFS= read -r _entry || [[ -n $_entry ]]; do
         parseShaderRepoEntry "$_entry"
-        [[ -z $_shaderRepoName ]] && continue
-        [[ -n ${_seen["$_shaderRepoName"]+x} ]] && continue
-        _seen["$_shaderRepoName"]=1
         [[ ! -d "$MAIN_PATH/ReShade_shaders/$_shaderRepoName" ]] && continue
         linkRepoIncludesTo "$MAIN_PATH/ReShade_shaders/$_shaderRepoName" "$_outBase"
-    done
+    done < <(listConfiguredShaderRepoEntries)
     if [[ -d "$MAIN_PATH/External_shaders" ]]; then
         setProgressText "Building shader directory\n[extra] Merging external shaders"
         logDebug "buildGameShaderDir external shaders"
@@ -220,23 +232,16 @@ function buildGameShaderDir() {
     logDebug "buildGameShaderDir finish gameKey=$_gameKey"
 }
 
-# Clone and update selected shader repositories with error tracking.
-# $1: comma-separated list of selected repo names
-# Returns: 0 if all repos successful, 1 if any repo failed
-# Sets _failedRepos to comma-separated list of failed repo names
+# Clone or update selected shader repositories; records failures in _failedRepos.
 function ensureSelectedShaderRepos() {
     local _selectedRepos="$1"
     [[ -z $_selectedRepos ]] && return 0
     local _entry _status
-    local -A _seen=()
     _failedRepos=""
-    IFS=';' read -ra _allRepos <<< "$SHADER_REPOS"
-    for _entry in "${_allRepos[@]}"; do
+
+    while IFS= read -r _entry || [[ -n $_entry ]]; do
         parseShaderRepoEntry "$_entry"
-        [[ -z $_shaderRepoName ]] && continue
-        [[ -n ${_seen["$_shaderRepoName"]+x} ]] && continue
-        _seen["$_shaderRepoName"]=1
-        [[ ",$_selectedRepos," != *",$_shaderRepoName,"* ]] && continue
+        repoIsSelected "$_selectedRepos" "$_shaderRepoName" || continue
         if [[ -d "$MAIN_PATH/ReShade_shaders/$_shaderRepoName" ]]; then
             if [[ $UPDATE_RESHADE -eq 1 ]]; then
                 cd "$MAIN_PATH/ReShade_shaders/$_shaderRepoName" || continue
@@ -263,14 +268,12 @@ function ensureSelectedShaderRepos() {
                 _failedRepos="${_failedRepos:+$_failedRepos,}$_shaderRepoName"
             fi
         fi
-    done
+    done < <(listConfiguredShaderRepoEntries)
     [[ -n $_failedRepos ]] && return 1
     return 0
 }
 
-# Create a per-game ReShade.ini if one does not already exist.
-# Default configs use relative shader paths so every game stays self-contained.
-# $1: game path
+# Create a per-game ReShade.ini when needed.
 function ensureGameIni() {
     local _gamePath="$1"
     [[ $GLOBAL_INI == 0 ]] && return 0
@@ -288,9 +291,7 @@ EOF
     cp "$MAIN_PATH/$GLOBAL_INI" "$_target"
 }
 
-# Copy a preset into the game directory if requested and not already present.
-# The copy stays per-game and can be customized independently afterwards.
-# $1: game path
+# Copy the configured preset into the game directory when needed.
 function ensureGamePreset() {
     local _gamePath="$1"
     [[ -z $LINK_PRESET ]] && return 0
@@ -299,37 +300,22 @@ function ensureGamePreset() {
     cp "$MAIN_PATH/$LINK_PRESET" "$_gamePath/$LINK_PRESET"
 }
 
-# Show a shader repository selection dialog.
-# $1: comma-separated currently-selected repo names
-# Prints comma-separated selected repo names to stdout.
-# Returns 1 if the user cancelled.
-# SHADER_REPOS format: URL|localname[|branch[|Short description]]
-# The 4th field (description) is shown in the UI; it falls back to the URL when absent.
+# Show the shader repository selection UI and print the chosen repo names.
 function selectShaders() {
     local _current="$1"
-    local -a _names=() _uris=() _descs=() _labels=() _rows=()
-    local -A _seen=()
-    local _savedIFS="$IFS"
-    if [[ ${UI_AUTO_CONFIRM:-0} == 1 && $_UI_BACKEND != cli ]]; then
-        printf '%s\n' "$_current"
-        return 0
+    local -a _names=() _labels=() _rows=()
+    if [[ ${UI_AUTO_CONFIRM:-0} == 1 && $_UI_BACKEND != cli && -z $_current ]]; then
+        _current=$(getDefaultSelectedRepos)
     fi
-    IFS=';' read -ra _allRepos <<< "$SHADER_REPOS"
-    IFS="$_savedIFS"
     local _entry _checked _rowKey
-    for _entry in "${_allRepos[@]}"; do
+    while IFS= read -r _entry || [[ -n $_entry ]]; do
         parseShaderRepoEntry "$_entry"
-        [[ -z $_shaderRepoName ]] && continue
-        [[ -n ${_seen["$_shaderRepoName"]+x} ]] && continue
-        _seen["$_shaderRepoName"]=1
         _checked="$(repoChecklistState "$_current" "$_shaderRepoName")"
         _names+=("$_shaderRepoName")
-        _uris+=("$_shaderRepoUri")
-        _descs+=("$_shaderRepoDesc")
-        _labels+=("$(formatShaderRepoDisplayLabel "$_shaderRepoUri" "$_shaderRepoName" "$_shaderRepoDesc")")
+        _labels+=("$(formatShaderRepoDisplayLabel "$_shaderRepoUri" "$_shaderRepoTitle" "$_shaderRepoDesc")")
         _rowKey="${#_names[@]}"
         _rows+=("$_rowKey" "${_labels[-1]}" "$_checked")
-    done
+    done < <(listConfiguredShaderRepoEntries)
     local -a _selected_names=()
     if [[ $_UI_BACKEND != cli ]]; then
         local _term_lines _list_h _box_h
@@ -367,10 +353,7 @@ function selectShaders() {
     echo "${_selected_names[*]}"
 }
 
-# Link only .fxh (header/include) files from a repo's Shaders directory into
-# the merged output.  These are shared dependencies (e.g. ReShade.fxh) that
-# other repos' .fx effects #include at compile time.
-# $1: repo root directory  $2: output base directory
+# Link shared .fxh includes from a repo into the merged output.
 function linkRepoIncludesTo() {
     local _repoRoot="$1" _outBase="$2" _shadersDir _outDir _file _basename
     if [[ -d "$_repoRoot/Shaders" ]]; then
@@ -392,10 +375,7 @@ function linkRepoIncludesTo() {
     done
 }
 
-# Like linkShaderFiles but writes into an arbitrary output base directory.
-# $1: source directory (full path)
-# $2: subdirectory name (Shaders or Textures[/subpath])
-# $3: output base directory — files go into $3/$2/
+# Link shader files into an arbitrary output base directory.
 function linkShaderFilesTo() {
     [[ ! -d $1 ]] && return
     local _inDir="$1" _subDir="$2" _outBase="$3"
@@ -412,10 +392,7 @@ function linkShaderFilesTo() {
     done
 }
 
-# Like mergeShaderDirs but writes into an arbitrary output base directory.
-# $1: ReShade_shaders | External_shaders
-# $2: repo name (only for ReShade_shaders)
-# $3: output base directory (Shaders/ and Textures/ will be created inside it)
+# Merge shader directories into an arbitrary output base directory.
 function mergeShaderDirsTo() {
     [[ $1 != ReShade_shaders && $1 != External_shaders ]] && return
     local _outBase="$3"

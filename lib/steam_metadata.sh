@@ -159,6 +159,119 @@ print(f"dll={best_dll}")
 PYEOF
 }
 
+function _trimSteamMetadataField() {
+    local _value="$1"
+    _value=${_value//$'\r'/}
+    _value="${_value#"${_value%%[![:space:]]*}"}"
+    _value="${_value%"${_value##*[![:space:]]}"}"
+    printf '%s\n' "$_value"
+}
+
+function _upsertDetectedSteamGame() {
+    local _appId="$1" _name="$2" _path="$3" _exe="$4" _icon="$5" _reason="$6"
+    local -n _bestIdxByPathMap="$7"
+    local -n _bestIdxByAppIdMap="$8"
+    local _dedupeKey _oldIdx _newScore _oldScore _oldPathKey _idx
+
+    _dedupeKey=${_path,,}
+    if [[ -n ${_bestIdxByAppIdMap["$_appId"]+x} ]]; then
+        _oldIdx=${_bestIdxByAppIdMap["$_appId"]}
+        _newScore=$(scoreExeCandidate "$_path" "$_exe")
+        _oldScore=$(scoreExeCandidate "${DETECTED_GAME_PATHS[_oldIdx]}" "${DETECTED_GAME_EXES[_oldIdx]}")
+        if (( _newScore > _oldScore )); then
+            _oldPathKey="${DETECTED_GAME_PATHS[_oldIdx],,}"
+            DETECTED_GAME_NAMES[_oldIdx]="$_name"
+            DETECTED_GAME_APPIDS[_oldIdx]="$_appId"
+            DETECTED_GAME_PATHS[_oldIdx]="$_path"
+            DETECTED_GAME_EXES[_oldIdx]="$_exe"
+            DETECTED_GAME_ICONS[_oldIdx]="$_icon"
+            DETECTED_GAME_REASONS[_oldIdx]="$_reason"
+            [[ -n ${_bestIdxByPathMap["$_oldPathKey"]+x} ]] && unset "_bestIdxByPathMap[$_oldPathKey]"
+            _bestIdxByPathMap["$_dedupeKey"]=$_oldIdx
+        fi
+        return
+    fi
+
+    if [[ -n ${_bestIdxByPathMap["$_dedupeKey"]+x} ]]; then
+        _oldIdx=${_bestIdxByPathMap["$_dedupeKey"]}
+        _newScore=$(scoreExeCandidate "$_path" "$_exe")
+        _oldScore=$(scoreExeCandidate "$_path" "${DETECTED_GAME_EXES[_oldIdx]}")
+        if (( _newScore > _oldScore )); then
+            DETECTED_GAME_NAMES[_oldIdx]="$_name"
+            DETECTED_GAME_APPIDS[_oldIdx]="$_appId"
+            DETECTED_GAME_PATHS[_oldIdx]="$_path"
+            DETECTED_GAME_EXES[_oldIdx]="$_exe"
+            DETECTED_GAME_ICONS[_oldIdx]="$_icon"
+            DETECTED_GAME_REASONS[_oldIdx]="$_reason"
+        fi
+        return
+    fi
+
+    DETECTED_GAME_NAMES+=("$_name")
+    DETECTED_GAME_APPIDS+=("$_appId")
+    DETECTED_GAME_PATHS+=("$_path")
+    DETECTED_GAME_EXES+=("$_exe")
+    DETECTED_GAME_ICONS+=("$_icon")
+    DETECTED_GAME_REASONS+=("$_reason")
+    _idx=$((${#DETECTED_GAME_PATHS[@]} - 1))
+    _bestIdxByPathMap["$_dedupeKey"]=$_idx
+    _bestIdxByAppIdMap["$_appId"]=$_idx
+}
+
+function _processSteamManifest() {
+    local _manifest="$1" _steamapps="$2" _steamRoot="$3"
+    local _appinfoExesName="$4" _bestIdxByPathName="$5" _bestIdxByAppIdName="$6"
+    local -n _appinfoExesMap="$_appinfoExesName"
+    local -n _bestIdxByPathMap="$_bestIdxByPathName"
+    local -n _bestIdxByAppIdMap="$_bestIdxByAppIdName"
+    local _appId _name _installDir _type _root _resolved _path _reason _exe _icon _aiCand
+    local -a _aiCands
+
+    _appId=$(grep -m1 -o '"appid"[[:space:]]*"[0-9]*"' "$_manifest" | grep -o '[0-9]*')
+    _name=$(grep -m1 -o '"name"[[:space:]]*"[^"]*"' "$_manifest" | sed -E 's/.*"name"[[:space:]]*"([^"]*)".*/\1/')
+    _installDir=$(grep -m1 -o '"installdir"[[:space:]]*"[^"]*"' "$_manifest" | sed -E 's/.*"installdir"[[:space:]]*"([^"]*)".*/\1/')
+    _type=$(grep -m1 -o '"type"[[:space:]]*"[^"]*"' "$_manifest" | sed -E 's/.*"type"[[:space:]]*"([^"]*)".*/\1/' | tr '[:upper:]' '[:lower:]')
+
+    _appId=$(_trimSteamMetadataField "$_appId")
+    _name=$(_trimSteamMetadataField "$_name")
+    _installDir=$(_trimSteamMetadataField "$_installDir")
+    _type=$(_trimSteamMetadataField "$_type")
+
+    [[ -n $_appId && -n $_installDir ]] || return
+    [[ -n $_type && $_type != "game" ]] && return
+    [[ $_name =~ ^Proton([[:space:]]|$) || $_name =~ ^Steam[[:space:]]Linux[[:space:]]Runtime || $_name == "Steamworks Common Redistributables" ]] && return
+
+    _root="$_steamapps/common/$_installDir"
+    [[ -d $_root ]] || return
+    _resolved=$(resolveGameInstallDir "$_root" "$_appId")
+    _path=${_resolved%%|*}
+    _reason=${_resolved#*|}
+    _exe=""
+
+    if [[ $_reason != preset:* && $_reason != builtin:* && -n ${_appinfoExesMap[$_appId]+x} ]]; then
+        IFS='|' read -ra _aiCands <<< "${_appinfoExesMap[$_appId]}"
+        for _aiCand in "${_aiCands[@]}"; do
+            if [[ -f "$_root/$_aiCand" ]]; then
+                _path=$(dirname "$_root/$_aiCand")
+                _exe=$(basename "$_aiCand")
+                _reason="appinfo"
+                break
+            fi
+        done
+    fi
+
+    [[ -z $_exe ]] && _exe=$(pickBestExeInDir "$_path")
+    _path=$(realpath "$_path" 2>/dev/null || printf '%s' "$_path")
+    _path=${_path%/}
+
+    [[ -d $_path ]] || return
+    [[ -z $_name ]] && _name="AppID $_appId"
+    [[ -z $_exe ]] && return
+    _icon=$(findSteamIconPath "$_steamRoot" "$_appId" 2>/dev/null || echo "")
+
+    _upsertDetectedSteamGame "$_appId" "$_name" "$_path" "$_exe" "$_icon" "$_reason" "$_bestIdxByPathName" "$_bestIdxByAppIdName"
+}
+
 # Fill auto-detected Steam game arrays.
 function detectSteamGames() {
     DETECTED_GAME_NAMES=()
@@ -167,9 +280,7 @@ function detectSteamGames() {
     DETECTED_GAME_EXES=()
     DETECTED_GAME_ICONS=()
     DETECTED_GAME_REASONS=()
-    local _steamapps _manifest _appId _name _installDir _type _root _resolved _path _reason _exe _icon _steamRoot _dedupeKey
-    local _idx _oldIdx _newScore _oldScore _aiCand
-    local -a _aiCands
+    local _steamapps _manifest _steamRoot
     local -A _bestIdxByPath=()
     local -A _bestIdxByAppId=()
     local -A _appinfoExes=()
@@ -189,94 +300,7 @@ function detectSteamGames() {
 
         for _manifest in "$_steamapps"/appmanifest_*.acf; do
             [[ -f $_manifest ]] || continue
-            _appId=$(grep -m1 -o '"appid"[[:space:]]*"[0-9]*"' "$_manifest" | grep -o '[0-9]*')
-            _name=$(grep -m1 -o '"name"[[:space:]]*"[^"]*"' "$_manifest" | sed -E 's/.*"name"[[:space:]]*"([^"]*)".*/\1/')
-            _installDir=$(grep -m1 -o '"installdir"[[:space:]]*"[^"]*"' "$_manifest" | sed -E 's/.*"installdir"[[:space:]]*"([^"]*)".*/\1/')
-            _type=$(grep -m1 -o '"type"[[:space:]]*"[^"]*"' "$_manifest" | sed -E 's/.*"type"[[:space:]]*"([^"]*)".*/\1/' | tr '[:upper:]' '[:lower:]')
-
-            _appId=${_appId//$'\r'/}
-            _appId="${_appId#"${_appId%%[![:space:]]*}"}"; _appId="${_appId%"${_appId##*[![:space:]]}"}"
-            _name=${_name//$'\r'/}
-            _installDir=${_installDir//$'\r'/}
-            _type=${_type//$'\r'/}
-            _name="${_name#"${_name%%[![:space:]]*}"}"; _name="${_name%"${_name##*[![:space:]]}"}"
-            _installDir="${_installDir#"${_installDir%%[![:space:]]*}"}"; _installDir="${_installDir%"${_installDir##*[![:space:]]}"}"
-            _type="${_type#"${_type%%[![:space:]]*}"}"; _type="${_type%"${_type##*[![:space:]]}"}"
-
-            [[ -n $_appId && -n $_installDir ]] || continue
-            [[ -n $_type && $_type != "game" ]] && continue
-            [[ $_name =~ ^Proton([[:space:]]|$) || $_name =~ ^Steam[[:space:]]Linux[[:space:]]Runtime || $_name == "Steamworks Common Redistributables" ]] && continue
-            _root="$_steamapps/common/$_installDir"
-            [[ -d $_root ]] || continue
-            _resolved=$(resolveGameInstallDir "$_root" "$_appId")
-            _path=${_resolved%%|*}
-            _reason=${_resolved#*|}
-            _exe=""
-
-            if [[ $_reason != preset:* && $_reason != builtin:* && -n ${_appinfoExes[$_appId]+x} ]]; then
-                IFS='|' read -ra _aiCands <<< "${_appinfoExes[$_appId]}"
-                for _aiCand in "${_aiCands[@]}"; do
-                    if [[ -f "$_root/$_aiCand" ]]; then
-                        _path=$(dirname "$_root/$_aiCand")
-                        _exe=$(basename "$_aiCand")
-                        _reason="appinfo"
-                        break
-                    fi
-                done
-            fi
-
-            [[ -z $_exe ]] && _exe=$(pickBestExeInDir "$_path")
-            _path=$(realpath "$_path" 2>/dev/null || printf '%s' "$_path")
-            _path=${_path%/}
-            _dedupeKey=${_path,,}
-
-            [[ -d $_path ]] || continue
-            [[ -z $_name ]] && _name="AppID $_appId"
-            [[ -z $_exe ]] && continue
-            _icon=$(findSteamIconPath "$_steamRoot" "$_appId" 2>/dev/null || echo "")
-
-            if [[ -n ${_bestIdxByAppId["$_appId"]+x} ]]; then
-                _oldIdx=${_bestIdxByAppId["$_appId"]}
-                _newScore=$(scoreExeCandidate "$_path" "$_exe")
-                _oldScore=$(scoreExeCandidate "${DETECTED_GAME_PATHS[_oldIdx]}" "${DETECTED_GAME_EXES[_oldIdx]}")
-                if (( _newScore > _oldScore )); then
-                    local _oldPathKey="${DETECTED_GAME_PATHS[_oldIdx],,}"
-                    DETECTED_GAME_NAMES[_oldIdx]="$_name"
-                    DETECTED_GAME_APPIDS[_oldIdx]="$_appId"
-                    DETECTED_GAME_PATHS[_oldIdx]="$_path"
-                    DETECTED_GAME_EXES[_oldIdx]="$_exe"
-                    DETECTED_GAME_ICONS[_oldIdx]="$_icon"
-                    DETECTED_GAME_REASONS[_oldIdx]="$_reason"
-                    [[ -n ${_bestIdxByPath["$_oldPathKey"]+x} ]] && unset "_bestIdxByPath[$_oldPathKey]"
-                    _bestIdxByPath["$_dedupeKey"]=$_oldIdx
-                fi
-                continue
-            fi
-
-            if [[ -n ${_bestIdxByPath["$_dedupeKey"]+x} ]]; then
-                _oldIdx=${_bestIdxByPath["$_dedupeKey"]}
-                _newScore=$(scoreExeCandidate "$_path" "$_exe")
-                _oldScore=$(scoreExeCandidate "$_path" "${DETECTED_GAME_EXES[_oldIdx]}")
-                if (( _newScore > _oldScore )); then
-                    DETECTED_GAME_NAMES[_oldIdx]="$_name"
-                    DETECTED_GAME_APPIDS[_oldIdx]="$_appId"
-                    DETECTED_GAME_PATHS[_oldIdx]="$_path"
-                    DETECTED_GAME_EXES[_oldIdx]="$_exe"
-                    DETECTED_GAME_ICONS[_oldIdx]="$_icon"
-                    DETECTED_GAME_REASONS[_oldIdx]="$_reason"
-                fi
-                continue
-            fi
-
-            DETECTED_GAME_NAMES+=("$_name")
-            DETECTED_GAME_APPIDS+=("$_appId")
-            DETECTED_GAME_PATHS+=("$_path")
-            DETECTED_GAME_EXES+=("$_exe")
-            DETECTED_GAME_ICONS+=("$_icon")
-            DETECTED_GAME_REASONS+=("$_reason")
-            _idx=$((${#DETECTED_GAME_PATHS[@]} - 1))
-            _bestIdxByPath["$_dedupeKey"]=$_idx
-            _bestIdxByAppId["$_appId"]=$_idx
+            _processSteamManifest "$_manifest" "$_steamapps" "$_steamRoot" _appinfoExes _bestIdxByPath _bestIdxByAppId
         done
     done < <(listSteamAppsDirs)
 }
