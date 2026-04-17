@@ -1,5 +1,5 @@
 #!/bin/bash
-# Test fixtures and helper functions for reshade-linux.sh tests
+# Test fixtures and helper functions for reshadelinux.sh tests
 # Sets up mock Steam structures and game directories for testing
 
 set -euo pipefail
@@ -25,7 +25,7 @@ setup_test_env() {
     mkdir -p "$TEST_GAMES_DIR"
     
     # Create cache directory for reshade icons (within test dir)
-    TEST_ICON_CACHE="$XDG_CACHE_HOME/reshade-linux/icons"
+    TEST_ICON_CACHE="$XDG_CACHE_HOME/reshadelinux/icons"
     mkdir -p "$TEST_ICON_CACHE"
     
     # Set MAIN_PATH to an isolated temp location for state/shader tests
@@ -174,11 +174,11 @@ load_functions_from_script() {
     local script_path="${1:-.}"
     local script_file
     
-    # Find the reshade-linux.sh script
-    if [[ ! -f "$script_path/reshade-linux.sh" ]]; then
+    # Find the reshadelinux.sh script
+    if [[ ! -f "$script_path/reshadelinux.sh" ]]; then
         script_path="$(dirname "${BASH_SOURCE[0]}")/.."
     fi
-    script_file="$script_path/reshade-linux.sh"
+    script_file="$script_path/reshadelinux.sh"
     
     if [[ -f "$script_file" ]]; then
         # Source the script but suppress version check and update messages

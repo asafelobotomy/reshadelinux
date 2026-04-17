@@ -1,4 +1,4 @@
-# User Profile — reshade-steam
+# User Profile — reshadelinux
 
 <!-- workspace-layer: L1 | budget: ≤200 tokens | trigger: always -->
 > **Canonical path**: `.copilot/workspace/knowledge/USER.md`
@@ -20,5 +20,5 @@
 
 - 2026-04-10 setup interview: prefers a pair-programmer persona and allows humour when appropriate.
 - 2026-04-10 setup interview: instruction editing is free; no approval is needed for Section 8 updates.
-- Project: reshade-steam
+- Project: reshadelinux
 - Task: Run and verify simple tests.

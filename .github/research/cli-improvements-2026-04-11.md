@@ -1,10 +1,10 @@
-# Research: CLI Improvement Opportunities for reshade-steam
+# Research: CLI Improvement Opportunities for reshadelinux
 
 > Date: 2026-04-11 | Agent: Researcher | Status: final
 
 ## Summary
 
-Cross-referencing three primary sources — the Command Line Interface Guidelines (clig.dev), GNU Coding Standards §4.8, and the 12 Factor CLI Apps article (Heroku/Jeff Dickey) — against the current reshade-steam CLI surface reveals seven practical improvement opportunities. All fit the Bash project without new dependencies. The codebase is already stronger than most shell scripts in several areas (flag validation, stderr separation for errors, XDG-compliant `MAIN_PATH`), but has clear gaps in color-output hygiene, scripting-friendly quiet/dry-run modes, and exit code taxonomy.
+Cross-referencing three primary sources — the Command Line Interface Guidelines (clig.dev), GNU Coding Standards §4.8, and the 12 Factor CLI Apps article (Heroku/Jeff Dickey) — against the current reshadelinux CLI surface reveals seven practical improvement opportunities. All fit the Bash project without new dependencies. The codebase is already stronger than most shell scripts in several areas (flag validation, stderr separation for errors, XDG-compliant `MAIN_PATH`), but has clear gaps in color-output hygiene, scripting-friendly quiet/dry-run modes, and exit code taxonomy.
 
 ## Sources
 
@@ -66,7 +66,7 @@ sweetfx-shaders   SweetFX by CeeJayDK | ...
 ```
 There is no way for a script to reliably parse this (tab width varies; labels contain arbitrary text). CLIG: *"Display output as formatted JSON if `--json` is passed. jq is a common tool for working with JSON on the command-line."* The 12-factor article (Factor 8) recommends JSON or CSV as machine-readable alternates for table output.
 
-For reshade-steam specifically, a JSON output for `--list-shader-repos` would let wrapper scripts (e.g., a Gamescope integration) introspect available repos and construct `--shader-repos=` arguments programmatically.
+For reshadelinux specifically, a JSON output for `--list-shader-repos` would let wrapper scripts (e.g., a Gamescope integration) introspect available repos and construct `--shader-repos=` arguments programmatically.
 
 **Sources:** clig.dev (Output), 12-factor CLI (Factor 8)  
 **Recommendation:** Add `--json` flag; when combined with `--list-shader-repos`, emit a JSON array of `{"name":"…","uri":"…","description":"…"}` objects. This is entirely self-contained in `lib/cli.sh` / `printAvailableShaderRepos`. Tool needed: none beyond bash's built-in printf.

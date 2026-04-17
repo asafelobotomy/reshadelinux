@@ -2,7 +2,7 @@
 
 SMOKE_COMMON_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SMOKE_COMMON_REPO_DIR="$(cd "$SMOKE_COMMON_DIR/../../.." && pwd)"
-SMOKE_COMMON_ENTRYPOINT="$SMOKE_COMMON_REPO_DIR/reshade-linux.sh"
+SMOKE_COMMON_ENTRYPOINT="$SMOKE_COMMON_REPO_DIR/reshadelinux.sh"
 
 source "$SMOKE_COMMON_REPO_DIR/lib/state.sh"
 

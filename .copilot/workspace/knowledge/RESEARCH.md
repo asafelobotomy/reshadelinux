@@ -1,4 +1,4 @@
-# Research URL Tracker — reshade-steam
+# Research URL Tracker — reshadelinux
 
 <!-- workspace-layer: L2 | trigger: research request -->
 > **Domain**: References — URLs, external documentation, and research notes.
@@ -7,7 +7,7 @@
 > Living document. Append rows as new useful URLs are discovered. All agents may update this file.
 > Do not delete rows — mark stale entries with `(stale)` in the Summary column.
 >
-> **Setup note**: Seed the tables below with links relevant to reshade-steam's stack and domain.
+> **Setup note**: Seed the tables below with links relevant to reshadelinux's stack and domain.
 
 ## VS Code Copilot — AI Customisation
 

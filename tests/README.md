@@ -1,4 +1,4 @@
-# ReShade Linux Test Suite
+# ReShadeLinux Test Suite
 
 The maintained automated test path is the shell runner in `run_simple_tests.sh`.
 

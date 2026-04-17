@@ -1,4 +1,4 @@
-# Copilot Instructions — reshade-steam
+# Copilot Instructions — reshadelinux
 
 > **Template version**: 5.10.1 <!-- x-release-please-version --> | **Applied**: 2026-04-10
 > Living document — self-edit rules in §8.
@@ -297,7 +297,7 @@ Resolved values and project-specific overrides. Populated during setup; updated 
 
 | Placeholder | Resolved value |
 |-------------|---------------|
-| `reshade-steam` | reshade-steam |
+| `reshadelinux` | reshadelinux |
 | `Bash/Shell` | Bash/Shell |
 | `bash 5.3` | bash 5.3 |
 | `N/A` | N/A |

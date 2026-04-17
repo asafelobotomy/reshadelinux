@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>io.github.asafelobotomy.reshade-steam</id>
-  <name>ReShade Linux</name>
+  <id>io.github.asafelobotomy.reshadelinux</id>
+  <name>ReShadeLinux</name>
   <summary>Install ReShade for Wine and Proton games on Linux</summary>
   <metadata_license>FSFAP</metadata_license>
   <project_license>GPL-2.0-or-later</project_license>
@@ -24,12 +24,12 @@
       <li>Graphical (yad), terminal (whiptail/dialog), and CLI interfaces</li>
     </ul>
   </description>
-  <launchable type="desktop-id">io.github.asafelobotomy.reshade-steam.desktop</launchable>
-  <url type="homepage">https://github.com/asafelobotomy/reshade-steam</url>
-  <url type="bugtracker">https://github.com/asafelobotomy/reshade-steam/issues</url>
-  <url type="vcs-browser">https://github.com/asafelobotomy/reshade-steam</url>
+  <launchable type="desktop-id">io.github.asafelobotomy.reshadelinux.desktop</launchable>
+  <url type="homepage">https://github.com/asafelobotomy/reshadelinux</url>
+  <url type="bugtracker">https://github.com/asafelobotomy/reshadelinux/issues</url>
+  <url type="vcs-browser">https://github.com/asafelobotomy/reshadelinux</url>
   <provides>
-    <binary>reshade-linux.sh</binary>
+    <binary>reshadelinux.sh</binary>
   </provides>
   <categories>
     <category>Game</category>

@@ -8,7 +8,7 @@ The format is based on Keep a Changelog, adapted for this repository.
 
 ### Changed in 1.3.1
 
-- AppImage startup now goes through `reshade-linux-gui.sh`, so packaged launches use the same GUI backend fallback path as direct script launches.
+- AppImage startup now goes through `reshadelinux-gui.sh`, so packaged launches use the same GUI backend fallback path as direct script launches.
 - AppImage release validation now exercises startup with `--update-all` instead of checking `--help` only.
 
 ### Fixed in 1.3.1
@@ -48,7 +48,7 @@ The format is based on Keep a Changelog, adapted for this repository.
 
 ### Changed in 1.2.0
 
-- `reshade-linux.sh` now reads its displayed version from `VERSION`, with a fallback for standalone script downloads.
+- `reshadelinux.sh` now reads its displayed version from `VERSION`, with a fallback for standalone script downloads.
 - Shader repository defaults expanded from 6 to 18 curated repos with human-readable descriptions.
 - Shader checklist sizing now adapts to terminal height.
 - Game install-directory resolution now tries root directories last instead of first.

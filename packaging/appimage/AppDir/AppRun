@@ -9,4 +9,4 @@ if [[ -d "$HERE/usr/lib" ]]; then
     export LD_LIBRARY_PATH="$HERE/usr/lib:${LD_LIBRARY_PATH:-}"
 fi
 
-exec "$HERE/usr/bin/reshade-linux-gui.sh" "$@"
+exec "$HERE/usr/bin/reshadelinux-gui.sh" "$@"

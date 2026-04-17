@@ -1,4 +1,4 @@
-# Bootstrap Record — reshade-steam
+# Bootstrap Record — reshadelinux
 
 This workspace was scaffolded on **2026-04-10** using the [copilot-instructions-template](https://github.com/asafelobotomy/copilot-instructions-template).
 

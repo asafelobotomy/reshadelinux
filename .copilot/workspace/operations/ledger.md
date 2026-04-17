@@ -1,4 +1,4 @@
-# Spatial Ledger — reshade-steam
+# Spatial Ledger — reshadelinux
 
 <!-- workspace-layer: L2 | trigger: on spatial_status call or heartbeat -->
 

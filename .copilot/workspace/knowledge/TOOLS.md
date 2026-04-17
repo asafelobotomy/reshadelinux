@@ -1,4 +1,4 @@
-# Tool Usage Patterns — reshade-steam
+# Tool Usage Patterns — reshadelinux
 
 <!-- workspace-layer: L2 | trigger: tool query -->
 > **Domain**: Inventory — CLI commands, tool usage patterns, and extension registry.

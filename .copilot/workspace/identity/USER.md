@@ -1,4 +1,4 @@
-# Deprecated User Profile Path — reshade-steam
+# Deprecated User Profile Path — reshadelinux
 
 This file is retained only as a compatibility redirect for older references.
 

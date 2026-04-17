@@ -10,4 +10,4 @@ else
 	export UI_BACKEND=auto
 fi
 
-exec "$HERE/reshade-linux.sh" "$@"
+exec "$HERE/reshadelinux.sh" "$@"

@@ -24,6 +24,7 @@ function parseShaderRepoEntry() {
     fi
 
     [[ -n $_shaderRepoTitle ]] || _shaderRepoTitle="$_shaderRepoName"
+
     if [[ -z $_shaderRepoDesc ]]; then
         _shaderRepoDesc="$_shaderRepoUri"
     fi
@@ -80,6 +81,26 @@ function collectSelectedInstalledShaderRepos() {
         [[ -d "$MAIN_PATH/ReShade_shaders/$_shaderRepoName" ]] || continue
         _reposRef+=("$_shaderRepoName")
     done < <(listConfiguredShaderRepoEntries)
+}
+
+function listExcludedShaderEffectsForApp() {
+    local _appId="$1"
+    local _entry _ruleAppId _effects _effect
+
+    [[ -n $_appId ]] || return 0
+    [[ -n ${SHADER_EFFECT_EXCLUDES:-} ]] || return 0
+
+    while IFS= read -r _entry || [[ -n $_entry ]]; do
+        _ruleAppId=${_entry%%|*}
+        _effects=${_entry#*|}
+        [[ $_ruleAppId == "$_appId" ]] || continue
+        IFS=',' read -ra _effectList <<< "$_effects"
+        for _effect in "${_effectList[@]}"; do
+            _effect="${_effect#"${_effect%%[![:space:]]*}"}"
+            _effect="${_effect%"${_effect##*[![:space:]]}"}"
+            [[ -n $_effect ]] && printf '%s\n' "$_effect"
+        done
+    done < <(printf '%s' "$SHADER_EFFECT_EXCLUDES" | tr ';' '\n')
 }
 
 # Return a comma-separated list of all configured shader repo names.
@@ -189,9 +210,9 @@ function getAvailableSelectedRepos() {
 
 # Rebuild a per-game shader directory from the selected repos.
 function buildGameShaderDir() {
-    local _gameKey="$1" _selectedRepos="$2"
+    local _gameKey="$1" _selectedRepos="$2" _appId="${3:-}"
     [[ -z $_gameKey ]] && return 1
-    logDebug "buildGameShaderDir start gameKey=$_gameKey repos=${_selectedRepos:-<none>}"
+    logDebug "buildGameShaderDir start gameKey=$_gameKey appId=${_appId:-<none>} repos=${_selectedRepos:-<none>}"
     local _gameShaderDir="$MAIN_PATH/game-shaders/$_gameKey"
     rm -rf "$_gameShaderDir"
     mkdir -p "$_gameShaderDir/Merged/Shaders" "$_gameShaderDir/Merged/Textures"
@@ -229,7 +250,29 @@ function buildGameShaderDir() {
             ln -s "$(realpath "$_file")" "$_outBase/Shaders/"
         done
     fi
+    exposeNestedShaderHeadersToRoot "$_outBase"
+    mirrorShaderHeadersToMergedRoot "$_outBase"
+    removeExcludedShaderEffectsFromBuild "$_outBase" "$_appId"
     logDebug "buildGameShaderDir finish gameKey=$_gameKey"
+}
+
+function removeExcludedShaderEffectsFromBuild() {
+    local _outBase="$1" _appId="$2"
+    local _effect _removed=0
+
+    [[ -n $_appId ]] || return 0
+
+    while IFS= read -r _effect || [[ -n $_effect ]]; do
+        [[ -n $_effect ]] || continue
+        if [[ -L "$_outBase/Shaders/$_effect" || -f "$_outBase/Shaders/$_effect" ]]; then
+            rm -f "$_outBase/Shaders/$_effect"
+            _removed=1
+            printf '%bSkipping known incompatible effect for AppID %s:%b %s\n' \
+                "$_YLW" "$_appId" "$_R" "$_effect"
+        fi
+    done < <(listExcludedShaderEffectsForApp "$_appId")
+
+    [[ $_removed -eq 0 ]] || logDebug "Removed excluded effects for appId=$_appId"
 }
 
 # Clone or update selected shader repositories; records failures in _failedRepos.
@@ -405,6 +448,31 @@ function mergeShaderDirsTo() {
     fi
 
     for dirName in Shaders Textures; do
+function exposeNestedShaderHeadersToRoot() {
+    local _outBase="$1"
+    local _shadersDir="$_outBase/Shaders"
+    local _file _basename
+
+    [[ -d $_shadersDir ]] || return
+    while IFS= read -r -d '' _file; do
+        _basename="${_file##*/}"
+        [[ -e "$_shadersDir/$_basename" || -L "$_shadersDir/$_basename" ]] && continue
+        ln -s "$(realpath "$_file")" "$_shadersDir/$_basename"
+    done < <(find "$_shadersDir" -mindepth 2 \( -type f -o -type l \) -name '*.fxh' -print0)
+}
+
+function mirrorShaderHeadersToMergedRoot() {
+    local _outBase="$1"
+    local _shadersDir="$_outBase/Shaders"
+    local _file _basename
+
+    [[ -d $_shadersDir ]] || return
+    while IFS= read -r -d '' _file; do
+        _basename="${_file##*/}"
+        [[ -e "$_outBase/$_basename" || -L "$_outBase/$_basename" ]] && continue
+        ln -s "$(realpath "$_file")" "$_outBase/$_basename"
+    done < <(find "$_shadersDir" -maxdepth 1 \( -type f -o -type l \) -name '*.fxh' -print0)
+}
         if [[ $1 == "ReShade_shaders" ]]; then
             if [[ -d "$_repoRoot/$dirName" ]]; then
                 dirPath="$_repoRoot/$dirName"

@@ -46,7 +46,7 @@ function listSteamAppsDirs() {
 # Find a locally cached Steam icon for an AppID.
 function findSteamIconPath() {
     local _steamRoot="$1" _appId="$2" _root _dir _f _c
-    local _cacheDir="${XDG_CACHE_HOME:-$HOME/.cache}/reshade-linux/icons"
+    local _cacheDir="${XDG_CACHE_HOME:-$HOME/.cache}/reshadelinux/icons"
 
     if [[ $_steamRoot =~ ^[0-9]+$ ]] && [[ -n $_appId && $_appId == /* ]]; then
         local _tmp="$_steamRoot"

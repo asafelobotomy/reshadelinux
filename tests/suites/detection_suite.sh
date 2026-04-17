@@ -188,7 +188,7 @@ test_appimage_apprun_delegates_to_gui_wrapper() {
     local _contents
 
     _contents=$(<"$_apprun_path")
-    [[ $_contents == *'exec "$HERE/usr/bin/reshade-linux-gui.sh" "$@"'* ]]
+    [[ $_contents == *'exec "$HERE/usr/bin/reshadelinux-gui.sh" "$@"'* ]]
 }
 
 test_ui_backend_rejects_invalid_override() {

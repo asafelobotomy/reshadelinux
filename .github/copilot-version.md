@@ -109,7 +109,7 @@ CLAUDE.md=b0aab3c661f3
 -->
 
 <!-- setup-answers
-PROJECT_NAME=reshade-steam
+PROJECT_NAME=reshadelinux
 LANGUAGE=Bash/Shell
 RUNTIME=bash 5.3
 RUNTIME_VERSION=5.3.9

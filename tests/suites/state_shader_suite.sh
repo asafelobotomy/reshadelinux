@@ -169,6 +169,44 @@ test_shader_build_supports_description_without_branch() {
     [[ -L "$MAIN_PATH/game-shaders/55555/Merged/Shaders/alpha.fx" ]]
 }
 
+test_shader_build_mirrors_root_headers_above_shaders() {
+    export SHADER_REPOS="https://example.com/a|alpha"
+    create_mock_shader_repo "alpha"
+    buildGameShaderDir "57575" "alpha"
+    [[ -L "$MAIN_PATH/game-shaders/57575/Merged/Shaders/alpha.fxh" ]]
+    [[ -L "$MAIN_PATH/game-shaders/57575/Merged/alpha.fxh" ]]
+}
+
+test_shader_build_exposes_nested_headers_at_shader_root() {
+    export SHADER_REPOS="https://example.com/a|nested-repo"
+    create_nested_shader_repo "nested-repo"
+    buildGameShaderDir "58585" "nested-repo"
+    [[ -L "$MAIN_PATH/game-shaders/58585/Merged/Shaders/nested-repo.fxh" ]]
+}
+
+test_shader_build_removes_app_specific_excluded_effects() {
+    export SHADER_REPOS="https://example.com/a|alpha"
+    export SHADER_EFFECT_EXCLUDES="424242|Bad.fx"
+    create_mock_shader_repo "alpha"
+    mv "$MAIN_PATH/ReShade_shaders/alpha/Shaders/alpha.fx" "$MAIN_PATH/ReShade_shaders/alpha/Shaders/Bad.fx"
+
+    buildGameShaderDir "59595" "alpha" "424242"
+
+    [[ ! -e "$MAIN_PATH/game-shaders/59595/Merged/Shaders/Bad.fx" ]]
+    [[ -L "$MAIN_PATH/game-shaders/59595/Merged/Shaders/alpha.fxh" ]]
+}
+
+test_shader_build_keeps_effects_for_other_apps() {
+    export SHADER_REPOS="https://example.com/a|alpha"
+    export SHADER_EFFECT_EXCLUDES="424242|Bad.fx"
+    create_mock_shader_repo "alpha"
+    mv "$MAIN_PATH/ReShade_shaders/alpha/Shaders/alpha.fx" "$MAIN_PATH/ReShade_shaders/alpha/Shaders/Bad.fx"
+
+    buildGameShaderDir "60606" "alpha" "111111"
+
+    [[ -L "$MAIN_PATH/game-shaders/60606/Merged/Shaders/Bad.fx" ]]
+}
+
 test_shader_build_discovers_nested_layouts() {
     export SHADER_REPOS="https://example.com/a|nested-repo"
     create_nested_shader_repo "nested-repo"
@@ -733,6 +771,10 @@ run_state_and_shader_tests() {
     run_test "Includes external shaders" test_shader_build_includes_external
     run_test "Rebuild replaces previous" test_shader_rebuild_replaces_previous
     run_test "Build supports description without branch" test_shader_build_supports_description_without_branch
+    run_test "Build mirrors root headers above shaders" test_shader_build_mirrors_root_headers_above_shaders
+    run_test "Build exposes nested headers at shader root" test_shader_build_exposes_nested_headers_at_shader_root
+    run_test "Build removes app-specific excluded effects" test_shader_build_removes_app_specific_excluded_effects
+    run_test "Build keeps effects for other apps" test_shader_build_keeps_effects_for_other_apps
     run_test "Build discovers nested shader layouts" test_shader_build_discovers_nested_layouts
     run_test "Available repos only include existing dirs" test_shader_available_selected_repos_only_returns_existing_dirs
     run_test "CLI shader selection returns names only" test_shader_cli_selection_returns_names_only

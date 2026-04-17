@@ -1,4 +1,4 @@
-# Memory Strategy — reshade-steam
+# Memory Strategy — reshadelinux
 
 <!-- workspace-layer: L1 | budget: ≤300 tokens | trigger: always -->
 > **Domain**: Facts — verified project facts, error patterns, team conventions, baselines, and gotchas.
@@ -21,7 +21,9 @@
 
 |Convention|Source|Confidence|Date learned|
 |---|---|---|---|
-|CHANGELOG.md must NOT use `## [Unreleased]` headings — tests assert the first `## [` entry matches `VERSION` and is dated. Adding `[Unreleased]` breaks `test_release_metadata_*` tests.|`tests/test_state_shader_groups.sh:243`|High|2026-04-10|
+|CHANGELOG.md must NOT use `## [Unreleased]` headings — tests assert the first `## [` entry matches `VERSION` and is dated. Adding `[Unreleased]` breaks `test_release_metadata_*` tests.|`tests/suites/state_shader_suite.sh:454`, `tests/suites/state_shader_suite.sh:466`|High|2026-04-10|
+|The canonical reference for which shader repos to include in `SHADER_REPOS` is the official ReShade installer package list: `https://raw.githubusercontent.com/crosire/reshade-shaders/list/EffectPackages.ini` (the `list` branch). Check this URL when auditing or expanding shader coverage.|`lib/config.sh`, `lib/shaders.sh`|High|2026-04-17|
+|Display titles now live directly in the five-field `SHADER_REPOS` entries in `lib/config.sh`, and `parseShaderRepoEntry` remains backward-compatible with older four-field overrides that omit the title. The same GitHub URL can still appear twice with different local names when targeting different branches (e.g. `reshade-shaders` on `slim` and `reshade-shaders-legacy` on `legacy`).|`lib/config.sh`, `lib/shaders.sh`|High|2026-04-17|
 |Workspace governance files are canonical under `.copilot/workspace/identity/`, `.copilot/workspace/knowledge/`, and `.copilot/workspace/operations/`; human-facing hooks and instructions should use full paths instead of bare filenames.|`.copilot/workspace/identity/BOOTSTRAP.md`, `.copilot/workspace/operations/workspace-index.json`|High|2026-04-10|
 
 ## Known Gotchas
@@ -33,15 +35,6 @@
 
 ## Archived
 
-|Entry|Archived|Reason|
-|---|---|---|
-- Path identification: Used SHA256 hashing to verify directory associations.
-- Environment: Working in /mnt/SteamLibrary/git/reshade-steam.
-Session concluded. Directory /mnt/SteamLibrary/git/reshade-steam matches hash e1004a8ce8d5.
-- Completed execution of test suite for reshade-steam project.
-- Verified that all 80 tests in 'tests/run_simple_tests.sh' pass.
-### Session Reflection: Sat Apr 11 01:09:24 AM BST 2026
-- Verified writability of .copilot/workspace/runtime.
-- Confirmed that local processes have write access to the workspace runtime directory, even when the sandbox reports a read-only root filesystem.
-- Directory ownership: merlin:merlin (1000:1000).
+- 2026-04-11: Path identification for `/mnt/SteamLibrary/git/reshadelinux` was verified with SHA256-based directory association.
+- 2026-04-11: Local processes can write to `.copilot/workspace/runtime` even when the sandbox reports a read-only root filesystem.
 

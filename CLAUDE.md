@@ -1,11 +1,11 @@
-# reshade-steam
+# ReShadeLinux
 
 > This file is auto-detected by Claude Code and VS Code (when using Claude models).
 > It mirrors the core rules from `.github/copilot-instructions.md`.
 
 ## Project
 
-- **Name**: reshade-steam
+- **Name**: reshadelinux
 - **Language**: Bash/Shell
 - **Test command**: `bash tests/run_simple_tests.sh`
 

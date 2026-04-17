@@ -334,7 +334,7 @@ function batchUpdateGameFromState() {
     elif [[ -d "$_gp/ReShade_shaders" ]]; then
         rm -rf "$_gp/ReShade_shaders"
     fi
-    buildGameShaderDir "$_gameKey" "$_effectiveRepos"
+    buildGameShaderDir "$_gameKey" "$_effectiveRepos" "$_appId"
     ln -sf "$(realpath "$MAIN_PATH/game-shaders/$_gameKey")" "$_gp/ReShade_shaders"
     ensureGameIni "$_gp"
     ensureGamePreset "$_gp"

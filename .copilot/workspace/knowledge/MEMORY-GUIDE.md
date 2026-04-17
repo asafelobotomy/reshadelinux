@@ -1,4 +1,4 @@
-# Memory Guide — reshade-steam
+# Memory Guide — reshadelinux
 
 <!-- workspace-layer: L2 | trigger: on memory write or quarterly review -->
 > **When to load**: Before writing to MEMORY.md, during heartbeat review, or during quarterly maintenance.

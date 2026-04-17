@@ -1,6 +1,6 @@
-# reshade-steam
+# ReShadeLinux
 
-![ReShade Steam logo](packaging/appimage/AppDir/reshade-linux.svg)
+![ReShadeLinux logo](packaging/appimage/AppDir/reshadelinux.png)
 
 **Install the official ReShade runtime for Wine and Proton games on Linux.**
 
@@ -19,11 +19,11 @@ Automatic Steam game detection, per-game shader selection, AppImage packaging, a
 
 ## Start with the AppImage
 
-Download the latest AppImage from the [Releases](https://github.com/asafelobotomy/reshade-steam/releases) page.
+Download the latest AppImage from the [Releases](https://github.com/asafelobotomy/reshadelinux/releases) page.
 
 ```bash
-chmod +x reshade-linux-*-x86_64.AppImage
-./reshade-linux-*-x86_64.AppImage
+chmod +x reshadelinux-*-x86_64.AppImage
+./reshadelinux-*-x86_64.AppImage
 ```
 
 The AppImage bundles the launcher and project scripts. The first run still downloads the official ReShade payload from [reshade.me](https://reshade.me/).
@@ -33,9 +33,9 @@ The AppImage bundles the launcher and project scripts. The first run still downl
 Install `grep`, `7z`, `curl`, `git`, `file`, `python3`, `sed`, and `sha256sum`.
 
 ```bash
-git clone https://github.com/asafelobotomy/reshade-steam.git
-cd reshade-steam
-./reshade-linux.sh
+git clone https://github.com/asafelobotomy/reshadelinux.git
+cd reshadelinux
+./reshadelinux.sh
 ```
 
 Install `yad` when you want the graphical flow. If `yad` is unavailable, the script falls back to `whiptail`, then `dialog`, then plain CLI prompts.
@@ -69,10 +69,10 @@ Legacy installs still keep backward-compatible behavior. If an older state file 
 Use the CLI path when you want deterministic automation or test coverage.
 
 ```bash
-./reshade-linux.sh --cli --app-id=255710 --dll-override=dxgi --shader-repos=all
-./reshade-linux.sh --cli --game-path="$HOME/Games/MyGame" --dll-override=d3d9 --shader-repos=none
-./reshade-linux.sh --list-shader-repos
-./reshade-linux.sh --version
+./reshadelinux.sh --cli --app-id=255710 --dll-override=dxgi --shader-repos=all
+./reshadelinux.sh --cli --game-path="$HOME/Games/MyGame" --dll-override=d3d9 --shader-repos=none
+./reshadelinux.sh --list-shader-repos
+./reshadelinux.sh --version
 ```
 
 The graphical and terminal UIs are wrappers over the same install logic. The CLI path is the canonical scripted interface.
@@ -82,13 +82,13 @@ The graphical and terminal UIs are wrappers over the same install logic. The CLI
 Use the dialog entry named `Update all installed games`, or run:
 
 ```bash
-./reshade-linux.sh --update-all
+./reshadelinux.sh --update-all
 ```
 
 Override the tracked shader selection for every game in that batch with:
 
 ```bash
-./reshade-linux.sh --update-all --shader-repos=alpha,beta
+./reshadelinux.sh --update-all --shader-repos=alpha,beta
 ```
 
 When a requested repo is missing locally, the script relinks only what is available and rewrites the stored state to match the actual result.
@@ -100,7 +100,7 @@ The built-in registry covers official ReShade shaders plus a wide set of communi
 Inspect the active registry with:
 
 ```bash
-./reshade-linux.sh --list-shader-repos
+./reshadelinux.sh --list-shader-repos
 ```
 
 Every picker label is attribution-first:
@@ -120,8 +120,8 @@ URI|local-name[|branch[|title[|description]]]
 Examples:
 
 ```bash
-SHADER_REPOS='https://github.com/crosire/reshade-shaders|reshade-shaders|slim|ReShade Shaders|Official built-ins' ./reshade-linux.sh
-SHADER_REPOS='https://github.com/martymcmodding/qUINT|quintfx||qUINT|MXAO, SSR, Bloom' ./reshade-linux.sh --list-shader-repos
+SHADER_REPOS='https://github.com/crosire/reshade-shaders|reshade-shaders|slim|ReShade Shaders|Official built-ins' ./reshadelinux.sh
+SHADER_REPOS='https://github.com/martymcmodding/qUINT|quintfx||qUINT|MXAO, SSR, Bloom' ./reshadelinux.sh --list-shader-repos
 ```
 
 Older four-field overrides still work. When `title` is omitted, the script falls back to the repo name.
@@ -131,7 +131,7 @@ Older four-field overrides still work. When `title` is omitted, the script falls
 Set environment variables inline when you need a different runtime profile.
 
 ```bash
-VARIABLE=value ./reshade-linux.sh
+VARIABLE=value ./reshadelinux.sh
 ```
 
 | Variable | Default | Description |
@@ -173,7 +173,7 @@ Use flags when you want to drive the installer directly.
 ## Launch the GUI wrapper directly
 
 ```bash
-./reshade-linux-gui.sh
+./reshadelinux-gui.sh
 ```
 
 This wrapper prefers `UI_BACKEND=yad` when `yad` is installed and otherwise falls back to the normal backend selection. AppImage launcher assets live in [packaging/appimage/AppDir](packaging/appimage/AppDir).
@@ -182,8 +182,8 @@ This wrapper prefers `UI_BACKEND=yad` when `yad` is installed and otherwise fall
 
 | Path | Purpose |
 | --- | --- |
-| `reshade-linux.sh` | Main entrypoint for install, update, and uninstall flows. |
-| `reshade-linux-gui.sh` | Small wrapper that prefers the graphical backend when `yad` exists. |
+| `reshadelinux.sh` | Main entrypoint for install, update, and uninstall flows. |
+| `reshadelinux-gui.sh` | Small wrapper that prefers the graphical backend when `yad` exists. |
 | `lib/` | Production Bash modules for config, UI, state, shaders, Steam detection, and flow orchestration. |
 | `packaging/appimage/` | AppImage launcher assets, metadata, and icon files. |
 | `scripts/diagnostics/` | Local smoke scripts and troubleshooting helpers. |

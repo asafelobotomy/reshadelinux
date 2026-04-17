@@ -1,5 +1,5 @@
 #!/bin/bash
-# Test loader for the production reshade-linux libraries.
+# Test loader for the production reshadelinux libraries.
 
 set -euo pipefail
 

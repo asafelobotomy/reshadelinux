@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # purpose:  Validate the repository, build the AppImage, commit tracked release changes, tag, push, and create or update a GitHub release from the current VERSION and CHANGELOG.
-# when:     Use when publishing a new reshade-steam AppImage release from a prepared repository state; do not use for exploratory local builds or when unrelated untracked files are present.
+# when:     Use when publishing a new reshadelinux AppImage release from a prepared repository state; do not use for exploratory local builds or when unrelated untracked files are present.
 # inputs:   Optional flags: --repo-root PATH, --github-repo OWNER/REPO, --remote NAME, --appimagetool PATH, --skip-tests, --skip-release, --yes.
-# outputs:  Writes progress logs to stdout, builds dist/reshade-linux-<version>-x86_64.AppImage, and prints the published release URL unless --skip-release is used.
+# outputs:  Writes progress logs to stdout, builds dist/reshadelinux-<version>-x86_64.AppImage, and prints the published release URL unless --skip-release is used.
 # risk:     destructive
 # source:   original
 
@@ -27,7 +27,7 @@ Usage: release-appimage.sh [options]
 Options:
   --repo-root PATH           Repository root. Default: current repository.
   --github-repo OWNER/REPO   GitHub repository for release publishing.
-                             Default: asafelobotomy/reshade-steam
+                             Default: asafelobotomy/reshadelinux
   --remote NAME              Git remote to push. Default: origin
   --appimagetool PATH        Existing appimagetool binary to use.
   --skip-tests               Skip bash tests and ShellCheck.
@@ -134,24 +134,24 @@ function build_appimage() {
 
     mkdir -p "$app_dir/usr/bin"
     cp -a "$repo_root/packaging/appimage/AppDir/." "$app_dir/"
-    cp "$repo_root/reshade-linux.sh" "$repo_root/reshade-linux-gui.sh" "$repo_root/VERSION" "$app_dir/usr/bin/"
+    cp "$repo_root/reshadelinux.sh" "$repo_root/reshadelinux-gui.sh" "$repo_root/VERSION" "$app_dir/usr/bin/"
     cp -a "$repo_root/lib" "$app_dir/usr/bin/"
 
     # Stamp the current version into the desktop entry.
     sed -i "s/^X-AppImage-Version=.*/X-AppImage-Version=$version/" \
-        "$app_dir/io.github.asafelobotomy.reshade-steam.desktop"
+        "$app_dir/io.github.asafelobotomy.reshadelinux.desktop"
 
-        # Reuse the packaged SVG icon so README and AppImage branding stay in sync.
-    ln -sf reshade-linux.svg "$app_dir/.DirIcon"
+        # Reuse the packaged PNG icon so README and AppImage branding stay in sync.
+    ln -sf reshadelinux.png "$app_dir/.DirIcon"
 
-        # Install the scalable icon in hicolor so AppImage managers find it.
+        # Install the icon in hicolor so AppImage managers find it.
     local _icon_dir="$app_dir/usr/share/icons/hicolor"
-        mkdir -p "$_icon_dir/scalable/apps"
-    cp "$app_dir/reshade-linux.svg" "$_icon_dir/scalable/apps/reshade-linux.svg"
+        mkdir -p "$_icon_dir/256x256/apps"
+    cp "$app_dir/reshadelinux.png" "$_icon_dir/256x256/apps/reshadelinux.png"
 
     # Install AppStream metainfo.
     mkdir -p "$app_dir/usr/share/metainfo"
-    cp "$app_dir/io.github.asafelobotomy.reshade-steam.metainfo.xml" "$app_dir/usr/share/metainfo/"
+    cp "$app_dir/io.github.asafelobotomy.reshadelinux.metainfo.xml" "$app_dir/usr/share/metainfo/"
 
     mkdir -p "$(dirname "$artifact_path")"
 
@@ -179,7 +179,7 @@ function create_or_update_release() {
 ASSUME_YES=0
 SKIP_TESTS=0
 SKIP_RELEASE=0
-GITHUB_REPO="asafelobotomy/reshade-steam"
+GITHUB_REPO="asafelobotomy/reshadelinux"
 REMOTE_NAME="origin"
 APPIMAGETOOL_BIN=""
 REPO_ROOT=""
@@ -240,7 +240,7 @@ require_command python3
 
 VERSION="$(tr -d '\n' < "$VERSION_FILE")"
 TAG_NAME="v$VERSION"
-ARTIFACT_PATH="$REPO_ROOT/dist/reshade-linux-${VERSION}-x86_64.AppImage"
+ARTIFACT_PATH="$REPO_ROOT/dist/reshadelinux-${VERSION}-x86_64.AppImage"
 NOTES_FILE="$TEMP_DIR/release-notes.md"
 
 extract_release_notes "$VERSION" "$CHANGELOG_FILE" > "$NOTES_FILE"
@@ -270,7 +270,7 @@ if [[ $SKIP_TESTS -ne 1 ]]; then
     (
         cd "$REPO_ROOT"
         bash tests/run_simple_tests.sh
-        shellcheck lib/*.sh reshade-linux.sh reshade-linux-gui.sh scripts/diagnostics/*.sh tests/*.sh
+        shellcheck lib/*.sh reshadelinux.sh reshadelinux-gui.sh scripts/diagnostics/*.sh tests/*.sh
     )
 fi
 

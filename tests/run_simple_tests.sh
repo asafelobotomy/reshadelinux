@@ -1,6 +1,6 @@
 #!/bin/bash
 # Simple bash-based test runner (doesn't require BATS installation)
-# Tests core reshade-linux.sh detection functions
+# Tests core reshadelinux.sh detection functions
 
 set -euo pipefail
 
@@ -68,7 +68,7 @@ run_test() {
 
 main() {
     echo -e "${BLUE}========================================${NC}"
-    echo -e "${BLUE}ReShade Linux Test Suite${NC}"
+    echo -e "${BLUE}ReShadeLinux Test Suite${NC}"
     echo -e "${BLUE}========================================${NC}"
     echo ""
 

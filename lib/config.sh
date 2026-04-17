@@ -110,6 +110,8 @@ https://github.com/umar-afzaal/LumeniteFX|lumenite-fx||LumeniteFX|RTAO, LSAO, SS
     FORCE_RESHADE_UPDATE_CHECK=${FORCE_RESHADE_UPDATE_CHECK:-0}
     PROGRESS_UI=${PROGRESS_UI:-1}
     RESHADE_DEBUG_LOG=${RESHADE_DEBUG_LOG:-""}
+    BUILTIN_SHADER_EFFECT_EXCLUDES=${BUILTIN_SHADER_EFFECT_EXCLUDES:-"306130|BX_XIV_ChromakeyPlus.fx,GrainSpread.fx,NTSCCustom.fx,NTSC_XOT.fx"}
+    SHADER_EFFECT_EXCLUDES=${SHADER_EFFECT_EXCLUDES:-"$BUILTIN_SHADER_EFFECT_EXCLUDES"}
     # shellcheck disable=SC2034
     RESHADE_URL="https://reshade.me"
     # shellcheck disable=SC2034

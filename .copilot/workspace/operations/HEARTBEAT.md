@@ -1,4 +1,4 @@
-# Heartbeat — reshade-steam
+# Heartbeat — reshadelinux
 
 <!-- workspace-layer: L2 | trigger: heartbeat event -->
 > **Domain**: Events — health checks, session history, pulse status, and retrospective protocol.

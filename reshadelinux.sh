@@ -35,9 +35,9 @@ cat > /dev/null <<DESCRIPTION
         ReShade shader directory.
 
     Usage:
-        chmod u+x reshade-linux.sh
-        ./reshade-linux.sh
-        ./reshade-linux.sh --update-all
+        chmod u+x reshadelinux.sh
+        ./reshadelinux.sh
+        ./reshadelinux.sh --update-all
 DESCRIPTION
 
 SCRIPT_DIR="$(dirname "$(realpath -- "$0")")"

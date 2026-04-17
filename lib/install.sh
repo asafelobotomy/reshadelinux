@@ -282,7 +282,7 @@ function linkGameFilesForInstall() {
         rm -rf "$gamePath/ReShade_shaders"
     fi
     printf '%bBuilding per-game shader directory...%b\n' "$_GRN" "$_R"
-    buildGameShaderDir "$_selectedGameKey" "$_selectedRepos"
+    buildGameShaderDir "$_selectedGameKey" "$_selectedRepos" "$_selectedAppId"
     ln -sf "$(realpath "$MAIN_PATH/game-shaders/$_selectedGameKey")" "$gamePath/ReShade_shaders"
     ensureGameIni "$gamePath"
     ensureGamePreset "$gamePath"

@@ -1,4 +1,4 @@
-# Commit Style — reshade-steam
+# Commit Style — reshadelinux
 
 This file is read by the Commit agent on every invocation. Edit it to match your project's commit conventions.
 

@@ -20,6 +20,13 @@
 			],
 			"isBackground": false,
 			"group": "test"
+		},
+		{
+			"label": "whiptail-smoke-repro",
+			"type": "shell",
+			"command": "bash ./scripts/diagnostics/smoke_whiptail.sh",
+			"isBackground": false,
+			"group": "test"
 		}
 	]
 }

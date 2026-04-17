@@ -1,4 +1,4 @@
-# Values & Reasoning Patterns — reshade-steam
+# Values & Reasoning Patterns — reshadelinux
 
 <!-- workspace-layer: L0 | budget: ≤100 tokens | trigger: always -->
 > **Domain**: Reasoning — core values, heuristics, and session-learned patterns.
