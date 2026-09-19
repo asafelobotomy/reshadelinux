@@ -56,14 +56,16 @@ function ensureRequestedReshadeVersion() {
         [[ -z $RLINK ]] && printErr "Could not fetch ReShade version."
         [[ $ALT_URL -eq 1 ]] && RLINK="${RESHADE_URL_ALT}${RLINK}" || RLINK="${RESHADE_URL}${RLINK}"
         RVERS=$(grep -o "$VREGEX" <<< "$RLINK")
-        if [[ $RVERS != "$LVERS" ]]; then
-            [[ -L $RESHADE_PATH/latest ]] && unlink "$RESHADE_PATH/latest"
+        if [[ $RVERS != "$LVERS" || ! -f $RESHADE_PATH/$RVERS/ReShade64.dll || ! -f $RESHADE_PATH/$RVERS/ReShade32.dll ]]; then
             printf '%bUpdating ReShade to version %s...%b\n' "$_GRN" "$RVERS" "$_R"
             withProgress "Downloading ReShade $RVERS..." downloadReshade "$RVERS" "$RLINK"
+            # Repoint only after the download succeeded so a failure keeps the working link.
             ln -sfn "$(realpath "$RESHADE_PATH/$RVERS")" "$RESHADE_PATH/latest"
             echo "$RVERS" > LVERS
             LVERS="$RVERS"
             printf '%bReShade updated to %b%s%b.%b\n' "$_GRN" "$_CYN$_B" "$RVERS" "$_R$_GRN" "$_R"
+        elif [[ ! -e $RESHADE_PATH/latest/ReShade64.dll ]]; then
+            ln -sfn "$(realpath "$RESHADE_PATH/$RVERS")" "$RESHADE_PATH/latest"
         fi
     fi
 
