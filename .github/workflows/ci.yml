@@ -76,12 +76,8 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends appstream desktop-file-utils
 
-      # These two validators have not been run against this repository before, so
-      # they report without failing the build until a first run has been reviewed.
       - name: Validate AppStream metainfo
-        continue-on-error: true
         run: appstreamcli validate --no-net packaging/appimage/AppDir/io.github.asafelobotomy.reshadelinux.metainfo.xml
 
       - name: Validate desktop entry
-        continue-on-error: true
         run: desktop-file-validate packaging/appimage/AppDir/io.github.asafelobotomy.reshadelinux.desktop
