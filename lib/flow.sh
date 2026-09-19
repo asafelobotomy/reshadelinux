@@ -271,16 +271,27 @@ function batchUpdateGameFromState() {
     return 0
 }
 
+# True when at least one game has a tracked install state.
+function hasTrackedGames() {
+    [[ -d "$MAIN_PATH/game-state" ]] && compgen -G "$MAIN_PATH/game-state/*.state" &>/dev/null
+}
+
+# --update-all with nothing tracked has no work to do: leave before ReShade is
+# fetched or any download tool is required.
+function exitWhenBatchUpdateHasNothingToDo() {
+    [[ $_BATCH_UPDATE -eq 1 ]] || return 0
+    hasTrackedGames && return 0
+    printf '%bNo installed games found in state store. Run without --update-all first.%b\n' "$_YLW" "$_R"
+    exit 0
+}
+
 function maybeHandleBatchUpdate() {
     local _stateDir _ok _fail _sf _gameKey _requestedRepos
 
     [[ $_BATCH_UPDATE -eq 1 ]] || return
 
+    exitWhenBatchUpdateHasNothingToDo
     _stateDir="$MAIN_PATH/game-state"
-    if [[ ! -d $_stateDir ]] || ! compgen -G "$_stateDir/*.state" &>/dev/null; then
-        printf '%bNo installed games found in state store. Run without --update-all first.%b\n' "$_YLW" "$_R"
-        exit 0
-    fi
     _ok=0
     _fail=0
     for _sf in "$_stateDir"/*.state; do

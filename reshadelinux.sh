@@ -90,6 +90,9 @@ printInstallerBanner
 maybeHandleDirectXUninstall
 # Z0030
 
+# Nothing to update: leave before requiring download tools or fetching ReShade.
+exitWhenBatchUpdateHasNothingToDo
+
 checkRequiredExecutablesForMode install
 printShaderUpdateStatus
 ensureRequestedReshadeVersion

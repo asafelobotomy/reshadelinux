@@ -92,10 +92,58 @@ test_reshade_update_downloads_again_when_the_recorded_version_is_missing_on_disk
     [[ -e "$RESHADE_PATH/latest/ReShade64.dll" ]]
 }
 
+test_update_all_with_no_tracked_games_leaves_before_using_the_network() {
+    local _stub="$TEST_TEMP_DIR/net-stub" _log="$TEST_TEMP_DIR/net.log" _tool _output _rc
+
+    mkdir -p "$_stub" "$TEST_TEMP_DIR/home"
+    for _tool in curl git 7z; do
+        printf '#!/bin/sh\nprintf "%%s\\n" "%s $*" >> "%s"\nexit 1\n' "$_tool" "$_log" > "$_stub/$_tool"
+        chmod +x "$_stub/$_tool"
+    done
+
+    set +e
+    _output=$(env -i PATH="$_stub:/usr/bin:/bin" HOME="$TEST_TEMP_DIR/home" \
+        MAIN_PATH="$TEST_TEMP_DIR/empty-main" UI_BACKEND=cli \
+        "$REPO_DIR/reshadelinux.sh" --update-all < /dev/null 2>&1)
+    _rc=$?
+    set -e
+
+    [[ $_rc -eq 0 ]]
+    [[ $_output == *"No installed games found"* ]]
+    [[ ! -e $_log ]]
+}
+
+test_batch_preflight_does_nothing_unless_update_all_was_requested() {
+    _BATCH_UPDATE=0
+    exitWhenBatchUpdateHasNothingToDo
+}
+
+test_batch_preflight_lets_the_run_continue_when_a_game_is_tracked() {
+    mkdir -p "$MAIN_PATH/game-state"
+    printf 'dll=dxgi\n' > "$MAIN_PATH/game-state/123.state"
+    _BATCH_UPDATE=1
+    exitWhenBatchUpdateHasNothingToDo
+}
+
+test_batch_preflight_stops_the_run_when_nothing_is_tracked() {
+    local _output _rc=0
+
+    _BATCH_UPDATE=1
+    _output=$( ( exitWhenBatchUpdateHasNothingToDo; echo "kept running" ) 2>&1 ) || _rc=$?
+
+    [[ $_rc -eq 0 ]]
+    [[ $_output == *"No installed games found"* ]]
+    [[ $_output != *"kept running"* ]]
+}
+
 run_update_tests() {
     echo -e "${BLUE}ReShade Update Tests${NC}"
     run_test "Repairs a missing latest link without downloading" test_reshade_update_repairs_a_missing_latest_link_without_downloading
     run_test "Keeps the previous latest link when a download fails" test_reshade_update_keeps_the_previous_latest_link_when_the_download_fails
     run_test "Downloads again when the recorded version is gone" test_reshade_update_downloads_again_when_the_recorded_version_is_missing_on_disk
+    run_test "update-all with nothing tracked never touches the network" test_update_all_with_no_tracked_games_leaves_before_using_the_network
+    run_test "Batch preflight ignores runs without update-all" test_batch_preflight_does_nothing_unless_update_all_was_requested
+    run_test "Batch preflight continues when a game is tracked" test_batch_preflight_lets_the_run_continue_when_a_game_is_tracked
+    run_test "Batch preflight stops when nothing is tracked" test_batch_preflight_stops_the_run_when_nothing_is_tracked
     echo ""
 }
