@@ -1,5 +1,7 @@
 #!/bin/bash
 # shellcheck disable=SC2317,SC2329  # test functions and stubs are invoked indirectly
+# shellcheck disable=SC2034  # stubs assign variables that the sourced release script reads
+# shellcheck disable=SC2030,SC2031  # the release script is sourced inside subshells on purpose
 
 # Release tooling: helper functions in scripts/release/lib-release.sh.
 

@@ -6,7 +6,7 @@
 # Each "broken" function below fails on purpose; run_test_expect_fail only passes
 # when the runner reports that failure.
 
-# shellcheck disable=SC2317  # Test bodies are invoked indirectly by name.
+# shellcheck disable=SC2317,SC2329  # Test bodies are invoked indirectly by name.
 
 harness_multi_assertion_test_passes() {
     local word="alpha" number=1
