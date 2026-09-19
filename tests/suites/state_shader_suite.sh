@@ -600,6 +600,8 @@ test_batch_update_persists_available_shader_subset() {
     touch "$RESHADE_PATH/latest/ReShade64.dll" "$RESHADE_PATH/latest/ReShade32.dll"
     touch "$MAIN_PATH/d3dcompiler_47.dll.64"
     export SHADER_REPOS="https://example.com/a|alpha;https://example.com/b|beta"
+    export RESHADE_VERSION=latest
+    init_test_runtime_defaults
     create_mock_shader_repo "alpha"
     cat > "$MAIN_PATH/game-state/2000.state" <<EOF
 dll=dxgi
@@ -628,6 +630,8 @@ test_batch_update_honors_cli_shader_repo_override() {
     touch "$RESHADE_PATH/latest/ReShade64.dll" "$RESHADE_PATH/latest/ReShade32.dll"
     touch "$MAIN_PATH/d3dcompiler_47.dll.64"
     export SHADER_REPOS="https://example.com/a|alpha;https://example.com/b|beta"
+    init_test_runtime_defaults
+    export RESHADE_VERSION=latest
     create_mock_shader_repo "alpha"
     create_mock_shader_repo "beta"
     cat > "$MAIN_PATH/game-state/3000.state" <<EOF

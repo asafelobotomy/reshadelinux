@@ -14,6 +14,23 @@ function printErr() {
     return 1
 }
 
+# Apply the production runtime defaults (UPDATE_RESHADE, GLOBAL_INI, ...) with the
+# non-interactive CLI backend. Tests that drive flows which read those settings call
+# this after exporting any overrides such as MAIN_PATH or SHADER_REPOS.
+function init_test_runtime_defaults() {
+    UI_BACKEND=cli init_runtime_config >/dev/null
+}
+
+# Production printErr terminates the process. Call this inside a subshell that
+# exercises a fatal path so the test double matches that behaviour; without it the
+# code under test keeps running after the error and the exit status is misleading.
+function use_fatal_printErr() {
+    function printErr() {
+        printf '%b[ERROR] %s%b\n' "${_RED:-}" "$*" "${_R:-}" >&2
+        exit 1
+    }
+}
+
 source "$REPO_DIR/lib/ui.sh"
 source "$REPO_DIR/lib/utils.sh"
 source "$REPO_DIR/lib/config.sh"

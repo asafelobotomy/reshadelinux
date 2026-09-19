@@ -38,6 +38,7 @@ test_cli_validation_rejects_mixed_ui_backend_flags() {
 
     set +e
     _output=$( (
+        use_fatal_printErr
         parseCliArgs --cli --ui-backend=dialog
         init_runtime_config
         validateCliArgs
@@ -56,6 +57,7 @@ test_cli_validation_rejects_update_all_with_game_specific_flags() {
 
     set +e
     _output=$( (
+        use_fatal_printErr
         parseCliArgs --update-all --game-path="$_game_dir" --app-id=123456 --dll-override=dxgi
         init_runtime_config
         validateCliArgs

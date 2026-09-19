@@ -29,6 +29,11 @@ source "$SCRIPT_DIR/helpers/test_loader.sh" || {
     echo "Failed to source helpers/test_loader.sh"
     exit 1
 }
+# shellcheck source=./suites/harness_suite.sh
+source "$SCRIPT_DIR/suites/harness_suite.sh" || {
+    echo "Failed to source suites/harness_suite.sh"
+    exit 1
+}
 # shellcheck source=./suites/detection_suite.sh
 source "$SCRIPT_DIR/suites/detection_suite.sh" || {
     echo "Failed to source suites/detection_suite.sh"
@@ -45,24 +50,87 @@ source "$SCRIPT_DIR/suites/cli_suite.sh" || {
     exit 1
 }
 
-run_test() {
-    local test_name="$1"
-    local test_func="$2"
+# Run one test function in an isolated environment and return its status.
+#
+# The test body must run under a real `set -e`. Bash ignores errexit for anything
+# executed inside a condition context (`&&`, `||`, `if`, `!`), including a subshell
+# or function called from one, so a failed assertion in the middle of a test would
+# go unnoticed and only its final statement could fail it. Call this function as a
+# plain statement, never as part of a condition.
+_execute_test() {
+    local test_func="$1"
+    local rc=0 had_errexit=0
 
-    echo -n "  $test_name ... "
-    TESTS_RUN=$(( TESTS_RUN + 1 ))
+    [[ $- == *e* ]] && had_errexit=1
 
-    if setup_test_env && \
-       export BUILTIN_GAME_DIR_PRESETS="1091500|bin/x64;292030|bin/x64;275850|Binaries;1245620|Game;306130|The Elder Scrolls Online/game/client;2623190|OblivionRemastered/Binaries/Win64" && \
-       "$test_func" && \
-       teardown_test_env; then
+    if ! setup_test_env; then
+        teardown_test_env 2>/dev/null || true
+        return 1
+    fi
+    export BUILTIN_GAME_DIR_PRESETS="1091500|bin/x64;292030|bin/x64;275850|Binaries;1245620|Game;306130|The Elder Scrolls Online/game/client;2623190|OblivionRemastered/Binaries/Win64"
+
+    set +e
+    ( set -e; "$test_func" )
+    rc=$?
+    [[ $had_errexit -eq 1 ]] && set -e
+
+    teardown_test_env 2>/dev/null || true
+    return "$rc"
+}
+
+_record_test_result() {
+    local passed="$1"
+    local test_name="$2"
+
+    if [[ $passed -eq 1 ]]; then
         echo -e "${GREEN}PASS${NC}"
         TESTS_PASSED=$(( TESTS_PASSED + 1 ))
     else
         echo -e "${RED}FAIL${NC}"
         TESTS_FAILED=$(( TESTS_FAILED + 1 ))
         FAILED_TESTS+=("$test_name")
-        teardown_test_env 2>/dev/null || true
+    fi
+}
+
+run_test() {
+    local test_name="$1"
+    local test_func="$2"
+    local rc=0
+
+    echo -n "  $test_name ... "
+    TESTS_RUN=$(( TESTS_RUN + 1 ))
+
+    set +e
+    _execute_test "$test_func"
+    rc=$?
+    set -e
+
+    if [[ $rc -eq 0 ]]; then
+        _record_test_result 1 "$test_name"
+    else
+        _record_test_result 0 "$test_name"
+    fi
+}
+
+# Passes only when the test function is detected as failing. Used by the harness
+# self-tests to prove the runner cannot silently swallow a failed assertion.
+run_test_expect_fail() {
+    local test_name="$1"
+    local test_func="$2"
+    local rc=0
+
+    echo -n "  $test_name ... "
+    TESTS_RUN=$(( TESTS_RUN + 1 ))
+
+    set +e
+    _execute_test "$test_func" >/dev/null 2>&1
+    rc=$?
+    set -e
+
+    if [[ $rc -ne 0 ]]; then
+        _record_test_result 1 "$test_name"
+    else
+        _record_test_result 0 "$test_name (failure was not detected)"
     fi
 }
 
@@ -72,6 +140,7 @@ main() {
     echo -e "${BLUE}========================================${NC}"
     echo ""
 
+    run_harness_tests
     run_detection_tests
     run_state_and_shader_tests
     run_cli_tests
