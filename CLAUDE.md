@@ -10,7 +10,7 @@ Interfaces: `yad` (GUI), `whiptail`/`dialog` (TUI) and a plain CLI, all over the
 ```bash
 bash tests/run_simple_tests.sh                     # full suite; the merge gate
 shellcheck $(git ls-files '*.sh')                  # lint; must report nothing (.shellcheckrc is picked up)
-bash scripts/diagnostics/smoke_cli.sh              # isolated end-to-end CLI smoke test
+bash scripts/diagnostics/smoke_cli.sh              # isolated end-to-end CLI smoke test (CI runs it too)
 bash scripts/diagnostics/smoke_whiptail.sh         # same for the whiptail backend (both need 7z installed)
 ./reshadelinux.sh --cli --game-path=DIR --dll-override=dxgi --shader-repos=none
 ./reshadelinux.sh --list-shader-repos              # prints the registry, exits
@@ -40,7 +40,7 @@ The suite redirects `HOME`, `XDG_CACHE_HOME` and `MAIN_PATH` into a temp tree. N
 | `lib/install.sh` | Downloads and verification, DLL selection, linking into the game. |
 | `lib/deps.sh` | Required-executable checks; reports all missing tools with per-manager install hints via `printErr`. |
 | `lib/flow.sh` | Workspace init, ReShade version update, uninstall, batch update. |
-| `tests/` | `run_simple_tests.sh`, `helpers/` (fixtures, loader), `suites/` (harness, exe, detection, state, shader, flow, deps, install, update, repos, ui, pe, release metadata, cli). |
+| `tests/` | `run_simple_tests.sh`, `helpers/` (fixtures, loader), `suites/` (harness, exe, detection, state, shader, flow, deps, install, update, repos, ui, pe, release, release metadata, diagnostics, cli). |
 | `scripts/diagnostics/` | Smoke tests and troubleshooting helpers. |
 | `scripts/release/` | AppImage release tool. |
 | `packaging/appimage/AppDir/` | AppRun, desktop entry, AppStream metainfo, icon. |

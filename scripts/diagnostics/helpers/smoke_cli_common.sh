@@ -38,12 +38,18 @@ create_retry_cli_smoke_workspace() {
 set -eu
 
 args=("$@")
+# The installer passes leading global options (-c key=value, -C dir); skip them.
+while [[ ${args[0]:-} == -c || ${args[0]:-} == -C ]]; do
+    args=("${args[@]:2}")
+done
+set -- "${args[@]}"
 target="${args[$(( ${#args[@]} - 1 ))]:-}"
+name="$(basename "$target")"
 
 case "${1:-}" in
     clone)
-        printf 'git clone %s\n' "$target" >> "$FAKE_GIT_LOG"
-        case "$target" in
+        printf 'git clone %s\n' "$name" >> "$FAKE_GIT_LOG"
+        case "$name" in
             alpha)
                 mkdir -p "$target/Shaders" "$target/Textures"
                 printf '// alpha\n' > "$target/Shaders/alpha.fx"
@@ -60,7 +66,7 @@ case "${1:-}" in
                 printf 'beta\n' > "$target/Textures/beta.png"
                 ;;
             *)
-                printf 'unexpected clone target: %s\n' "$target" >> "$FAKE_GIT_LOG"
+                printf 'unexpected clone target: %s\n' "$name" >> "$FAKE_GIT_LOG"
                 exit 1
                 ;;
         esac

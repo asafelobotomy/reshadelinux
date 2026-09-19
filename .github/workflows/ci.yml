@@ -35,7 +35,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
-            bash coreutils curl file git grep p7zip-full python3 sed
+            bash coreutils curl file git grep p7zip-full python3 sed whiptail
 
       - name: Show tool versions
         run: |
@@ -45,6 +45,14 @@ jobs:
 
       - name: Run test suite
         run: bash tests/run_simple_tests.sh
+
+      # End-to-end installs against a fake Steam library and a fake git, so a change
+      # to the real install flow that the unit tests cannot see still fails CI.
+      - name: Run CLI smoke test
+        run: bash scripts/diagnostics/smoke_cli.sh
+
+      - name: Run whiptail smoke test
+        run: bash scripts/diagnostics/smoke_whiptail.sh
 
   lint:
     name: ShellCheck

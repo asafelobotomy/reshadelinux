@@ -14,7 +14,7 @@ The format is based on Keep a Changelog, adapted for this repository.
 - `--update-all` with no tracked games now exits before contacting reshade.me or requiring `7z`.
 - The manual DLL override prompt now accepts the same names as `--dll-override` and `--update-all`, so a game installed with a hand-typed DLL is no longer skipped by later batch updates. It also stops instead of looping forever when input closes.
 - Executables larger than about 2 MiB are now analysed correctly, so the DLL override is no longer guessed for large games. Python helper errors are written to the debug log.
-- Shader repository updates no longer stop on a credentials prompt, give up on a stalled connection, and recover when an upstream repository rewrote its history, as long as the local clone has no edits.
+- Shader repository updates no longer stop on a credentials prompt, give up on a stalled connection, and recover when an upstream repository rewrote its history, but only when the local clone has no edits, commits or untracked files.
 - A build with no shader repositories selected and no external shaders no longer prints `command not found` twice.
 - Temporary directories are removed when a fatal error ends the run.
 - A real `ReShade_shaders` folder in a game directory is moved aside to `ReShade_shaders.bak-<timestamp>` instead of being deleted.
@@ -40,7 +40,8 @@ The format is based on Keep a Changelog, adapted for this repository.
 - The test runner now fails a test when any assertion in it fails. Before, only the last statement counted, so several tests passed while checking nothing. The suite grew from 101 to over 200 tests.
 - `UI_AUTO_CONFIRM` prints a warning when it is active.
 - Internals were split into smaller modules (`shader_registry.sh`, `shader_build.sh`, `deps.sh`) and the whole tree is ShellCheck-clean.
-- CI runs on Ubuntu 22.04 and 24.04, lints with ShellCheck, uses a read-only token and a commit-pinned checkout action.
+- CI runs on Ubuntu 22.04 and 24.04, lints with ShellCheck, runs the CLI and whiptail smoke tests, validates the AppStream and desktop files, uses a read-only token and a commit-pinned checkout action.
+- The smoke tests keep their workspace and print their logs when a run fails, instead of deleting them.
 - The Copilot agent scaffolding was removed; `CLAUDE.md` is now self-contained.
 
 ## [1.3.1] - 2026-04-17

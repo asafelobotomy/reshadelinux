@@ -26,6 +26,8 @@ bash tests/run_simple_tests.sh
 - `suites/repos_suite.sh` - shader repository clone/update against real local git repositories
 - `suites/ui_suite.sh` - yad plain-text dialogs and the `UI_AUTO_CONFIRM` warning
 - `suites/pe_suite.sh` - PE import analysis using synthetic executables built by `create_mock_pe`
+- `suites/release_suite.sh` - release tool helpers and the `--build-only` and full-release phase ordering, with every side-effecting phase stubbed
+- `suites/diagnostics_suite.sh` - smoke runners keep their workspace and log tails when a run fails
 - `suites/cli_suite.sh` - CLI parsing and flow test groups sourced by the runner
 
 ## Coverage
