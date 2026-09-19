@@ -56,6 +56,7 @@ function formatShaderRepoDisplayLabel() {
 
 function listConfiguredShaderRepoEntries() {
     local _savedIFS="$IFS" _entry
+    local -a _allRepos=()
     local -A _seen=()
 
     IFS=';' read -ra _allRepos <<< "$SHADER_REPOS"
@@ -88,6 +89,7 @@ function collectSelectedInstalledShaderRepos() {
 function listExcludedShaderEffectsForApp() {
     local _appId="$1"
     local _entry _ruleAppId _effects _effect
+    local -a _effectList=()
 
     [[ -n $_appId ]] || return 0
     [[ -n ${SHADER_EFFECT_EXCLUDES:-} ]] || return 0

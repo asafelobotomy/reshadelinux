@@ -62,6 +62,7 @@ function readSelectedReposFromState() {
 
 function repoIsSelected() {
     local _selectedRepos="$1" _repoName="$2" _entry
+    local -a _repoList=()
     local _savedIFS="$IFS"
     IFS=',' read -ra _repoList <<< "$_selectedRepos"
     IFS="$_savedIFS"

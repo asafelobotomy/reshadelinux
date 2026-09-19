@@ -159,7 +159,7 @@ function mirrorShaderHeadersToMergedRoot() {
 function mergeShaderDirsTo() {
     [[ $1 != ReShade_shaders && $1 != External_shaders ]] && return
     local _outBase="$3"
-    local _repoRoot="" dirPath
+    local _repoRoot="" dirPath dirName anyDir
 
     if [[ $1 == "ReShade_shaders" ]]; then
         _repoRoot="$MAIN_PATH/$1/$2"

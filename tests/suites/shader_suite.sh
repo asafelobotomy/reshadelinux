@@ -218,10 +218,33 @@ test_shader_build_with_no_repos_and_no_external_shaders_is_quiet() {
     [[ -d "$MAIN_PATH/game-shaders/77777/Merged/Shaders" ]]
 }
 
+test_helper_functions_do_not_leak_loop_variables() {
+    local _out="$TEST_TEMP_DIR/leak-out" _name
+
+    export SHADER_REPOS="https://example.com/a|alpha;https://example.com/b|beta"
+    export SHADER_EFFECT_EXCLUDES="1|one.fx,two.fx"
+    create_mock_shader_repo "alpha"
+    mkdir -p "$_out"
+    unset _repoList _allRepos _effectList dirName anyDir
+
+    repoIsSelected "alpha,beta" alpha
+    listConfiguredShaderRepoEntries >/dev/null
+    listExcludedShaderEffectsForApp 1 >/dev/null
+    mergeShaderDirsTo ReShade_shaders alpha "$_out"
+
+    for _name in _repoList _allRepos _effectList dirName anyDir; do
+        if [[ -n ${!_name+x} ]]; then
+            echo "$_name leaked into the caller's scope" >&2
+            return 1
+        fi
+    done
+}
+
 run_shader_tests() {
     echo -e "${BLUE}Shader Selection Tests${NC}"
     run_test "Header helpers exist before any merge runs" test_shader_header_helpers_exist_before_any_merge_runs
     run_test "Build with no repos or external shaders is quiet" test_shader_build_with_no_repos_and_no_external_shaders_is_quiet
+    run_test "Helpers do not leak loop variables" test_helper_functions_do_not_leak_loop_variables
     run_test "Build creates output dir" test_shader_build_creates_dir
     run_test "Links only selected repo" test_shader_build_links_selected_repo
     run_test "Excludes unselected repo" test_shader_build_excludes_unselected_repo
