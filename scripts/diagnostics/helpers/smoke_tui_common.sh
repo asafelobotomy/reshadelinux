@@ -67,9 +67,7 @@ run_tui_backend_smoke() {
     fi
 
     SMOKE_TUI_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/reshade-${backend}-smoke.XXXXXX")"
-    if [[ "${SMOKE_KEEP_WORKSPACE:-0}" != "1" ]]; then
-        trap 'rm -rf "$SMOKE_TUI_ROOT"' EXIT
-    fi
+    trap 'smoke_finish "$SMOKE_TUI_ROOT"' EXIT
 
     printf 'Smoke workspace: %s\n' "$SMOKE_TUI_ROOT"
     create_tui_smoke_workspace "$SMOKE_TUI_ROOT" "$repo_name" "$shader_comment"

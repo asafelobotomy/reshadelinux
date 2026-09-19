@@ -14,13 +14,10 @@ All smoke diagnostics share `diagnostics/helpers/smoke_common.sh` for runtime wo
 - `diagnostics/helpers/smoke_common.sh` - shared runtime workspace setup and assertions for smoke diagnostics
 - `diagnostics/helpers/smoke_tui_common.sh` - shared dialog/whiptail smoke orchestration layered on the smoke base helpers
 - `diagnostics/helpers/steam_report_common.sh` - shared manifest parsing and detected-game reporting helpers used by Steam inspection diagnostics
-- `diagnostics/smoke_cli.sh` - runs isolated end-to-end CLI smoke coverage for manual install, Steam autodetect install, shader clone retry handling, and seeded `--update-all`
-- `diagnostics/smoke_cli_no_cleanup.sh` - runs the same CLI smoke suite but keeps the temp workspace for postmortem inspection
-- `diagnostics/smoke_cli_no_trap.sh` - compatibility wrapper that routes older shell history through the maintained no-cleanup CLI smoke path
+- `diagnostics/smoke_cli.sh` - runs isolated end-to-end CLI smoke coverage (set `SMOKE_KEEP_WORKSPACE=1` to keep the temp workspace; a failing run always keeps it and prints the tail of each log) for manual install, Steam autodetect install, shader clone retry handling, and seeded `--update-all`
 - `diagnostics/smoke_dialog.sh` - runs an isolated dialog-backed install smoke test without depending on the missing `script` utility
 - `diagnostics/smoke_whiptail.sh` - runs an isolated whiptail-backed install smoke test using the shared auto-answer UI path
 - `diagnostics/test_detection.sh` - runs Steam detection and prints a simple report
-- `diagnostics/test_dialog.sh` - compatibility wrapper that preserves the historical dialog test entrypoint by delegating to `smoke_dialog.sh`
 - `diagnostics/test_yad_menu.sh` - shows the menu items that would be passed to the game picker UI
 
 ## Release

@@ -12,4 +12,4 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=./helpers/smoke_cli_common.sh
 source "$SCRIPT_DIR/helpers/smoke_cli_common.sh"
 
-run_cli_smoke_suite 0
+run_cli_smoke_suite

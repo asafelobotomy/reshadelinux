@@ -7,6 +7,23 @@ SMOKE_COMMON_ENTRYPOINT="$SMOKE_COMMON_REPO_DIR/reshadelinux.sh"
 
 source "$SMOKE_COMMON_REPO_DIR/lib/state.sh"
 
+# EXIT trap for the smoke runners. A failing run keeps its workspace and prints the tail
+# of every log in it, so the reason is never deleted along with the temp directory.
+# SMOKE_KEEP_WORKSPACE=1 also keeps the workspace after a passing run.
+smoke_finish() {
+    local status=$? root="$1" log
+
+    if [[ $status -ne 0 ]]; then
+        printf 'SMOKE_RESULT=FAIL (workspace kept: %s)\n' "$root" >&2
+        while IFS= read -r log; do
+            printf '\n--- %s ---\n' "$log" >&2
+            tail -n 20 "$log" >&2
+        done < <(find "$root" -name '*.log' -type f 2>/dev/null | sort)
+    elif [[ ${SMOKE_KEEP_WORKSPACE:-0} != 1 ]]; then
+        rm -rf "$root"
+    fi
+}
+
 assert_smoke_path_exists() {
     local path="$1"
     if [[ ! -e "$path" && ! -L "$path" ]]; then

@@ -195,12 +195,8 @@ run_batch_update_cli_smoke() {
 }
 
 run_cli_smoke_suite() {
-    local keep_workspace="${1:-0}"
-
     SMOKE_CLI_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/reshade-cli-smoke.XXXXXX")"
-    if [[ $keep_workspace != 1 ]]; then
-        trap 'rm -rf "$SMOKE_CLI_ROOT"' EXIT
-    fi
+    trap 'smoke_finish "$SMOKE_CLI_ROOT"' EXIT
 
     printf 'Smoke workspace: %s\n' "$SMOKE_CLI_ROOT"
     create_seeded_cli_smoke_workspace "$SMOKE_CLI_ROOT/manual"
