@@ -1,4 +1,4 @@
-name: Run shell tests
+name: CI
 
 on:
   push:
@@ -6,20 +6,82 @@ on:
       - main
   pull_request:
 
+# Read-only token: nothing in this workflow needs to write to the repository.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
-    name: Run test suite
-    runs-on: ubuntu-22.04
+    name: Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # Ubuntu 22.04 ships bash 5.1 and 24.04 ships bash 5.2, so the oldest
+        # supported shell is exercised as well as a current one.
+        os:
+          - ubuntu-22.04
+          - ubuntu-24.04
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install dependencies
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
-            bash coreutils curl file git grep p7zip-full sed
+            bash coreutils curl file git grep p7zip-full python3 sed
+
+      - name: Show tool versions
+        run: |
+          bash --version | head -n 1
+          git --version
+          python3 --version
 
       - name: Run test suite
         run: bash tests/run_simple_tests.sh
+
+  lint:
+    name: ShellCheck
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Show ShellCheck version
+        run: shellcheck --version
+
+      - name: Lint every tracked shell file
+        run: shellcheck $(git ls-files '*.sh') packaging/appimage/AppDir/AppRun
+
+  packaging:
+    name: Packaging and version metadata
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Check the version is consistent across files
+        run: scripts/release/check-version-sync.sh
+
+      - name: Install validators
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends appstream desktop-file-utils
+
+      # These two validators have not been run against this repository before, so
+      # they report without failing the build until a first run has been reviewed.
+      - name: Validate AppStream metainfo
+        continue-on-error: true
+        run: appstreamcli validate --no-net packaging/appimage/AppDir/io.github.asafelobotomy.reshadelinux.metainfo.xml
+
+      - name: Validate desktop entry
+        continue-on-error: true
+        run: desktop-file-validate packaging/appimage/AppDir/io.github.asafelobotomy.reshadelinux.desktop

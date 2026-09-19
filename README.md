@@ -28,7 +28,7 @@ chmod +x reshadelinux-*-x86_64.AppImage
 ./reshadelinux-*-x86_64.AppImage
 ```
 
-The AppImage bundles the launcher and project scripts. The first run still downloads the official ReShade payload from [reshade.me](https://reshade.me/).
+The AppImage bundles the launcher and project scripts. It does **not** bundle the tools they call, so install `7z` (`p7zip-full` on Debian and Ubuntu, `7zip` on Arch), `git`, `curl`, `file` and `python3` first, plus `yad` for the graphical interface. If one is missing the app shows an error dialog naming it and the package to install. The first run downloads the official ReShade payload from [reshade.me](https://reshade.me/).
 
 ## Run from source
 
@@ -146,6 +146,7 @@ VARIABLE=value ./reshadelinux.sh
 | `SHADER_REPOS` | built-in registry | Provide a semicolon-separated list of `URI\|local-name[\|branch[\|title[\|description]]]` entries. |
 | `FIRST_RUN_SHADER_REPOS` | `reshade-shaders,sweetfx-shaders,quintfx,prod80-shaders,astrayfx-shaders` | Pick the default first-run shader subset. Unknown names are ignored. If none match, the full configured list is used. |
 | `GAME_DIR_PRESETS` | empty | Override exe subdirectories for specific App IDs such as `12345\|Binaries/Win64`. |
+| `EXTRA_DLL_OVERRIDES` | empty | Add DLL override names to the accepted list (`d3d8 d3d9 d3d11 d3d12 ddraw dinput8 dxgi opengl32`), separated by spaces or commas, for example `winmm`. Only plain names are accepted. Applies to `--dll-override`, the manual prompt and `--update-all`. |
 | `GLOBAL_INI` | `ReShade.ini` | Use this as the per-game template. Set to `0` to let ReShade create it later. |
 | `LINK_PRESET` | empty | Copy a preset `.ini` from `MAIN_PATH` into a game directory on first install. |
 | `WINEPREFIX` | auto | Force a specific Wine or Proton prefix instead of auto-detecting from `compatdata`. |
@@ -153,7 +154,8 @@ VARIABLE=value ./reshadelinux.sh
 | `FORCE_RESHADE_UPDATE_CHECK` | `0` | Bypass the four-hour update throttle. |
 | `PROGRESS_UI` | `1` | Disable progress widgets without changing the selected dialog backend. |
 | `RESHADE_DEBUG_LOG` | empty | Append timestamped debug lines here for backend or flow debugging. |
-| `RESHADE_SETUP_SHA256` | empty | Require the downloaded official ReShade setup executable to match this sha256 before extraction continues. |
+| `RESHADE_SETUP_SHA256` | empty | Require the downloaded official ReShade setup executable to match this 64-character sha256 before extraction continues. Anything that is not a plain hex digest is rejected. |
+| `UI_AUTO_CONFIRM` | `0` | Testing hook: answers every dialog automatically. A warning is printed when it is on. Do not set it for normal use. |
 
 ## Pass explicit command-line options
 
@@ -192,6 +194,14 @@ This wrapper prefers `UI_BACKEND=yad` when `yad` is installed and otherwise fall
 | `tests/` | Shell regression suites, fixtures, and helper loaders. |
 | `scripts/release/` | Release automation that builds and publishes the AppImage. |
 | `docs/research/` | Design notes and backlog ideas that are not yet implemented. |
+
+## Know what is trusted
+
+- ReShade itself is downloaded only from `reshade.me` or `static.reshade.me`, and only from an exact `ReShade_Setup_<version>.exe` address. The project publishes no checksum, so set `RESHADE_SETUP_SHA256` if you want to pin a build. `d3dcompiler_47.dll` is always checked against a built-in hash.
+- The shader packs are third-party Git repositories, cloned at the head of their default branch and not pinned to a commit. They are shader source that ReShade compiles, not programs this installer runs. Use `SHADER_REPOS` or `External_shaders/` if you want a reviewed set.
+- A real `ReShade_shaders` folder already in a game directory is moved aside to `ReShade_shaders.bak-<timestamp>` rather than deleted.
+
+Report security problems privately; see [SECURITY.md](SECURITY.md). Contributions are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Pick alternatives for Vulkan-native games
 
