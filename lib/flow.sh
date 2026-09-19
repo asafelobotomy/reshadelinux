@@ -363,9 +363,9 @@ function maybeHandleBatchUpdate() {
             _requestedRepos=$(readSelectedReposFromState "$_sf")
         fi
         if batchUpdateGameFromState "$_sf" "$_gameKey" "$_requestedRepos"; then
-            (( _ok++ ))
+            _ok=$((_ok + 1))
         else
-            (( _fail++ ))
+            _fail=$((_fail + 1))
         fi
     done
     printf '%bBatch update complete: %d game(s) updated, %d skipped.%b\n' \

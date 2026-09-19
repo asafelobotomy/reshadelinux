@@ -286,7 +286,7 @@ function detectSteamGames() {
     local -A _appinfoExes=()
     local _appinfoFile
 
-    _appinfoFile=$(findSteamAppinfoVdf)
+    _appinfoFile=$(findSteamAppinfoVdf) || _appinfoFile=""
     if [[ -n $_appinfoFile ]]; then
         while IFS=: read -r _aid _aexes; do
             [[ -n $_aid && -n $_aexes ]] && _appinfoExes["$_aid"]="$_aexes"

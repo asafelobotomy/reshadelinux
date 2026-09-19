@@ -61,6 +61,8 @@ function init_runtime_config() {
     RESHADE_PATH="$MAIN_PATH/reshade"
     UPDATE_RESHADE=${UPDATE_RESHADE:-1}
     GLOBAL_INI=${GLOBAL_INI:-"ReShade.ini"}
+    LINK_PRESET=${LINK_PRESET:-""}
+    DELETE_RESHADE_FILES=${DELETE_RESHADE_FILES:-0}
     FIRST_RUN_SHADER_REPOS=${FIRST_RUN_SHADER_REPOS:-"reshade-shaders,sweetfx-shaders,quintfx,prod80-shaders,astrayfx-shaders"}
     SHADER_REPOS=${SHADER_REPOS:-"\
 https://github.com/crosire/reshade-shaders|reshade-shaders|slim|ReShade Shaders|Official built-ins: Deband, DisplayDepth, UIMask;\
