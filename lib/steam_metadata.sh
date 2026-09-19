@@ -1,5 +1,19 @@
 # shellcheck shell=bash
 
+# Copy a Python helper's stderr into the debug log (when enabled), then delete the
+# file. Only a regular file is ever removed.
+function _logPythonErrors() {
+    local _tag="$1" _file="$2" _line
+
+    if [[ -s $_file ]]; then
+        while IFS= read -r _line || [[ -n $_line ]]; do
+            logDebug "$_tag: $_line"
+        done < "$_file"
+    fi
+    [[ -f $_file ]] && rm -f "$_file"
+    return 0
+}
+
 # Find Steam's binary appinfo.vdf, which contains authoritative launch exe data.
 function findSteamAppinfoVdf() {
     local _root
@@ -13,7 +27,9 @@ function loadSteamAppinfoExes() {
     local _appinfo="$1"
     [[ -f $_appinfo ]] || return
     command -v python3 &>/dev/null || return
-    python3 - "$_appinfo" 2>/dev/null <<'PYEOF'
+    local _errFile _status
+    _errFile=$(mktemp) || _errFile=/dev/null
+    python3 - "$_appinfo" 2>"$_errFile" <<'PYEOF'
 import sys, struct
 try:
     with open(sys.argv[1], 'rb') as fh:
@@ -60,79 +76,82 @@ while pos + 8 <= len(raw):
     if results:
         print(f"{appid}:{'|'.join(results)}")
 PYEOF
+    _status=$?
+    _logPythonErrors loadSteamAppinfoExes "$_errFile"
+    return $_status
 }
 
 # Detect the architecture and best ReShade DLL hook for a game directory.
 function detectExeInfo() {
     local _dir="$1"
     command -v python3 &>/dev/null || return 1
-    python3 - "$_dir" 2>/dev/null <<'PYEOF'
+    local _errFile _status
+    _errFile=$(mktemp) || _errFile=/dev/null
+    python3 - "$_dir" 2>"$_errFile" <<'PYEOF'
 import sys, struct, os, re
 BLACKLIST = re.compile(r'crash|setup|uninst|install|redist|vcredist|dxsetup|vc_redist|dotnet|error|remov', re.I)
 PRIORITY = ['d3d12.dll','d3d11.dll','d3d10.dll','d3d9.dll','d3d8.dll','opengl32.dll','ddraw.dll','dinput8.dll']
 OVERRIDE = {'d3d12.dll':'dxgi','d3d11.dll':'dxgi','d3d10.dll':'dxgi','d3d9.dll':'d3d9','d3d8.dll':'d3d8','opengl32.dll':'opengl32','ddraw.dll':'ddraw','dinput8.dll':'dinput8'}
 
 def parse_pe(path):
-    try:
-        with open(path, 'rb') as f:
-            data = f.read(min(os.path.getsize(path), 2 * 1024 * 1024))
-    except OSError:
-        return None, []
-    if data[:2] != b'MZ':
-        return None, []
-    e_lfanew = struct.unpack_from('<I', data, 60)[0]
-    if e_lfanew + 24 > len(data) or data[e_lfanew:e_lfanew+4] != b'PE\x00\x00':
-        return None, []
-    num_sec = struct.unpack_from('<H', data, e_lfanew + 6)[0]
-    opt_sz = struct.unpack_from('<H', data, e_lfanew + 20)[0]
-    opt_off = e_lfanew + 24
-    if opt_off + 2 > len(data):
-        return None, []
-    opt_magic = struct.unpack_from('<H', data, opt_off)[0]
-    is64 = (opt_magic == 0x20b)
-    arch = 64 if is64 else 32
-    imp_rva_off = opt_off + (120 if is64 else 104)
-    if imp_rva_off + 4 > len(data):
-        return arch, []
-    imp_rva = struct.unpack_from('<I', data, imp_rva_off)[0]
-    if imp_rva == 0:
-        return arch, []
-    sec_off = opt_off + opt_sz
-    sections = []
-    for i in range(num_sec):
-        s = sec_off + i * 40
-        if s + 40 > len(data):
-            break
-        va = struct.unpack_from('<I', data, s + 12)[0]
-        vsz = struct.unpack_from('<I', data, s + 16)[0]
-        raw = struct.unpack_from('<I', data, s + 20)[0]
-        sections.append((va, vsz, raw))
-    def rva2off(rva):
-        for va, vsz, raw in sections:
-            if va <= rva < va + vsz:
-                return raw + (rva - va)
-        return None
-    imp_off = rva2off(imp_rva)
-    if imp_off is None:
-        return arch, []
-    imports = []
-    idx = 0
-    while True:
-        d = imp_off + idx * 20
-        if d + 20 > len(data):
-            break
-        name_rva = struct.unpack_from('<I', data, d + 12)[0]
-        if name_rva == 0:
-            break
-        no = rva2off(name_rva)
-        if no is None:
-            break
-        end = data.find(b'\x00', no)
-        if end < 0:
-            break
-        imports.append(data[no:end].decode('ascii', 'replace').lower())
-        idx += 1
-    return arch, imports
+    # Read only the headers, then seek to the import table. Game executables can be
+    # hundreds of megabytes, with the import table far beyond any fixed-size prefix.
+    with open(path, 'rb') as f:
+        head = f.read(65536)
+        if head[:2] != b'MZ':
+            return None, []
+        e_lfanew = struct.unpack_from('<I', head, 60)[0]
+        if e_lfanew + 24 > len(head) or head[e_lfanew:e_lfanew+4] != b'PE\x00\x00':
+            return None, []
+        num_sec = struct.unpack_from('<H', head, e_lfanew + 6)[0]
+        opt_sz = struct.unpack_from('<H', head, e_lfanew + 20)[0]
+        opt_off = e_lfanew + 24
+        if opt_off + 2 > len(head):
+            return None, []
+        opt_magic = struct.unpack_from('<H', head, opt_off)[0]
+        is64 = (opt_magic == 0x20b)
+        arch = 64 if is64 else 32
+        imp_rva_off = opt_off + (120 if is64 else 104)
+        if imp_rva_off + 4 > len(head):
+            return arch, []
+        imp_rva = struct.unpack_from('<I', head, imp_rva_off)[0]
+        if imp_rva == 0:
+            return arch, []
+        sec_off = opt_off + opt_sz
+        sections = []
+        for i in range(num_sec):
+            s = sec_off + i * 40
+            if s + 40 > len(head):
+                break
+            va = struct.unpack_from('<I', head, s + 12)[0]
+            vsz = struct.unpack_from('<I', head, s + 16)[0]
+            raw = struct.unpack_from('<I', head, s + 20)[0]
+            sections.append((va, vsz, raw))
+        def rva2off(rva):
+            for va, vsz, raw in sections:
+                if va <= rva < va + vsz:
+                    return raw + (rva - va)
+            return None
+        imp_off = rva2off(imp_rva)
+        if imp_off is None:
+            return arch, []
+        f.seek(imp_off)
+        table = f.read(20 * 512)
+        imports = []
+        for d in range(0, len(table) - 19, 20):
+            name_rva = struct.unpack_from('<I', table, d + 12)[0]
+            if name_rva == 0:
+                break
+            no = rva2off(name_rva)
+            if no is None:
+                break
+            f.seek(no)
+            chunk = f.read(260)
+            end = chunk.find(b'\x00')
+            if end < 0:
+                break
+            imports.append(chunk[:end].decode('ascii', 'replace').lower())
+        return arch, imports
 
 game_dir = sys.argv[1] if len(sys.argv) > 1 else '.'
 try:
@@ -143,7 +162,11 @@ except OSError:
 arch_votes = {32: 0, 64: 0}
 dll_votes = {}
 for exe in exes:
-    arch, imports = parse_pe(os.path.join(game_dir, exe))
+    try:
+        arch, imports = parse_pe(os.path.join(game_dir, exe))
+    except (OSError, struct.error) as err:
+        print('%s: %s' % (exe, err), file=sys.stderr)
+        continue
     if arch:
         arch_votes[arch] += 1
     for imp in imports:
@@ -157,6 +180,9 @@ if best_dll is None:
 print(f"arch={final_arch}")
 print(f"dll={best_dll}")
 PYEOF
+    _status=$?
+    _logPythonErrors detectExeInfo "$_errFile"
+    return $_status
 }
 
 function _trimSteamMetadataField() {

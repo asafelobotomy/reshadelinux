@@ -142,6 +142,47 @@ create_complex_exes_test() {
         "setup.exe"
 }
 
+# Write a minimal PE file that imports the given DLLs.
+# $1=path  $2=32|64  $3=file offset of the import section (large values model big games)
+# $4...=imported DLL names
+create_mock_pe() {
+    local _path="$1" _bits="$2" _rawoff="$3"
+    shift 3
+
+    python3 - "$_path" "$_bits" "$_rawoff" "$@" <<'PYEOF'
+import struct, sys
+path, bits, rawoff = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
+dlls = sys.argv[4:]
+is64 = bits == 64
+sec_va = 0x1000
+names_off = (len(dlls) + 1) * 20
+body = bytearray(names_off)
+names = b''
+pos = names_off
+for i, d in enumerate(dlls):
+    struct.pack_into('<I', body, i * 20 + 12, sec_va + pos)
+    n = d.encode('ascii') + b'\x00'
+    names += n
+    pos += len(n)
+body += names
+opt_size = 240 if is64 else 224
+e_lfanew = 0x80
+dos = bytearray(e_lfanew)
+dos[0:2] = b'MZ'
+struct.pack_into('<I', dos, 60, e_lfanew)
+coff = struct.pack('<HHIIIHH', 0x8664 if is64 else 0x14c, 1, 0, 0, 0, opt_size, 0x22)
+opt = bytearray(opt_size)
+struct.pack_into('<H', opt, 0, 0x20b if is64 else 0x10b)
+struct.pack_into('<II', opt, (112 if is64 else 96) + 8, sec_va, len(body))
+sect = struct.pack('<8sIIIIIIHHI', b'.idata', len(body), sec_va, len(body), rawoff, 0, 0, 0, 0, 0x40000040)
+header = bytes(dos) + b'PE\x00\x00' + coff + bytes(opt) + sect
+with open(path, 'wb') as f:
+    f.write(header)
+    f.write(b'\x00' * (rawoff - len(header)))
+    f.write(body)
+PYEOF
+}
+
 # Create a fake shader repository with some .fx / .fxh files.
 # $1: repo local name (e.g. "sweetfx-shaders")
 # Places files under $MAIN_PATH/ReShade_shaders/$1/Shaders/ and .../Textures/
