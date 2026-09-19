@@ -14,12 +14,18 @@ bash tests/run_simple_tests.sh
 - `helpers/fixtures.sh` - isolated temp Steam, cache, and shader fixture helpers
 - `helpers/test_loader.sh` - loader that sources the production libraries used by the tests
 - `suites/harness_suite.sh` - self-tests proving the runner detects failing assertions and commands
-- `suites/detection_suite.sh` - detection, UI, preset, and integration test groups sourced by the runner
+- `suites/exe_suite.sh` - executable selection and scoring heuristics
+- `suites/detection_suite.sh` - icon lookup, UI backend choice, presets, and Steam detection integration
 - `suites/state_suite.sh` - per-game state, repo selection helpers, and shader repo entry parsing
 - `suites/release_metadata_suite.sh` - `VERSION` and `CHANGELOG.md` consistency
 - `suites/shader_suite.sh` - per-game shader directory construction, selection, and `ReShade.ini` generation
 - `suites/flow_suite.sh` - UI helpers, dependency checks, ReShade download, and batch-update flows
 - `suites/deps_suite.sh` - missing-dependency reporting: package names per manager, stderr output, and the yad error dialog
+- `suites/install_suite.sh` - hash pin and download URL checks, DLL override entry, temp-dir cleanup, linking, and uninstall
+- `suites/update_suite.sh` - the `latest` ReShade link across failed, interrupted, and repeated updates
+- `suites/repos_suite.sh` - shader repository clone/update against real local git repositories
+- `suites/ui_suite.sh` - yad plain-text dialogs and the `UI_AUTO_CONFIRM` warning
+- `suites/pe_suite.sh` - PE import analysis using synthetic executables built by `create_mock_pe`
 - `suites/cli_suite.sh` - CLI parsing and flow test groups sourced by the runner
 
 ## Coverage

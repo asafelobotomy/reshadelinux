@@ -34,6 +34,11 @@ source "$SCRIPT_DIR/suites/harness_suite.sh" || {
     echo "Failed to source suites/harness_suite.sh"
     exit 1
 }
+# shellcheck source=./suites/exe_suite.sh
+source "$SCRIPT_DIR/suites/exe_suite.sh" || {
+    echo "Failed to source suites/exe_suite.sh"
+    exit 1
+}
 # shellcheck source=./suites/detection_suite.sh
 source "$SCRIPT_DIR/suites/detection_suite.sh" || {
     echo "Failed to source suites/detection_suite.sh"
@@ -186,6 +191,7 @@ main() {
     echo ""
 
     run_harness_tests
+    run_exe_tests
     run_detection_tests
     run_state_tests
     run_release_metadata_tests

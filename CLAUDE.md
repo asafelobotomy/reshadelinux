@@ -40,7 +40,7 @@ The suite redirects `HOME`, `XDG_CACHE_HOME` and `MAIN_PATH` into a temp tree. N
 | `lib/install.sh` | Downloads and verification, DLL selection, linking into the game. |
 | `lib/deps.sh` | Required-executable checks; reports all missing tools with per-manager install hints via `printErr`. |
 | `lib/flow.sh` | Workspace init, ReShade version update, uninstall, batch update. |
-| `tests/` | `run_simple_tests.sh`, `helpers/` (fixtures, loader), `suites/` (harness, detection, state, shader, flow, deps, release metadata, cli). |
+| `tests/` | `run_simple_tests.sh`, `helpers/` (fixtures, loader), `suites/` (harness, exe, detection, state, shader, flow, deps, install, update, repos, ui, pe, release metadata, cli). |
 | `scripts/diagnostics/` | Smoke tests and troubleshooting helpers. |
 | `scripts/release/` | AppImage release tool. |
 | `packaging/appimage/AppDir/` | AppRun, desktop entry, AppStream metainfo, icon. |
@@ -60,7 +60,7 @@ The suite redirects `HOME`, `XDG_CACHE_HOME` and `MAIN_PATH` into a temp tree. N
 - Add a regression test with every fix; write it first and watch it fail.
 - Each test runs in a subshell under a real `set -e` (`_execute_test` in `run_simple_tests.sh`). Never call it from an `&&`, `||` or `if`: bash silently disables errexit there and only the last statement could fail the test. `tests/suites/harness_suite.sh` guards this.
 - Register tests with `run_test "name" function`. Use `run_test_expect_fail` only for harness self-tests.
-- Fixtures: `setup_test_env`, `create_mock_game`, `create_mock_shader_repo`, `assert_*` in `tests/helpers/fixtures.sh`.
+- Fixtures in `tests/helpers/fixtures.sh`: `setup_test_env`, `create_mock_game`, `create_mock_shader_repo`, `create_mock_pe` (synthetic PE with chosen imports), `assert_*`. Use real local git repositories for clone/update tests and a stubbed `PATH` for missing or fake programs (see `deps_suite.sh`).
 - Tests that run flows reading runtime settings call `init_test_runtime_defaults`. To exercise a fatal path in a subshell, call `use_fatal_printErr` so `printErr` exits as it does in production.
 - Stub external tools with function overrides or PATH stubs. Do not hit the network.
 
