@@ -13,8 +13,12 @@ bash tests/run_simple_tests.sh
 - `run_simple_tests.sh` - main regression suite used locally and in CI
 - `helpers/fixtures.sh` - isolated temp Steam, cache, and shader fixture helpers
 - `helpers/test_loader.sh` - loader that sources the production libraries used by the tests
+- `suites/harness_suite.sh` - self-tests proving the runner detects failing assertions and commands
 - `suites/detection_suite.sh` - detection, UI, preset, and integration test groups sourced by the runner
-- `suites/state_shader_suite.sh` - state, release metadata, and shader test groups sourced by the runner
+- `suites/state_suite.sh` - per-game state, repo selection helpers, and shader repo entry parsing
+- `suites/release_metadata_suite.sh` - `VERSION` and `CHANGELOG.md` consistency
+- `suites/shader_suite.sh` - per-game shader directory construction, selection, and `ReShade.ini` generation
+- `suites/flow_suite.sh` - UI helpers, dependency checks, ReShade download, and batch-update flows
 - `suites/cli_suite.sh` - CLI parsing and flow test groups sourced by the runner
 
 ## Coverage

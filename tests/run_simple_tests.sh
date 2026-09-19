@@ -39,9 +39,24 @@ source "$SCRIPT_DIR/suites/detection_suite.sh" || {
     echo "Failed to source suites/detection_suite.sh"
     exit 1
 }
-# shellcheck source=./suites/state_shader_suite.sh
-source "$SCRIPT_DIR/suites/state_shader_suite.sh" || {
-    echo "Failed to source suites/state_shader_suite.sh"
+# shellcheck source=./suites/state_suite.sh
+source "$SCRIPT_DIR/suites/state_suite.sh" || {
+    echo "Failed to source suites/state_suite.sh"
+    exit 1
+}
+# shellcheck source=./suites/release_metadata_suite.sh
+source "$SCRIPT_DIR/suites/release_metadata_suite.sh" || {
+    echo "Failed to source suites/release_metadata_suite.sh"
+    exit 1
+}
+# shellcheck source=./suites/shader_suite.sh
+source "$SCRIPT_DIR/suites/shader_suite.sh" || {
+    echo "Failed to source suites/shader_suite.sh"
+    exit 1
+}
+# shellcheck source=./suites/flow_suite.sh
+source "$SCRIPT_DIR/suites/flow_suite.sh" || {
+    echo "Failed to source suites/flow_suite.sh"
     exit 1
 }
 # shellcheck source=./suites/cli_suite.sh
@@ -142,7 +157,10 @@ main() {
 
     run_harness_tests
     run_detection_tests
-    run_state_and_shader_tests
+    run_state_tests
+    run_release_metadata_tests
+    run_shader_tests
+    run_flow_tests
     run_cli_tests
 
     echo -e "${BLUE}========================================${NC}"

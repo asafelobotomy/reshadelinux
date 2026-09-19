@@ -48,11 +48,14 @@ SCRIPT_DIR="$(dirname "$(realpath -- "$0")")"
 . "$SCRIPT_DIR/lib/cli.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/cli.sh" >&2; exit 1; }
 . "$SCRIPT_DIR/lib/config.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/config.sh" >&2; exit 1; }
 . "$SCRIPT_DIR/lib/state.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/state.sh" >&2; exit 1; }
+. "$SCRIPT_DIR/lib/shader_registry.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/shader_registry.sh" >&2; exit 1; }
+. "$SCRIPT_DIR/lib/shader_build.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/shader_build.sh" >&2; exit 1; }
 . "$SCRIPT_DIR/lib/shaders.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/shaders.sh" >&2; exit 1; }
 . "$SCRIPT_DIR/lib/steam_detection.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/steam_detection.sh" >&2; exit 1; }
 . "$SCRIPT_DIR/lib/steam_metadata.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/steam_metadata.sh" >&2; exit 1; }
 . "$SCRIPT_DIR/lib/game_selection.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/game_selection.sh" >&2; exit 1; }
 . "$SCRIPT_DIR/lib/install.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/install.sh" >&2; exit 1; }
+. "$SCRIPT_DIR/lib/deps.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/deps.sh" >&2; exit 1; }
 . "$SCRIPT_DIR/lib/flow.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/flow.sh" >&2; exit 1; }
 
 SEPARATOR="------------------------------------------------------------------------------------------------"

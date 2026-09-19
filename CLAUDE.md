@@ -31,13 +31,16 @@ The suite redirects `HOME`, `XDG_CACHE_HOME` and `MAIN_PATH` into a temp tree. N
 | `lib/cli.sh` | Flag parsing and validation. |
 | `lib/config.sh` | `init_runtime_config`: defaults, `MAIN_PATH`, and the `SHADER_REPOS` registry. |
 | `lib/state.sh` | Per-game state files under `$MAIN_PATH/game-state`, repo-selection helpers. |
-| `lib/shaders.sh` | Registry parsing, repo clone/update, per-game merged shader directory, selection UI. |
+| `lib/shader_registry.sh` | `SHADER_REPOS` entry parsing, labels, default/first-run/requested repo selection. |
+| `lib/shader_build.sh` | Per-game merged shader directory: merge, link and header handling. |
+| `lib/shaders.sh` | Repo clone/update, per-game `ReShade.ini`/preset, shader selection UI. |
 | `lib/steam_detection.sh` | Steam roots and libraries, exe scoring, install-dir resolution. |
 | `lib/steam_metadata.sh` | `appinfo.vdf` and PE import parsing (embedded Python), `detectSteamGames`. |
 | `lib/game_selection.sh` | `getGamePath` and the manual path prompts. |
 | `lib/install.sh` | Downloads and verification, DLL selection, linking into the game. |
-| `lib/flow.sh` | Dependency checks, ReShade version update, uninstall, batch update. |
-| `tests/` | `run_simple_tests.sh`, `helpers/` (fixtures, loader), `suites/`. |
+| `lib/deps.sh` | Required-executable checks and install hints. |
+| `lib/flow.sh` | Workspace init, ReShade version update, uninstall, batch update. |
+| `tests/` | `run_simple_tests.sh`, `helpers/` (fixtures, loader), `suites/` (harness, detection, state, shader, flow, release metadata, cli). |
 | `scripts/diagnostics/` | Smoke tests and troubleshooting helpers. |
 | `scripts/release/` | AppImage release tool. |
 | `packaging/appimage/AppDir/` | AppRun, desktop entry, AppStream metainfo, icon. |
