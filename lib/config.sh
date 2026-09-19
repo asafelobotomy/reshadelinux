@@ -16,6 +16,8 @@ function init_runtime_config() {
     # Shared runtime globals are consumed by the main script after sourcing this file.
     # shellcheck disable=SC2034
     COMMON_OVERRIDES="d3d8 d3d9 d3d11 d3d12 ddraw dinput8 dxgi opengl32"
+    EXTRA_DLL_OVERRIDES=${EXTRA_DLL_OVERRIDES:-""}
+    _appendExtraDllOverrides
     # shellcheck disable=SC2034
     REQUIRED_EXECUTABLES=(7z curl file git grep python3 sed sha256sum)
     XDG_DATA_HOME=${XDG_DATA_HOME:-"$HOME/.local/share"}

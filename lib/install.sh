@@ -215,17 +215,24 @@ function resolveInstallDllSelection() {
                 wantedDll=$(ui_inputbox "ReShade" \
                     "Enter the DLL override for ReShade. Common values: $COMMON_OVERRIDES" \
                     "dxgi") || exit 0
-                wantedDll=${wantedDll//.dll/}
-                [[ -n $wantedDll ]] && break
-                ui_msgbox "ReShade" "Please enter a DLL name." 10 50
+                wantedDll=$(normalizeDllOverrideInput "$wantedDll")
+                isKnownDllOverride "$wantedDll" && break
+                ui_msgbox "ReShade" "'$wantedDll' is not a supported DLL override.\n\nChoose one of: $COMMON_OVERRIDES\n(Add more with EXTRA_DLL_OVERRIDES.)" 12 70
             done
         else
             printf '%bManually enter the dll override for ReShade.%b Common values: %b%s%b\n' "$_CYN" "$_R" "$_B" "$COMMON_OVERRIDES" "$_R"
             while true; do
-                read -rp "$(printf '%bOverride: %b' "$_YLW" "$_R")" wantedDll
-                wantedDll=${wantedDll//.dll/}
+                read -rp "$(printf '%bOverride: %b' "$_YLW" "$_R")" wantedDll \
+                    || printErr "Input closed while waiting for user response."
+                wantedDll=$(normalizeDllOverrideInput "$wantedDll")
+                if ! isKnownDllOverride "$wantedDll"; then
+                    printf "%b'%s' is not a supported DLL override. Choose one of: %s (add more with EXTRA_DLL_OVERRIDES).%b\n" \
+                        "$_YLW" "$wantedDll" "$COMMON_OVERRIDES" "$_R"
+                    continue
+                fi
                 printf '%bYou entered %b%s%b — is this correct?%b\n' "$_YLW" "$_CYN$_B" "$wantedDll" "$_R$_YLW" "$_R"
-                read -rp "$(printf '%b(y/n): %b' "$_YLW" "$_R")" ynCheck
+                read -rp "$(printf '%b(y/n): %b' "$_YLW" "$_R")" ynCheck \
+                    || printErr "Input closed while waiting for user response."
                 [[ $ynCheck =~ ^(y|Y|yes|YES)$ ]] && break
             done
         fi

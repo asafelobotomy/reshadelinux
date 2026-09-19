@@ -85,6 +85,34 @@ function isKnownDllOverride() {
     return 1
 }
 
+# Add EXTRA_DLL_OVERRIDES (comma or space separated, ".dll" optional) to the known
+# DLL override list. Entries that are not plain names are ignored with a warning,
+# so a value can never turn a link target into a path.
+function _appendExtraDllOverrides() {
+    local _entry
+    local -a _extras=()
+
+    read -ra _extras <<< "${EXTRA_DLL_OVERRIDES//,/ }"
+    for _entry in "${_extras[@]}"; do
+        _entry=${_entry,,}
+        _entry=${_entry%.dll}
+        if [[ ! $_entry =~ ^[a-z0-9_]+$ ]]; then
+            printf 'Ignoring invalid EXTRA_DLL_OVERRIDES entry: %s\n' "$_entry" >&2
+            continue
+        fi
+        isKnownDllOverride "$_entry" || COMMON_OVERRIDES+=" $_entry"
+    done
+}
+
+# Lowercase, trim and drop a trailing ".dll" from a user-typed DLL override.
+function normalizeDllOverrideInput() {
+    local _value="${1,,}"
+
+    _value="${_value#"${_value%%[![:space:]]*}"}"
+    _value="${_value%"${_value##*[![:space:]]}"}"
+    printf '%s\n' "${_value%.dll}"
+}
+
 function gameHasTrackedInstall() {
     local _appId="$1" _gamePath="$2"
     local _gameKey _stateFile _dll
