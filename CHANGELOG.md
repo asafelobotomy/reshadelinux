@@ -4,6 +4,45 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, adapted for this repository.
 
+## [1.3.2] - 2026-09-19
+
+### Fixed in 1.3.2
+
+- Steam detection no longer drops games whose only executable name merely contains a helper word, such as `reach.exe`, `latest.exe`, `teacher.exe` or `aspect.exe`. Helper names are now matched as words.
+- A missing required program now shows an error dialog under the GUI and the AppImage (previously the app exited with no message), lists every missing program at once, and gives the correct package name for pacman and apt. Where the name could not be verified for dnf or zypper it prints a package-search command instead.
+- A failed or interrupted ReShade download no longer removes the working `latest` link, a lost link is repaired, and a recorded version whose files are missing on disk is downloaded again.
+- `--update-all` with no tracked games now exits before contacting reshade.me or requiring `7z`.
+- The manual DLL override prompt now accepts the same names as `--dll-override` and `--update-all`, so a game installed with a hand-typed DLL is no longer skipped by later batch updates. It also stops instead of looping forever when input closes.
+- Executables larger than about 2 MiB are now analysed correctly, so the DLL override is no longer guessed for large games. Python helper errors are written to the debug log.
+- Shader repository updates no longer stop on a credentials prompt, give up on a stalled connection, and recover when an upstream repository rewrote its history, as long as the local clone has no edits.
+- A build with no shader repositories selected and no external shaders no longer prints `command not found` twice.
+- Temporary directories are removed when a fatal error ends the run.
+- A real `ReShade_shaders` folder in a game directory is moved aside to `ReShade_shaders.bak-<timestamp>` instead of being deleted.
+- yad dialogs show paths and messages literally, so a game path containing `&` or `<` no longer breaks the dialog.
+- The diagnostics scripts that load the libraries (`test_detection.sh`, `check_libs.sh`, `debug_games.sh`) work again.
+
+### Security in 1.3.2
+
+- `RESHADE_SETUP_SHA256` is compared literally. Previously a glob value such as `*` matched any file. Values that are not a 64-character hex digest are rejected.
+- The ReShade download URL check accepts only the exact `ReShade_Setup_<version>[_Addon].exe` address on the official hosts, rejecting path, query and fragment tricks.
+- The release tool downloads a pinned `appimagetool` release with `gh` and verifies its SHA-256 before running it.
+
+### Added in 1.3.2
+
+- `EXTRA_DLL_OVERRIDES` extends the accepted DLL override names.
+- Two shader packs from the official ReShade list: Shades by JakobPCoder and verfx Shaders by vertver.
+- `scripts/release/release-appimage.sh --build-only` builds and validates the AppImage with no git or GitHub side effects, and a release run now requires `main` with only the version files changed.
+- The command-line options `--cli`, `--ui-backend`, `--game-path`, `--app-id`, `--dll-override`, `--shader-repos` and `--list-shader-repos` are documented in the changelog for the first time; they arrived during 1.3.1 development.
+- `SECURITY.md`, `CONTRIBUTING.md`, `.editorconfig`, a Dependabot configuration, and a `.shellcheckrc`.
+
+### Changed in 1.3.2
+
+- The test runner now fails a test when any assertion in it fails. Before, only the last statement counted, so several tests passed while checking nothing. The suite grew from 101 to over 200 tests.
+- `UI_AUTO_CONFIRM` prints a warning when it is active.
+- Internals were split into smaller modules (`shader_registry.sh`, `shader_build.sh`, `deps.sh`) and the whole tree is ShellCheck-clean.
+- CI runs on Ubuntu 22.04 and 24.04, lints with ShellCheck, uses a read-only token and a commit-pinned checkout action.
+- The Copilot agent scaffolding was removed; `CLAUDE.md` is now self-contained.
+
 ## [1.3.1] - 2026-04-17
 
 ### Changed in 1.3.1
