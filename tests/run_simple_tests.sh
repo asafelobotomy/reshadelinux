@@ -59,6 +59,11 @@ source "$SCRIPT_DIR/suites/flow_suite.sh" || {
     echo "Failed to source suites/flow_suite.sh"
     exit 1
 }
+# shellcheck source=./suites/deps_suite.sh
+source "$SCRIPT_DIR/suites/deps_suite.sh" || {
+    echo "Failed to source suites/deps_suite.sh"
+    exit 1
+}
 # shellcheck source=./suites/cli_suite.sh
 source "$SCRIPT_DIR/suites/cli_suite.sh" || {
     echo "Failed to source suites/cli_suite.sh"
@@ -161,6 +166,7 @@ main() {
     run_release_metadata_tests
     run_shader_tests
     run_flow_tests
+    run_deps_tests
     run_cli_tests
 
     echo -e "${BLUE}========================================${NC}"

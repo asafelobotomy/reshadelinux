@@ -38,9 +38,9 @@ The suite redirects `HOME`, `XDG_CACHE_HOME` and `MAIN_PATH` into a temp tree. N
 | `lib/steam_metadata.sh` | `appinfo.vdf` and PE import parsing (embedded Python), `detectSteamGames`. |
 | `lib/game_selection.sh` | `getGamePath` and the manual path prompts. |
 | `lib/install.sh` | Downloads and verification, DLL selection, linking into the game. |
-| `lib/deps.sh` | Required-executable checks and install hints. |
+| `lib/deps.sh` | Required-executable checks; reports all missing tools with per-manager install hints via `printErr`. |
 | `lib/flow.sh` | Workspace init, ReShade version update, uninstall, batch update. |
-| `tests/` | `run_simple_tests.sh`, `helpers/` (fixtures, loader), `suites/` (harness, detection, state, shader, flow, release metadata, cli). |
+| `tests/` | `run_simple_tests.sh`, `helpers/` (fixtures, loader), `suites/` (harness, detection, state, shader, flow, deps, release metadata, cli). |
 | `scripts/diagnostics/` | Smoke tests and troubleshooting helpers. |
 | `scripts/release/` | AppImage release tool. |
 | `packaging/appimage/AppDir/` | AppRun, desktop entry, AppStream metainfo, icon. |

@@ -19,6 +19,7 @@ bash tests/run_simple_tests.sh
 - `suites/release_metadata_suite.sh` - `VERSION` and `CHANGELOG.md` consistency
 - `suites/shader_suite.sh` - per-game shader directory construction, selection, and `ReShade.ini` generation
 - `suites/flow_suite.sh` - UI helpers, dependency checks, ReShade download, and batch-update flows
+- `suites/deps_suite.sh` - missing-dependency reporting: package names per manager, stderr output, and the yad error dialog
 - `suites/cli_suite.sh` - CLI parsing and flow test groups sourced by the runner
 
 ## Coverage
