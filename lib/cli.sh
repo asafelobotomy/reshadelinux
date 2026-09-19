@@ -1,4 +1,5 @@
 # shellcheck shell=bash
+# SPDX-License-Identifier: GPL-2.0-or-later
 # shellcheck disable=SC2154  # _shaderRepo* are set by parseShaderRepoEntry in shader_registry.sh
 
 function printUsage() {

@@ -1,4 +1,5 @@
 # shellcheck shell=bash
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # Downloads d3dcompiler_47.dll files.
 # Sources from mozilla/fxc2 GitHub, same source used by Winetricks.

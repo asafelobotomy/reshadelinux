@@ -1,4 +1,5 @@
 # shellcheck shell=bash
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 function init_runtime_config() {
     local _backend_value _backend_rc

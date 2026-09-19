@@ -1,4 +1,5 @@
 # shellcheck shell=bash
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 _R=$'\e[0m'
 _B=$'\e[1m'

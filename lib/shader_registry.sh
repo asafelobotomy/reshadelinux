@@ -1,4 +1,5 @@
 # shellcheck shell=bash
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # Shader repository registry: entry parsing, labels, default and requested selections.
 

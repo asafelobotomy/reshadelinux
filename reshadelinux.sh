@@ -1,44 +1,43 @@
 #!/bin/bash
-cat > /dev/null <<LICENSE
-    Copyright (C) 2021-2022  kevinlekiller
-
-    This program is free software; you can redistribute it and/or
-    modify it under the terms of the GNU General Public License
-    as published by the Free Software Foundation; either version 2
-    of the License, or (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-    https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html
-LICENSE
-cat > /dev/null <<DESCRIPTION
-    Bash script to download ReShade and shader repositories, then link them into a game directory
-    for games using Wine or Proton on Linux. Re-running the script updates the installed files.
-
-    Requirements:
-        grep, 7z, curl, git, file, python3, sed, sha256sum
-        yad : optional graphical UI when a desktop session is available
-        whiptail or dialog : optional terminal UI; otherwise plain CLI prompts are used
-
-    Notes:
-        ReShade installs are stored per game. Each game gets its own shader selection state,
-        merged shader directory, and local ReShade.ini.
-
-        Re-running the script for an already installed game lets you change the selected shader
-        repositories for that game. Unticking a repo removes its shaders from that game's merged
-        ReShade shader directory.
-
-    Usage:
-        chmod u+x reshadelinux.sh
-        ./reshadelinux.sh
-        ./reshadelinux.sh --update-all
-DESCRIPTION
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+#    Copyright (C) 2021-2022  kevinlekiller
+#
+#    This program is free software; you can redistribute it and/or
+#    modify it under the terms of the GNU General Public License
+#    as published by the Free Software Foundation; either version 2
+#    of the License, or (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program; if not, write to the Free Software
+#    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+#    https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html
+#
+#    Bash script to download ReShade and shader repositories, then link them into a game directory
+#    for games using Wine or Proton on Linux. Re-running the script updates the installed files.
+#
+#    Requirements:
+#        grep, 7z, curl, git, file, python3, sed, sha256sum
+#        yad : optional graphical UI when a desktop session is available
+#        whiptail or dialog : optional terminal UI; otherwise plain CLI prompts are used
+#
+#    Notes:
+#        ReShade installs are stored per game. Each game gets its own shader selection state,
+#        merged shader directory, and local ReShade.ini.
+#
+#        Re-running the script for an already installed game lets you change the selected shader
+#        repositories for that game. Unticking a repo removes its shaders from that game's merged
+#        ReShade shader directory.
+#
+#    Usage:
+#        chmod u+x reshadelinux.sh
+#        ./reshadelinux.sh
+#        ./reshadelinux.sh --update-all
 
 SCRIPT_DIR="$(dirname "$(realpath -- "$0")")"
 

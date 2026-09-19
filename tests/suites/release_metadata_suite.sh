@@ -121,6 +121,20 @@ test_version_check_allows_an_unreleased_section_above_the_current_release() {
     _run_version_check "$_tree"
 }
 
+test_shipped_shell_files_declare_their_license() {
+    local _file _missing=""
+
+    for _file in "$REPO_DIR"/reshadelinux.sh "$REPO_DIR"/reshadelinux-gui.sh "$REPO_DIR"/lib/*.sh; do
+        grep -q '^# SPDX-License-Identifier: GPL-2.0-or-later$' "$_file" || _missing+=" ${_file#"$REPO_DIR"/}"
+    done
+    [[ -z $_missing ]] || { echo "missing SPDX identifier:$_missing" >&2; return 1; }
+}
+
+test_the_entrypoint_keeps_its_license_notice_as_comments_not_heredocs() {
+    grep -q 'Copyright (C) 2021-2022  kevinlekiller' "$REPO_DIR/reshadelinux.sh"
+    assert_fails grep -q '^cat > /dev/null' "$REPO_DIR/reshadelinux.sh"
+}
+
 run_release_metadata_tests() {
     echo -e "${BLUE}Release Metadata Tests${NC}"
     run_test "Repository versions are in sync" test_repository_versions_are_in_sync
@@ -132,5 +146,7 @@ run_release_metadata_tests() {
     run_test "Rejects a version that is not MAJOR.MINOR.PATCH" test_version_check_rejects_a_version_that_is_not_major_minor_patch
     run_test "Reports every mismatch" test_version_check_reports_every_mismatch_not_just_the_first
     run_test "Allows an Unreleased section above the release" test_version_check_allows_an_unreleased_section_above_the_current_release
+    run_test "Shipped shell files declare their license" test_shipped_shell_files_declare_their_license
+    run_test "Entrypoint keeps its license notice as comments" test_the_entrypoint_keeps_its_license_notice_as_comments_not_heredocs
     echo ""
 }

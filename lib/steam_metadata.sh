@@ -1,4 +1,5 @@
 # shellcheck shell=bash
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # Copy a Python helper's stderr into the debug log (when enabled), then delete the
 # file. Only a regular file is ever removed.

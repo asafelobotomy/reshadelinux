@@ -1,4 +1,5 @@
 # shellcheck shell=bash
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # Return all known Steam roots, deduplicated across symlinked paths.
 function listSteamRoots() {

@@ -1,4 +1,5 @@
 # shellcheck shell=bash
+# SPDX-License-Identifier: GPL-2.0-or-later
 # shellcheck disable=SC2153,SC2154
 
 function initializeMainWorkspace() {

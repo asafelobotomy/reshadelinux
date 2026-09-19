@@ -1,4 +1,5 @@
 # shellcheck shell=bash
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # Build a stable per-game install key.
 # Steam games use the AppID directly; non-Steam games use a path hash.
