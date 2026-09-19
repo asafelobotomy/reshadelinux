@@ -44,8 +44,13 @@ function verifyReshadeDownloadHash() {
 
     [[ -n $_expectedHash ]] || return 0
 
+    [[ $_expectedHash =~ ^[0-9a-fA-F]{64}$ ]] || {
+        printErr "RESHADE_SETUP_SHA256 must be a 64-character hexadecimal SHA-256 digest."
+        return 1
+    }
+
     read -r _actualHash _rest < <(sha256sum "$_file")
-    [[ ${_actualHash,,} == ${_expectedHash,,} ]] || {
+    [[ ${_actualHash,,} == "${_expectedHash,,}" ]] || {
         printErr "ReShade download integrity check failed. Expected $_expectedHash but calculated $_actualHash."
         return 1
     }
