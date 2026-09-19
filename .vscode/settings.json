@@ -1,9 +1,0 @@
-{
-  "chat.mcp.autostart": "newAndOutdated",
-  "chat.subagents.allowInvocationsFromSubagents": true,
-  "chat.useAgentsMdFile": true,
-  "chat.useNestedAgentsMdFiles": true,
-  "chat.useCustomAgentHooks": true,
-  "chat.promptFilesRecommendations": true,
-  "chat.plugins.enabled": true
-}

@@ -23,8 +23,6 @@ All smoke diagnostics share `diagnostics/helpers/smoke_common.sh` for runtime wo
 - `diagnostics/test_dialog.sh` - compatibility wrapper that preserves the historical dialog test entrypoint by delegating to `smoke_dialog.sh`
 - `diagnostics/test_yad_menu.sh` - shows the menu items that would be passed to the game picker UI
 
-## Setup
+## Release
 
-These scripts manage repository scaffolding and maintenance rather than product runtime behavior.
-
-- `setup/sync-copilot-template.sh` - refreshes the repo's Copilot agents, skills, hooks, prompts, instructions, and workspace files from the upstream template
+- `release/release-appimage.sh` - validates the repository, builds the AppImage, and publishes a release from the current `VERSION` and `CHANGELOG.md`

@@ -9,3 +9,10 @@ appimagetool
 build_local/
 squashfs-root/
 temp/
+
+# Generated / local-only files
+logs/
+__pycache__/
+*.pyc
+*.lock
+.claude/settings.local.json

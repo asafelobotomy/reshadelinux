@@ -190,7 +190,8 @@ This wrapper prefers `UI_BACKEND=yad` when `yad` is installed and otherwise fall
 | `packaging/appimage/` | AppImage launcher assets, metadata, and icon files. |
 | `scripts/diagnostics/` | Local smoke scripts and troubleshooting helpers. |
 | `tests/` | Shell regression suites, fixtures, and helper loaders. |
-| `.copilot/tools/` | Project-specific developer tooling such as release automation. |
+| `scripts/release/` | Release automation that builds and publishes the AppImage. |
+| `docs/research/` | Design notes and backlog ideas that are not yet implemented. |
 
 ## Pick alternatives for Vulkan-native games
 
