@@ -159,10 +159,7 @@ function performDirectXUninstall() {
         fi
     done
     # ReShade_shaders may be a real directory (manual install / old format).
-    if [[ -d $gamePath/ReShade_shaders && ! -L $gamePath/ReShade_shaders ]]; then
-        echo "Removing real directory \"$gamePath/ReShade_shaders\"."
-        rm -rf "$gamePath/ReShade_shaders"
-    fi
+    detachGameShaderDir "$gamePath"
     if [[ $DELETE_RESHADE_FILES == 1 ]]; then
         echo "Deleting ReShade.log and ReShadePreset.ini"
         rm -f "$gamePath/ReShade.log" "$gamePath/ReShadePreset.ini"
@@ -265,11 +262,7 @@ function batchUpdateGameFromState() {
         printf '%bBatch update for %s will link available shader repos only:%b %s\n' \
             "$_YLW" "${_appId:-$_gameKey}" "$_R" "${_effectiveRepos:-<none>}"
     fi
-    if [[ -L "$_gp/ReShade_shaders" ]]; then
-        unlink "$_gp/ReShade_shaders"
-    elif [[ -d "$_gp/ReShade_shaders" ]]; then
-        rm -rf "$_gp/ReShade_shaders"
-    fi
+    detachGameShaderDir "$_gp"
     buildGameShaderDir "$_gameKey" "$_effectiveRepos" "$_appId"
     ln -sf "$(realpath "$MAIN_PATH/game-shaders/$_gameKey")" "$_gp/ReShade_shaders"
     ensureGameIni "$_gp"

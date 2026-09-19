@@ -288,11 +288,7 @@ function linkGameFilesForInstall() {
     fi
     [[ -L $gamePath/d3dcompiler_47.dll ]] && unlink "$gamePath/d3dcompiler_47.dll"
     ln -sf "$(realpath "$MAIN_PATH/d3dcompiler_47.dll.$exeArch")" "$gamePath/d3dcompiler_47.dll"
-    if [[ -L $gamePath/ReShade_shaders ]]; then
-        unlink "$gamePath/ReShade_shaders"
-    elif [[ -d $gamePath/ReShade_shaders ]]; then
-        rm -rf "$gamePath/ReShade_shaders"
-    fi
+    detachGameShaderDir "$gamePath"
     printf '%bBuilding per-game shader directory...%b\n' "$_GRN" "$_R"
     buildGameShaderDir "$_selectedGameKey" "$_selectedRepos" "$_selectedAppId"
     ln -sf "$(realpath "$MAIN_PATH/game-shaders/$_selectedGameKey")" "$gamePath/ReShade_shaders"

@@ -186,6 +186,63 @@ test_entrypoint_installs_the_temp_dir_cleanup_trap() {
     grep -q '^trap _cleanupTempDir EXIT' "$REPO_DIR/reshadelinux.sh"
 }
 
+test_detaching_game_shaders_only_unlinks_a_symlink() {
+    local _game="$TEST_TEMP_DIR/detach-link" _target="$TEST_TEMP_DIR/detach-link-target"
+
+    mkdir -p "$_game" "$_target"
+    touch "$_target/keep.fx"
+    ln -s "$_target" "$_game/ReShade_shaders"
+
+    detachGameShaderDir "$_game" >/dev/null
+
+    [[ ! -e "$_game/ReShade_shaders" && ! -L "$_game/ReShade_shaders" ]]
+    [[ -f "$_target/keep.fx" ]]
+    [[ -z $(compgen -G "$_game/ReShade_shaders.bak*") ]]
+}
+
+test_detaching_game_shaders_moves_a_real_directory_aside_instead_of_deleting_it() {
+    local _game="$TEST_TEMP_DIR/detach-real" _backup
+
+    mkdir -p "$_game/ReShade_shaders/Shaders"
+    printf 'custom\n' > "$_game/ReShade_shaders/Shaders/my-own.fx"
+
+    detachGameShaderDir "$_game" >/dev/null
+
+    [[ ! -e "$_game/ReShade_shaders" ]]
+    _backup=$(compgen -G "$_game/ReShade_shaders.bak*")
+    [[ -f "$_backup/Shaders/my-own.fx" ]]
+    [[ $(<"$_backup/Shaders/my-own.fx") == custom ]]
+}
+
+test_detaching_game_shaders_never_overwrites_an_earlier_backup() {
+    local _game="$TEST_TEMP_DIR/detach-twice"
+    local -a _backups=()
+
+    mkdir -p "$_game/ReShade_shaders"
+    touch "$_game/ReShade_shaders/first.fx"
+    detachGameShaderDir "$_game" >/dev/null
+    mkdir -p "$_game/ReShade_shaders"
+    touch "$_game/ReShade_shaders/second.fx"
+    detachGameShaderDir "$_game" >/dev/null
+
+    mapfile -t _backups < <(compgen -G "$_game/ReShade_shaders.bak*")
+    [[ ${#_backups[@]} -eq 2 ]]
+    [[ -f "${_backups[0]}/first.fx" || -f "${_backups[1]}/first.fx" ]]
+    [[ -f "${_backups[0]}/second.fx" || -f "${_backups[1]}/second.fx" ]]
+}
+
+test_detaching_game_shaders_is_a_no_op_when_nothing_is_there() {
+    local _game="$TEST_TEMP_DIR/detach-none"
+
+    mkdir -p "$_game"
+    detachGameShaderDir "$_game" >/dev/null
+    [[ -z $(ls -A "$_game") ]]
+}
+
+test_no_code_path_deletes_a_game_shader_directory_outright() {
+    ! grep -rnE 'rm -rf "[^"]*ReShade_shaders"' "$REPO_DIR/lib"
+}
+
 run_install_tests() {
     echo -e "${BLUE}Install and Verification Tests${NC}"
     run_test "Hash pin rejects glob patterns" test_hash_pin_rejects_glob_patterns_instead_of_matching_them
@@ -201,5 +258,10 @@ run_install_tests() {
     run_test "Temp dir is removed after a fatal error" test_temp_dir_is_removed_when_a_fatal_error_ends_the_process
     run_test "Temp dir cleanup is a safe no-op" test_temp_dir_cleanup_is_a_no_op_when_none_was_created
     run_test "Entrypoint installs the cleanup trap" test_entrypoint_installs_the_temp_dir_cleanup_trap
+    run_test "Detach only unlinks a symlink" test_detaching_game_shaders_only_unlinks_a_symlink
+    run_test "Detach moves a real directory aside" test_detaching_game_shaders_moves_a_real_directory_aside_instead_of_deleting_it
+    run_test "Detach never overwrites an earlier backup" test_detaching_game_shaders_never_overwrites_an_earlier_backup
+    run_test "Detach is a no-op when nothing is there" test_detaching_game_shaders_is_a_no_op_when_nothing_is_there
+    run_test "No code path deletes game shaders outright" test_no_code_path_deletes_a_game_shader_directory_outright
     echo ""
 }

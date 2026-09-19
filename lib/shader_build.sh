@@ -50,6 +50,25 @@ function buildGameShaderDir() {
     logDebug "buildGameShaderDir finish gameKey=$_gameKey"
 }
 
+# Detach the ReShade_shaders entry from a game directory. A symlink is only
+# unlinked. A real directory (manual install or an old layout) may hold the user's
+# own shaders, so it is moved aside to ReShade_shaders.bak-<timestamp> and never
+# deleted or overwritten.
+function detachGameShaderDir() {
+    local _target="$1/ReShade_shaders" _backup
+
+    if [[ -L $_target ]]; then
+        unlink "$_target"
+    elif [[ -d $_target ]]; then
+        _backup="$_target.bak-$(date +%Y%m%d-%H%M%S)"
+        while [[ -e $_backup ]]; do
+            _backup+="_"
+        done
+        mv "$_target" "$_backup" || printErr "Could not move '$_target' aside."
+        printf '%bKept your existing ReShade_shaders directory as:%b %s\n' "$_YLW" "$_R" "$_backup"
+    fi
+}
+
 function removeExcludedShaderEffectsFromBuild() {
     local _outBase="$1" _appId="$2"
     local _effect _removed=0
