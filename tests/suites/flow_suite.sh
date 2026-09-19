@@ -1,4 +1,7 @@
 #!/bin/bash
+# shellcheck disable=SC2317,SC2329  # test functions and stubs are invoked indirectly
+# shellcheck disable=SC2034  # variables are set for the code under test
+# shellcheck disable=SC2030,SC2031  # PATH and other settings are changed inside subshells on purpose
 
 # UI helpers, dependency checks, ReShade download and batch-update flows.
 

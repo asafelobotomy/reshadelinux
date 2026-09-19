@@ -161,6 +161,7 @@ function resolveInstallDllSelection() {
     exeArch=32
     wantedDll=""
 
+    # shellcheck disable=SC2154  # the _stored_* variables are assigned through namerefs in loadGameState
     if [[ -f "$_stateFile" ]] && loadGameState "$_stateFile" _stored_dll _stored_arch _stored_gamePath _stored_selectedRepos _stored_appId; then
         if [[ -n $_stored_dll && $_stored_arch =~ ^(32|64)$ ]]; then
             wantedDll="$_stored_dll"

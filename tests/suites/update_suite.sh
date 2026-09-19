@@ -1,4 +1,6 @@
 #!/bin/bash
+# shellcheck disable=SC2317,SC2329  # test functions and stubs are invoked indirectly
+# shellcheck disable=SC2034  # variables are set for the code under test
 
 # ReShade version updates: the "latest" link must stay valid across failures and be
 # repaired when it is lost.

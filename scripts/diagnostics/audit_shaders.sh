@@ -164,7 +164,7 @@ main() {
     local -a repo_entries=()
     local argument
     local entry
-    local repo_name repo_uri repo_branch repo_desc
+    local repo_name repo_uri
     local pass_count=0
     local fail_count=0
 
@@ -191,7 +191,7 @@ main() {
     fi
 
     for entry in "${repo_entries[@]}"; do
-        IFS='|' read -r repo_name repo_uri repo_branch repo_desc <<< "$entry"
+        IFS='|' read -r repo_name repo_uri _ _ <<< "$entry"
         if audit_shader_repo "$repo_name" "$repo_uri"; then
             pass_count=$((pass_count + 1))
         else

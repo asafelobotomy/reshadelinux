@@ -1,4 +1,5 @@
 # shellcheck shell=bash
+# shellcheck disable=SC2154  # _shaderRepo* are set by parseShaderRepoEntry in shader_registry.sh
 
 function printUsage() {
     printf 'Usage: %s [options]\n' "$0"

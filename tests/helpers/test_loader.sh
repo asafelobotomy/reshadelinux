@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2317,SC2329  # test functions and stubs are invoked indirectly
 # Test loader for the production reshadelinux libraries.
 
 set -euo pipefail

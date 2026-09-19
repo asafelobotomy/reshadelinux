@@ -248,8 +248,6 @@ function _processSteamManifest() {
     local _manifest="$1" _steamapps="$2" _steamRoot="$3"
     local _appinfoExesName="$4" _bestIdxByPathName="$5" _bestIdxByAppIdName="$6"
     local -n _appinfoExesMap="$_appinfoExesName"
-    local -n _bestIdxByPathMap="$_bestIdxByPathName"
-    local -n _bestIdxByAppIdMap="$_bestIdxByAppIdName"
     local _appId _name _installDir _type _root _resolved _path _reason _exe _icon _aiCand
     local -a _aiCands
 

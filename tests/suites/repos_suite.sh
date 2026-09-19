@@ -1,4 +1,6 @@
 #!/bin/bash
+# shellcheck disable=SC2317,SC2329  # test functions and stubs are invoked indirectly
+# shellcheck disable=SC2034  # variables are set for the code under test
 
 # Shader repository clone/update against real local git repositories.
 
@@ -84,6 +86,7 @@ test_shader_repo_sync_runs_git_without_credential_prompts() {
     local _stub="$TEST_TEMP_DIR/git-stub" _log="$TEST_TEMP_DIR/git-env.log"
 
     mkdir -p "$_stub"
+    # shellcheck disable=SC2016  # the single-quoted text is the stub script that gets written
     printf '#!/bin/sh\nprintf "%%s\\n" "${GIT_TERMINAL_PROMPT:-unset}" >> "%s"\nexit 1\n' "$_log" > "$_stub/git"
     chmod +x "$_stub/git"
 

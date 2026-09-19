@@ -1,4 +1,5 @@
 # shellcheck shell=bash
+# shellcheck disable=SC2154  # _shaderRepo* are set by parseShaderRepoEntry in shader_registry.sh
 
 # Shader repository sync, per-game ini/preset files, and the selection UI.
 

@@ -1,0 +1,6 @@
+# ShellCheck configuration shared by contributors, CI and the release tool.
+shell=bash
+# Follow "source" statements so variables defined in sourced files are known.
+external-sources=true
+# Resolve `# shellcheck source=./x.sh` relative to the file that contains it.
+source-path=SCRIPTDIR

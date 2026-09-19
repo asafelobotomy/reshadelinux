@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2030,SC2031  # PATH and other settings are changed inside subshells on purpose
 
 # Dialog plumbing: yad text is plain text, and the auto-answer test hook announces itself.
 

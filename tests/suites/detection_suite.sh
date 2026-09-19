@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2034  # variables are set for the code under test
 
 test_icon_logo() {
     local appid="255710"
@@ -133,6 +134,7 @@ test_appimage_apprun_delegates_to_gui_wrapper() {
     local _contents
 
     _contents=$(<"$_apprun_path")
+    # shellcheck disable=SC2016  # matching the literal text of AppRun, not expanding it
     [[ $_contents == *'exec "$HERE/usr/bin/reshadelinux-gui.sh" "$@"'* ]]
 }
 

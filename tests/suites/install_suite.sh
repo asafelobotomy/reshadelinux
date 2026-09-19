@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2034  # variables are set for the code under test
 
 # Download verification and installation into a game directory.
 

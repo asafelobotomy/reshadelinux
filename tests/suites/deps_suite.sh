@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2030,SC2031  # PATH and other settings are changed inside subshells on purpose
 
 # Required-executable reporting: every missing tool is listed, package names are
 # correct for the detected package manager, and GUI users get a dialog.
