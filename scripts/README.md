@@ -25,4 +25,6 @@ All smoke diagnostics share `diagnostics/helpers/smoke_common.sh` for runtime wo
 
 ## Release
 
-- `release/release-appimage.sh` - validates the repository, builds the AppImage, and publishes a release from the current `VERSION` and `CHANGELOG.md`
+- `release/release-appimage.sh` - validates the repository, builds the AppImage, and publishes a release from the current `VERSION` and `CHANGELOG.md`. Use `--build-only` for a build with no commit, tag, push or GitHub changes. A release run must start on `main` with only the version files changed.
+- `release/lib-release.sh` - helper functions for the release tool (sourced, and covered by `tests/suites/release_suite.sh`)
+- `release/check-version-sync.sh` - verifies that `VERSION`, the changelog, the AppStream metainfo, the `reshadelinux.sh` fallback and the desktop entry agree

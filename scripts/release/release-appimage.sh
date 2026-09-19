@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
-# purpose:  Validate the repository, build the AppImage, commit tracked release changes, tag, push, and create or update a GitHub release from the current VERSION and CHANGELOG.
-# when:     Use when publishing a new reshadelinux AppImage release from a prepared repository state; do not use for exploratory local builds or when unrelated untracked files are present.
-# inputs:   Optional flags: --repo-root PATH, --github-repo OWNER/REPO, --remote NAME, --appimagetool PATH, --skip-tests, --skip-release, --yes.
-# outputs:  Writes progress logs to stdout, builds dist/reshadelinux-<version>-x86_64.AppImage, and prints the published release URL unless --skip-release is used.
-# risk:     destructive
+# purpose:  Validate the repository, build the AppImage and, unless --build-only is given, commit the version files, tag, push and publish a GitHub release from VERSION and CHANGELOG.md.
+# when:     Use --build-only for an exploratory build with no git or GitHub side effects. A release run must start on main with only the version files changed.
+# inputs:   Flags: --repo-root PATH, --github-repo OWNER/REPO, --remote NAME, --appimagetool PATH, --skip-tests, --skip-release, --build-only, --yes.
+# outputs:  Progress on stdout, dist/reshadelinux-<version>-x86_64.AppImage, and the release URL after a full release.
+# risk:     destructive (a release run pushes commits and tags and edits GitHub releases; --build-only does not)
 # source:   original
-
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./lib-release.sh
+source "$SCRIPT_DIR/lib-release.sh"
 
 declare -a CLEANUP_PATHS=()
 
@@ -18,43 +21,56 @@ function cleanup_temp_paths() {
     done
 }
 
-trap cleanup_temp_paths EXIT
-
 function usage() {
     cat <<'EOF'
 Usage: release-appimage.sh [options]
 
 Options:
+  --build-only               Validate and build the AppImage only. Nothing is
+                             committed, tagged, pushed or published, and the branch
+                             and working-tree checks are skipped.
   --repo-root PATH           Repository root. Default: current repository.
   --github-repo OWNER/REPO   GitHub repository for release publishing.
                              Default: asafelobotomy/reshadelinux
   --remote NAME              Git remote to push. Default: origin
-  --appimagetool PATH        Existing appimagetool binary to use.
-  --skip-tests               Skip bash tests and ShellCheck.
-  --skip-release             Build, commit, tag, and push, but do not touch GitHub Releases.
-  --yes                      Skip the destructive-operation confirmation prompt.
+  --appimagetool PATH        Existing appimagetool binary. It must match the pinned
+                             checksum in packaging/appimagetool.sha256.
+  --skip-tests               Skip the test suite and ShellCheck.
+  --skip-release             Commit, tag and push, but do not touch GitHub Releases.
+  --yes                      Skip the confirmation prompt.
   --help                     Show this help.
 
-This script reads VERSION and CHANGELOG.md from the repository root.
-It refuses to run if non-ignored untracked files are present.
+A release run must start on main. The only tracked files that may have changed are
+the ones that carry the version (VERSION, CHANGELOG.md, reshadelinux.sh, the
+AppStream metainfo and the desktop entry), and no untracked files may exist.
+The version is checked for consistency across those files first.
 EOF
 }
 
-function print_step() {
-    printf '\n==> %s\n' "$1"
-}
+function parse_args() {
+    ASSUME_YES=0
+    SKIP_TESTS=0
+    SKIP_RELEASE=0
+    BUILD_ONLY=0
+    GITHUB_REPO="asafelobotomy/reshadelinux"
+    REMOTE_NAME="origin"
+    APPIMAGETOOL_BIN=""
+    REPO_ROOT=""
 
-function print_info() {
-    printf '  %s\n' "$1"
-}
-
-function print_err() {
-    printf 'Error: %s\n' "$1" >&2
-    exit 1
-}
-
-function require_command() {
-    command -v "$1" >/dev/null 2>&1 || print_err "Required command not found: $1"
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --repo-root) REPO_ROOT="$2"; shift 2 ;;
+            --github-repo) GITHUB_REPO="$2"; shift 2 ;;
+            --remote) REMOTE_NAME="$2"; shift 2 ;;
+            --appimagetool) APPIMAGETOOL_BIN="$2"; shift 2 ;;
+            --skip-tests) SKIP_TESTS=1; shift ;;
+            --skip-release) SKIP_RELEASE=1; shift ;;
+            --build-only) BUILD_ONLY=1; shift ;;
+            --yes) ASSUME_YES=1; shift ;;
+            --help|-h) usage; exit 0 ;;
+            *) print_err "Unknown argument: $1" ;;
+        esac
+    done
 }
 
 function resolve_repo_root() {
@@ -67,66 +83,44 @@ function resolve_repo_root() {
     git rev-parse --show-toplevel 2>/dev/null || print_err "Run this inside a git repository or pass --repo-root"
 }
 
-function extract_release_notes() {
-    local version="$1"
-    local changelog_file="$2"
+function ensure_release_preconditions() {
+    local repo_root="$1"
 
-    awk -v version="$version" '
-        $0 ~ ("^## \\[" version "\\]") { capture = 1; next }
-        capture && $0 ~ /^## \[/ { exit }
-        capture { print }
-    ' "$changelog_file"
+    ensure_release_branch "$repo_root" main
+    ensure_only_release_files_changed "$repo_root"
+    ensure_no_untracked_files "$repo_root"
 }
 
-function ensure_no_untracked_files() {
+function run_validation() {
     local repo_root="$1"
-    local -a untracked_files=()
 
-    mapfile -t untracked_files < <(git -C "$repo_root" ls-files --others --exclude-standard)
-    if (( ${#untracked_files[@]} > 0 )); then
-        printf 'Refusing to continue with untracked files present:\n' >&2
-        printf '  %s\n' "${untracked_files[@]}" >&2
-        exit 1
-    fi
+    (
+        local -a shell_files=()
+
+        cd "$repo_root"
+        bash tests/run_simple_tests.sh
+        mapfile -t shell_files < <(git ls-files '*.sh')
+        shellcheck -- "${shell_files[@]}" packaging/appimage/AppDir/AppRun
+    )
 }
 
-function ensure_release_tag() {
-    local repo_root="$1"
-    local tag_name="$2"
+# Leave the verified appimagetool path in APPIMAGETOOL_BIN.
+function prepare_appimagetool() {
+    local repo_root="$1" temp_dir="$2" pin_file="$1/packaging/appimagetool.sha256"
 
-    if git -C "$repo_root" rev-parse -q --verify "refs/tags/$tag_name" >/dev/null 2>&1; then
-        local tag_commit head_commit
-        tag_commit="$(git -C "$repo_root" rev-list -n 1 "$tag_name")"
-        head_commit="$(git -C "$repo_root" rev-parse HEAD)"
-        [[ "$tag_commit" == "$head_commit" ]] || print_err "Tag $tag_name already exists but does not point at HEAD"
+    if [[ -n $APPIMAGETOOL_BIN ]]; then
+        [[ -x "$APPIMAGETOOL_BIN" ]] || print_err "appimagetool is not executable: $APPIMAGETOOL_BIN"
+        verify_appimagetool_hash "$APPIMAGETOOL_BIN" "$pin_file"
         return
     fi
 
-    git -C "$repo_root" tag -a "$tag_name" -m "Release $tag_name"
-}
-
-function download_appimagetool() {
-    local destination="$1"
-
-    python3 - "$destination" <<'PY'
-from pathlib import Path
-from urllib.request import urlopen
-import sys
-
-destination = Path(sys.argv[1])
-url = 'https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage'
-with urlopen(url) as response:
-    destination.write_bytes(response.read())
-PY
-    chmod +x "$destination"
+    APPIMAGETOOL_BIN="$temp_dir/$APPIMAGETOOL_ASSET"
+    fetch_appimagetool "$APPIMAGETOOL_BIN" "$pin_file"
 }
 
 function build_appimage() {
-    local repo_root="$1"
-    local version="$2"
-    local appimagetool_bin="$3"
-    local artifact_path="$4"
-    local build_root app_dir validation_home validation_main_path
+    local repo_root="$1" version="$2" appimagetool_bin="$3" artifact_path="$4"
+    local build_root app_dir icon_dir
 
     build_root="$(mktemp -d)"
     CLEANUP_PATHS+=("$build_root")
@@ -141,175 +135,149 @@ function build_appimage() {
     sed -i "s/^X-AppImage-Version=.*/X-AppImage-Version=$version/" \
         "$app_dir/io.github.asafelobotomy.reshadelinux.desktop"
 
-        # Reuse the packaged PNG icon so README and AppImage branding stay in sync.
+    # Reuse the packaged PNG icon so README and AppImage branding stay in sync, and
+    # install it in hicolor so AppImage managers find it.
     ln -sf reshadelinux.png "$app_dir/.DirIcon"
+    icon_dir="$app_dir/usr/share/icons/hicolor/256x256/apps"
+    mkdir -p "$icon_dir"
+    cp "$app_dir/reshadelinux.png" "$icon_dir/reshadelinux.png"
 
-        # Install the icon in hicolor so AppImage managers find it.
-    local _icon_dir="$app_dir/usr/share/icons/hicolor"
-        mkdir -p "$_icon_dir/256x256/apps"
-    cp "$app_dir/reshadelinux.png" "$_icon_dir/256x256/apps/reshadelinux.png"
-
-    # Install AppStream metainfo.
     mkdir -p "$app_dir/usr/share/metainfo"
     cp "$app_dir/io.github.asafelobotomy.reshadelinux.metainfo.xml" "$app_dir/usr/share/metainfo/"
 
     mkdir -p "$(dirname "$artifact_path")"
-
     ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 "$appimagetool_bin" "$app_dir" "$artifact_path"
-    validation_home="$build_root/home"
-    validation_main_path="$build_root/validation-main"
-    mkdir -p "$validation_home"
-    APPIMAGE_EXTRACT_AND_RUN=1 HOME="$validation_home" MAIN_PATH="$validation_main_path" "$artifact_path" --update-all >/dev/null
 }
 
-function create_or_update_release() {
-    local github_repo="$1"
-    local tag_name="$2"
-    local notes_file="$3"
-    local artifact_path="$4"
+# Run the built AppImage: it must report the release version, and --update-all must
+# complete offline against an empty state store.
+function validate_artifact() {
+    local artifact_path="$1" version="$2"
+    local validation_root reported
 
-    if gh release view "$tag_name" -R "$github_repo" >/dev/null 2>&1; then
-        gh release edit "$tag_name" -R "$github_repo" --title "$tag_name" --notes-file "$notes_file"
-        gh release upload "$tag_name" "$artifact_path#$(basename "$artifact_path")" -R "$github_repo" --clobber
-    else
-        gh release create "$tag_name" "$artifact_path#$(basename "$artifact_path")" -R "$github_repo" --title "$tag_name" --notes-file "$notes_file"
+    validation_root="$(mktemp -d)"
+    CLEANUP_PATHS+=("$validation_root")
+    mkdir -p "$validation_root/home"
+
+    reported="$(APPIMAGE_EXTRACT_AND_RUN=1 HOME="$validation_root/home" MAIN_PATH="$validation_root/main" \
+        "$artifact_path" --version 2>/dev/null)"
+    [[ $reported == "$version" ]] || print_err "AppImage reports version '$reported', expected '$version'"
+
+    APPIMAGE_EXTRACT_AND_RUN=1 HOME="$validation_root/home" MAIN_PATH="$validation_root/main" \
+        "$artifact_path" --update-all >/dev/null
+}
+
+function commit_release_changes() {
+    local repo_root="$1" tag_name="$2"
+
+    if git -C "$repo_root" diff --quiet HEAD -- "${RELEASE_FILES[@]}"; then
+        print_info "no version-file changes to commit"
+        return
     fi
+    git -C "$repo_root" add -- "${RELEASE_FILES[@]}"
+    git -C "$repo_root" commit -m "chore(release): publish $tag_name"
 }
 
-ASSUME_YES=0
-SKIP_TESTS=0
-SKIP_RELEASE=0
-GITHUB_REPO="asafelobotomy/reshadelinux"
-REMOTE_NAME="origin"
-APPIMAGETOOL_BIN=""
-REPO_ROOT=""
+function push_release() {
+    local repo_root="$1" remote_name="$2" tag_name="$3"
 
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-        --repo-root)
-            REPO_ROOT="$2"
-            shift 2
-            ;;
-        --github-repo)
-            GITHUB_REPO="$2"
-            shift 2
-            ;;
-        --remote)
-            REMOTE_NAME="$2"
-            shift 2
-            ;;
-        --appimagetool)
-            APPIMAGETOOL_BIN="$2"
-            shift 2
-            ;;
-        --skip-tests)
-            SKIP_TESTS=1
-            shift
-            ;;
-        --skip-release)
-            SKIP_RELEASE=1
-            shift
-            ;;
-        --yes)
-            ASSUME_YES=1
-            shift
-            ;;
-        --help|-h)
-            usage
-            exit 0
-            ;;
-        *)
-            print_err "Unknown argument: $1"
-            ;;
-    esac
-done
+    git -C "$repo_root" push "$remote_name" HEAD
+    git -C "$repo_root" push "$remote_name" "$tag_name"
+}
 
-REPO_ROOT="$(resolve_repo_root)"
-VERSION_FILE="$REPO_ROOT/VERSION"
-CHANGELOG_FILE="$REPO_ROOT/CHANGELOG.md"
-TEMP_DIR="$(mktemp -d)"
-CLEANUP_PATHS+=("$TEMP_DIR")
+function publish_release() {
+    local github_repo="$1" tag_name="$2" notes_file="$3" artifact_path="$4" release_url
 
-require_command git
-require_command gh
-require_command shellcheck
-require_command python3
+    create_or_update_release "$github_repo" "$tag_name" "$notes_file" "$artifact_path"
+    release_url="$(gh release view "$tag_name" -R "$github_repo" --json url --jq '.url')"
+    print_info "release url: $release_url"
+}
 
-[[ -f "$VERSION_FILE" ]] || print_err "Missing VERSION file at $VERSION_FILE"
-[[ -f "$CHANGELOG_FILE" ]] || print_err "Missing CHANGELOG.md at $CHANGELOG_FILE"
+function main() {
+    local repo_root version tag_name artifact_path temp_dir notes_file confirmation
 
-VERSION="$(tr -d '\n' < "$VERSION_FILE")"
-TAG_NAME="v$VERSION"
-ARTIFACT_PATH="$REPO_ROOT/dist/reshadelinux-${VERSION}-x86_64.AppImage"
-NOTES_FILE="$TEMP_DIR/release-notes.md"
+    parse_args "$@"
+    trap cleanup_temp_paths EXIT
 
-extract_release_notes "$VERSION" "$CHANGELOG_FILE" > "$NOTES_FILE"
-[[ -s "$NOTES_FILE" ]] || print_err "Could not extract release notes for version $VERSION from CHANGELOG.md"
+    repo_root="$(resolve_repo_root)"
+    temp_dir="$(mktemp -d)"
+    CLEANUP_PATHS+=("$temp_dir")
+    notes_file="$temp_dir/release-notes.md"
 
-print_step "Release plan"
-print_info "repo root: $REPO_ROOT"
-print_info "version: $VERSION"
-print_info "tag: $TAG_NAME"
-print_info "artifact: $ARTIFACT_PATH"
-print_info "remote: $REMOTE_NAME"
-print_info "github repo: $GITHUB_REPO"
-if [[ $SKIP_RELEASE -eq 1 ]]; then
-    print_info "github release: skipped"
-fi
+    require_command git
+    [[ -f "$repo_root/VERSION" ]] || print_err "Missing VERSION file at $repo_root/VERSION"
+    [[ -f "$repo_root/CHANGELOG.md" ]] || print_err "Missing CHANGELOG.md at $repo_root/CHANGELOG.md"
+    [[ $SKIP_TESTS -eq 1 ]] || require_command shellcheck
+    # gh downloads the pinned appimagetool and publishes the release.
+    if [[ -z $APPIMAGETOOL_BIN ]] || [[ $BUILD_ONLY -ne 1 && $SKIP_RELEASE -ne 1 ]]; then
+        require_command gh
+    fi
 
-if [[ $ASSUME_YES -ne 1 ]]; then
-    read -r -p 'Proceed with build, commit, tag, push, and release steps? [y/N] ' confirmation
-    [[ "$confirmation" =~ ^[Yy]$ ]] || print_err "Release aborted by user"
-fi
+    print_step "Checking version consistency"
+    "$repo_root/scripts/release/check-version-sync.sh" "$repo_root" || print_err "Version files disagree; fix them before releasing"
 
-print_step "Checking repository state"
-ensure_no_untracked_files "$REPO_ROOT"
+    version="$(tr -d '\n' < "$repo_root/VERSION")"
+    tag_name="v$version"
+    artifact_path="$repo_root/dist/reshadelinux-${version}-x86_64.AppImage"
+    extract_release_notes "$version" "$repo_root/CHANGELOG.md" > "$notes_file"
+    [[ -s $notes_file ]] || print_err "Could not extract release notes for version $version from CHANGELOG.md"
 
-if [[ $SKIP_TESTS -ne 1 ]]; then
-    print_step "Running validation"
-    (
-        cd "$REPO_ROOT"
-        bash tests/run_simple_tests.sh
-        shellcheck lib/*.sh reshadelinux.sh reshadelinux-gui.sh scripts/diagnostics/*.sh tests/*.sh
-    )
-fi
+    print_step "Release plan"
+    print_info "repo root: $repo_root"
+    print_info "version: $version"
+    print_info "artifact: $artifact_path"
+    if [[ $BUILD_ONLY -eq 1 ]]; then
+        print_info "mode: build only (no commit, tag, push or release)"
+    else
+        print_info "tag: $tag_name"
+        print_info "remote: $REMOTE_NAME"
+        print_info "github repo: $GITHUB_REPO"
+        [[ $SKIP_RELEASE -ne 1 ]] || print_info "github release: skipped"
 
-print_step "Preparing appimagetool"
-if [[ -n "$APPIMAGETOOL_BIN" ]]; then
-    [[ -x "$APPIMAGETOOL_BIN" ]] || print_err "appimagetool is not executable: $APPIMAGETOOL_BIN"
-else
-    APPIMAGETOOL_BIN="$TEMP_DIR/appimagetool-x86_64.AppImage"
-    download_appimagetool "$APPIMAGETOOL_BIN"
-fi
+        if [[ $ASSUME_YES -ne 1 ]]; then
+            read -r -p 'Proceed with build, commit, tag, push, and release steps? [y/N] ' confirmation
+            [[ "$confirmation" =~ ^[Yy]$ ]] || print_err "Release aborted by user"
+        fi
+        print_step "Checking repository state"
+        ensure_release_preconditions "$repo_root"
+    fi
 
-print_step "Building AppImage"
-build_appimage "$REPO_ROOT" "$VERSION" "$APPIMAGETOOL_BIN" "$ARTIFACT_PATH"
-print_info "built: $ARTIFACT_PATH"
+    if [[ $SKIP_TESTS -ne 1 ]]; then
+        print_step "Running validation"
+        run_validation "$repo_root"
+    fi
 
-print_step "Committing tracked changes"
-if ! git -C "$REPO_ROOT" diff --quiet || ! git -C "$REPO_ROOT" diff --cached --quiet; then
-    git -C "$REPO_ROOT" add -A
-    git -C "$REPO_ROOT" commit -m "chore(release): publish $TAG_NAME"
-else
-    print_info "no tracked changes to commit"
-fi
+    print_step "Preparing appimagetool"
+    prepare_appimagetool "$repo_root" "$temp_dir"
 
-print_step "Tagging release"
-ensure_release_tag "$REPO_ROOT" "$TAG_NAME"
+    print_step "Building AppImage"
+    build_appimage "$repo_root" "$version" "$APPIMAGETOOL_BIN" "$artifact_path"
+    validate_artifact "$artifact_path" "$version"
+    print_info "built and validated: $artifact_path"
 
-print_step "Pushing branch and tag"
-git -C "$REPO_ROOT" push "$REMOTE_NAME" HEAD
-git -C "$REPO_ROOT" push "$REMOTE_NAME" "$TAG_NAME"
+    if [[ $BUILD_ONLY -eq 1 ]]; then
+        print_step "Done (build only)"
+        return
+    fi
 
-if [[ $SKIP_RELEASE -ne 1 ]]; then
-    print_step "Publishing GitHub release"
-    create_or_update_release "$GITHUB_REPO" "$TAG_NAME" "$NOTES_FILE" "$ARTIFACT_PATH"
-    RELEASE_URL="$(gh release view "$TAG_NAME" -R "$GITHUB_REPO" --json url --jq '.url')"
-    print_info "release url: $RELEASE_URL"
-fi
+    print_step "Committing version files"
+    commit_release_changes "$repo_root" "$tag_name"
 
-print_step "Done"
-print_info "artifact: $ARTIFACT_PATH"
-if [[ $SKIP_RELEASE -ne 1 ]]; then
-    print_info "tag: $TAG_NAME"
+    print_step "Tagging release"
+    ensure_release_tag "$repo_root" "$tag_name"
+
+    print_step "Pushing branch and tag"
+    push_release "$repo_root" "$REMOTE_NAME" "$tag_name"
+
+    if [[ $SKIP_RELEASE -ne 1 ]]; then
+        print_step "Publishing GitHub release"
+        publish_release "$GITHUB_REPO" "$tag_name" "$notes_file" "$artifact_path"
+    fi
+
+    print_step "Done"
+    print_info "artifact: $artifact_path"
+}
+
+if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
+    main "$@"
 fi

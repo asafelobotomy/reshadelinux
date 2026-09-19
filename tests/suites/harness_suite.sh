@@ -46,6 +46,12 @@ harness_assert_fails_passes_when_the_command_fails() {
     assert_fails grep -q "needle" /dev/null
 }
 
+harness_assert_fails_treats_a_command_that_exits_the_shell_as_failing() {
+    _exits_the_shell() { exit 1; }
+    assert_fails _exits_the_shell
+    [[ 1 -eq 1 ]]
+}
+
 harness_broken_assert_fails_on_a_command_that_succeeds() {
     assert_fails true
 }
@@ -80,6 +86,7 @@ run_harness_tests() {
     run_test_expect_fail "Failing bare command in the middle is detected" harness_broken_bare_command_in_middle
     run_test_expect_fail "Failing last assertion is detected" harness_broken_last_assertion
     run_test "assert_fails passes when the command fails" harness_assert_fails_passes_when_the_command_fails
+    run_test "assert_fails counts an exiting command as failing" harness_assert_fails_treats_a_command_that_exits_the_shell_as_failing
     run_test_expect_fail "assert_fails detects a succeeding command" harness_broken_assert_fails_on_a_command_that_succeeds
     run_test_expect_fail "assert_fails detects a succeeding command mid-test" harness_broken_assert_fails_on_a_command_that_succeeds_mid_test
     run_test "Test suites avoid bare negated commands" test_test_suites_do_not_use_bare_negated_commands

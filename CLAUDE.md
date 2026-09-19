@@ -9,12 +9,12 @@ Interfaces: `yad` (GUI), `whiptail`/`dialog` (TUI) and a plain CLI, all over the
 
 ```bash
 bash tests/run_simple_tests.sh                     # full suite; the merge gate
-shellcheck -x $(git ls-files '*.sh')               # lint (ShellCheck is not vendored)
+shellcheck $(git ls-files '*.sh')                  # lint; must report nothing (.shellcheckrc is picked up)
 bash scripts/diagnostics/smoke_cli.sh              # isolated end-to-end CLI smoke test
-bash scripts/diagnostics/smoke_whiptail.sh         # same for the whiptail backend
+bash scripts/diagnostics/smoke_whiptail.sh         # same for the whiptail backend (both need 7z installed)
 ./reshadelinux.sh --cli --game-path=DIR --dll-override=dxgi --shader-repos=none
 ./reshadelinux.sh --list-shader-repos              # prints the registry, exits
-scripts/release/release-appimage.sh --help         # build and publish the AppImage
+scripts/release/release-appimage.sh --build-only   # build and validate the AppImage, no side effects
 ```
 
 The suite redirects `HOME`, `XDG_CACHE_HOME` and `MAIN_PATH` into a temp tree. Never point tests at a real Steam install.
@@ -63,6 +63,7 @@ The suite redirects `HOME`, `XDG_CACHE_HOME` and `MAIN_PATH` into a temp tree. N
 - Fixtures in `tests/helpers/fixtures.sh`: `setup_test_env`, `create_mock_game`, `create_mock_shader_repo`, `create_mock_pe` (synthetic PE with chosen imports), `assert_*`. Use real local git repositories for clone/update tests and a stubbed `PATH` for missing or fake programs (see `deps_suite.sh`).
 - Tests that run flows reading runtime settings call `init_test_runtime_defaults`. To exercise a fatal path in a subshell, call `use_fatal_printErr` so `printErr` exits as it does in production.
 - Stub external tools with function overrides or PATH stubs. Do not hit the network.
+- To expect a failure use `assert_fails cmd ...`, never a bare `! cmd`: bash exempts negated commands from errexit, so the test would carry on and pass. A test scans the suites for it.
 
 ## Baselines
 
@@ -78,8 +79,9 @@ The suite redirects `HOME`, `XDG_CACHE_HOME` and `MAIN_PATH` into a temp tree. N
 
 ## Release
 
-- The version appears in `VERSION`, the fallback string in `reshadelinux.sh`, `X-AppImage-Version` in the desktop entry, the metainfo `<release>` list and `CHANGELOG.md`. Change them together.
-- `CHANGELOG.md` uses Keep a Changelog headings. The first `## [` entry must match `VERSION` and be dated (a test asserts it).
+- The version appears in `VERSION`, the fallback string in `reshadelinux.sh`, `X-AppImage-Version` in the desktop entry, the metainfo `<release>` list and `CHANGELOG.md`. Change them together; `scripts/release/check-version-sync.sh` (run by the tests and the release tool) fails if they disagree.
+- `CHANGELOG.md` uses Keep a Changelog headings. The first *versioned* heading must match `VERSION` and be dated; an `## [Unreleased]` section above it is allowed.
+- `scripts/release/release-appimage.sh --build-only` builds and validates the AppImage with no git or GitHub side effects. A real release must start on `main` with only the version files changed. `appimagetool` is pinned by checksum in `packaging/appimagetool.sha256`.
 - Commits follow Conventional Commits (`fix:`, `feat:`, `test:`, `chore(release):`).
 
 ## Reference

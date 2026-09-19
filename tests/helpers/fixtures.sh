@@ -230,9 +230,10 @@ load_functions_from_script() {
 
 # Helper: assert file exists
 # Fail the test when the command succeeds. A bare `! cmd` cannot do this: bash exempts
-# negated commands from errexit, so the test would carry on and pass.
+# negated commands from errexit, so the test would carry on and pass. The command runs
+# in a subshell so one that ends the process (printErr, print_err) counts as failing.
 assert_fails() {
-    if "$@" >/dev/null 2>&1; then
+    if ( "$@" ) >/dev/null 2>&1; then
         echo "expected failure, but the command succeeded: $*" >&2
         return 1
     fi
