@@ -243,6 +243,114 @@ test_no_code_path_deletes_a_game_shader_directory_outright() {
     ! grep -rnE 'rm -rf "[^"]*ReShade_shaders"' "$REPO_DIR/lib"
 }
 
+test_download_url_check_accepts_only_official_setup_urls() {
+    local _url
+
+    for _url in \
+        "https://reshade.me/downloads/ReShade_Setup_6.5.1.exe" \
+        "https://static.reshade.me/downloads/ReShade_Setup_6.5.1.exe" \
+        "https://reshade.me/downloads/ReShade_Setup_5.0.2_Addon.exe"; do
+        ( use_fatal_printErr; validateReshadeDownloadUrl "$_url" ) >/dev/null 2>&1 || {
+            echo "official URL was rejected: $_url" >&2
+            return 1
+        }
+    done
+}
+
+test_download_url_check_rejects_other_hosts_schemes_and_path_tricks() {
+    local _url _rc
+
+    for _url in \
+        "http://reshade.me/downloads/ReShade_Setup_6.5.1.exe" \
+        "https://example.com/downloads/ReShade_Setup_6.5.1.exe" \
+        "https://reshade.me.evil.example/downloads/ReShade_Setup_6.5.1.exe" \
+        "https://evilreshade.me/downloads/ReShade_Setup_6.5.1.exe" \
+        "https://reshade.me/downloads/ReShade_Setup_1/../../evil.exe" \
+        "https://reshade.me/downloads/ReShade_Setup_6.5.1.exe?redirect=https://evil.example/x.exe" \
+        "https://reshade.me/downloads/ReShade_Setup_6.5.1.exe#frag" \
+        "https://reshade.me/downloads/ReShade_Setup_.exe" \
+        "https://reshade.me/other/ReShade_Setup_6.5.1.exe"; do
+        set +e
+        ( use_fatal_printErr; validateReshadeDownloadUrl "$_url" ) >/dev/null 2>&1
+        _rc=$?
+        set -e
+        if [[ $_rc -eq 0 ]]; then
+            echo "unexpected URL was accepted: $_url" >&2
+            return 1
+        fi
+    done
+}
+
+# Set up the globals a single-game flow reads, with a fake ReShade payload in place.
+_prepare_game_link_environment() {
+    local _game="$1"
+
+    mkdir -p "$_game" "$RESHADE_PATH/latest"
+    touch "$_game/Game.exe" "$RESHADE_PATH/latest/ReShade64.dll" "$RESHADE_PATH/latest/ReShade32.dll" \
+        "$MAIN_PATH/d3dcompiler_47.dll.64" "$MAIN_PATH/d3dcompiler_47.dll.32"
+    export RESHADE_VERSION=latest
+    export SHADER_REPOS="https://example.com/a|alpha"
+    init_test_runtime_defaults
+    gamePath="$_game"
+    wantedDll=dxgi
+    exeArch=64
+    _selectedRepos=""
+    _selectedAppId=""
+    _selectedGameKey=$(buildGameInstallKey "" "$_game")
+}
+
+test_linking_a_game_creates_the_expected_links_and_default_ini() {
+    local _game="$TEST_TEMP_DIR/link-game"
+
+    _prepare_game_link_environment "$_game"
+    linkGameFilesForInstall >/dev/null
+
+    [[ -L "$_game/dxgi.dll" ]]
+    [[ $(readlink "$_game/dxgi.dll") == */latest/ReShade64.dll || $(readlink "$_game/dxgi.dll") == */ReShade64.dll ]]
+    [[ -L "$_game/d3dcompiler_47.dll" ]]
+    [[ -L "$_game/ReShade_shaders" ]]
+    [[ $(readlink "$_game/ReShade_shaders") == *"/game-shaders/$_selectedGameKey" ]]
+    grep -q 'EffectSearchPaths' "$_game/ReShade.ini"
+}
+
+test_linking_a_game_keeps_a_users_existing_shader_folder_and_ini() {
+    local _game="$TEST_TEMP_DIR/link-keep" _backup
+
+    _prepare_game_link_environment "$_game"
+    mkdir -p "$_game/ReShade_shaders"
+    printf 'mine\n' > "$_game/ReShade_shaders/custom.fx"
+    printf '[GENERAL]\nCustom=1\n' > "$_game/ReShade.ini"
+
+    linkGameFilesForInstall >/dev/null
+
+    _backup=$(compgen -G "$_game/ReShade_shaders.bak*")
+    [[ $(<"$_backup/custom.fx") == mine ]]
+    [[ -L "$_game/ReShade_shaders" ]]
+    grep -q 'Custom=1' "$_game/ReShade.ini"
+}
+
+test_uninstall_removes_reshade_links_and_tracked_state_but_not_game_files() {
+    local _game="$TEST_TEMP_DIR/uninstall-game" _key
+
+    _prepare_game_link_environment "$_game"
+    touch "$_game/keep.txt"
+    linkGameFilesForInstall >/dev/null
+    _key="$_selectedGameKey"
+    writeGameState "$_key" "$_game" dxgi 64 "" ""
+
+    CLI_GAME_PATH="$_game"
+    CLI_GAME_PATH_SET=1
+    CLI_APP_ID=""
+    CLI_APP_ID_SET=0
+    ( performDirectXUninstall ) >/dev/null 2>&1
+
+    [[ ! -e "$_game/dxgi.dll" && ! -L "$_game/dxgi.dll" ]]
+    [[ ! -e "$_game/ReShade_shaders" && ! -L "$_game/ReShade_shaders" ]]
+    [[ ! -e "$MAIN_PATH/game-state/$_key.state" ]]
+    [[ ! -e "$MAIN_PATH/game-shaders/$_key" ]]
+    [[ -f "$_game/keep.txt" && -f "$_game/Game.exe" ]]
+}
+
 run_install_tests() {
     echo -e "${BLUE}Install and Verification Tests${NC}"
     run_test "Hash pin rejects glob patterns" test_hash_pin_rejects_glob_patterns_instead_of_matching_them
@@ -263,5 +371,10 @@ run_install_tests() {
     run_test "Detach never overwrites an earlier backup" test_detaching_game_shaders_never_overwrites_an_earlier_backup
     run_test "Detach is a no-op when nothing is there" test_detaching_game_shaders_is_a_no_op_when_nothing_is_there
     run_test "No code path deletes game shaders outright" test_no_code_path_deletes_a_game_shader_directory_outright
+    run_test "Download URL check accepts official URLs only" test_download_url_check_accepts_only_official_setup_urls
+    run_test "Download URL check rejects hosts and path tricks" test_download_url_check_rejects_other_hosts_schemes_and_path_tricks
+    run_test "Linking a game creates links and default ini" test_linking_a_game_creates_the_expected_links_and_default_ini
+    run_test "Linking keeps a user's shader folder and ini" test_linking_a_game_keeps_a_users_existing_shader_folder_and_ini
+    run_test "Uninstall removes links and state only" test_uninstall_removes_reshade_links_and_tracked_state_but_not_game_files
     echo ""
 }

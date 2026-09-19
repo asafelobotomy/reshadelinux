@@ -23,18 +23,16 @@ function downloadD3dcompiler_47() {
     removeTempDir
 }
 
+# Only the official hosts and the exact ReShade_Setup_<version>[_Addon].exe shape are
+# accepted. A glob here would let "*" swallow "/", "?" or "#" and reach other paths.
 function validateReshadeDownloadUrl() {
     local _url="$1"
 
-    case "$_url" in
-        https://reshade.me/downloads/ReShade_Setup_*.exe|https://static.reshade.me/downloads/ReShade_Setup_*.exe)
-            return 0
-            ;;
-        *)
-            printErr "Refusing to download ReShade from an unexpected URL: $_url"
-            return 1
-            ;;
-    esac
+    if [[ $_url =~ ^https://(static\.)?reshade\.me/downloads/ReShade_Setup_[0-9][0-9.]*(_Addon)?\.exe$ ]]; then
+        return 0
+    fi
+    printErr "Refusing to download ReShade from an unexpected URL: $_url"
+    return 1
 }
 
 function verifyReshadeDownloadHash() {
