@@ -150,6 +150,42 @@ test_manual_dll_entry_stops_when_input_closes_instead_of_looping() {
     [[ $_rc -ne 0 ]]
 }
 
+test_temp_dir_is_removed_when_a_fatal_error_ends_the_process() {
+    local _tmp_root="$TEST_TEMP_DIR/tmp-root" _marker="$TEST_TEMP_DIR/tmpdir.path"
+
+    mkdir -p "$_tmp_root"
+    (
+        set +e
+        export TMPDIR="$_tmp_root"
+        use_fatal_printErr
+        trap _cleanupTempDir EXIT
+        createTempDir
+        printf '%s' "$tmpDir" > "$_marker"
+        printErr "simulated download failure"
+    ) >/dev/null 2>&1 || true
+
+    [[ -s $_marker ]]
+    [[ ! -e $(<"$_marker") ]]
+    [[ -z $(ls -A "$_tmp_root") ]]
+}
+
+test_temp_dir_cleanup_is_a_no_op_when_none_was_created() {
+    (
+        unset tmpDir
+        _cleanupTempDir
+        tmpDir=""
+        _cleanupTempDir
+        tmpDir="$TEST_TEMP_DIR/not-a-mktemp-dir"
+        mkdir -p "$tmpDir"
+        _cleanupTempDir
+        [[ -d $tmpDir ]]
+    )
+}
+
+test_entrypoint_installs_the_temp_dir_cleanup_trap() {
+    grep -q '^trap _cleanupTempDir EXIT' "$REPO_DIR/reshadelinux.sh"
+}
+
 run_install_tests() {
     echo -e "${BLUE}Install and Verification Tests${NC}"
     run_test "Hash pin rejects glob patterns" test_hash_pin_rejects_glob_patterns_instead_of_matching_them
@@ -162,5 +198,8 @@ run_install_tests() {
     run_test "Manual DLL entry accepts configured extras" test_manual_dll_entry_accepts_names_added_through_extra_dll_overrides
     run_test "Batch update accepts tracked extra DLLs" test_batch_update_accepts_a_tracked_extra_dll_only_when_it_is_configured
     run_test "Manual DLL prompt stops when input closes" test_manual_dll_entry_stops_when_input_closes_instead_of_looping
+    run_test "Temp dir is removed after a fatal error" test_temp_dir_is_removed_when_a_fatal_error_ends_the_process
+    run_test "Temp dir cleanup is a safe no-op" test_temp_dir_cleanup_is_a_no_op_when_none_was_created
+    run_test "Entrypoint installs the cleanup trap" test_entrypoint_installs_the_temp_dir_cleanup_trap
     echo ""
 }

@@ -58,6 +58,8 @@ SCRIPT_DIR="$(dirname "$(realpath -- "$0")")"
 . "$SCRIPT_DIR/lib/deps.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/deps.sh" >&2; exit 1; }
 . "$SCRIPT_DIR/lib/flow.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/flow.sh" >&2; exit 1; }
 
+trap _cleanupTempDir EXIT
+
 SEPARATOR="------------------------------------------------------------------------------------------------"
 # Read version from co-located VERSION file; fall back to hard-coded string for
 # users who download just the .sh without the rest of the repository.

@@ -109,5 +109,15 @@ function createTempDir() {
 
 function removeTempDir() {
     cd "$MAIN_PATH" || exit
-    [[ -d $tmpDir ]] && rm -rf "$tmpDir"
+    [[ -d ${tmpDir:-} ]] && rm -rf "$tmpDir"
+}
+
+# EXIT trap: remove a temp directory that a fatal error left behind. printErr exits
+# the process, so callers cannot always clean up first. Safe to call repeatedly, and
+# it only ever removes a directory that createTempDir made with mktemp.
+function _cleanupTempDir() {
+    [[ -n ${tmpDir:-} && -d $tmpDir && ${tmpDir##*/} == tmp.* ]] || return 0
+    cd / || true
+    rm -rf "$tmpDir"
+    tmpDir=""
 }
