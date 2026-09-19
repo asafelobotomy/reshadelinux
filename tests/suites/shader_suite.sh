@@ -202,8 +202,26 @@ test_game_ini_is_per_game_and_relative() {
     grep -Fqx 'TextureSearchPaths=.\ReShade_shaders\Merged\Textures' "$_game_dir/ReShade.ini"
 }
 
+test_shader_header_helpers_exist_before_any_merge_runs() {
+    declare -F exposeNestedShaderHeadersToRoot >/dev/null
+    declare -F mirrorShaderHeadersToMergedRoot >/dev/null
+}
+
+test_shader_build_with_no_repos_and_no_external_shaders_is_quiet() {
+    local _stderr
+
+    export SHADER_REPOS="https://example.com/repo|test-shaders"
+    rm -rf "$MAIN_PATH/External_shaders"
+    _stderr=$(buildGameShaderDir "77777" "" "" 2>&1 >/dev/null)
+
+    [[ -z $_stderr ]]
+    [[ -d "$MAIN_PATH/game-shaders/77777/Merged/Shaders" ]]
+}
+
 run_shader_tests() {
     echo -e "${BLUE}Shader Selection Tests${NC}"
+    run_test "Header helpers exist before any merge runs" test_shader_header_helpers_exist_before_any_merge_runs
+    run_test "Build with no repos or external shaders is quiet" test_shader_build_with_no_repos_and_no_external_shaders_is_quiet
     run_test "Build creates output dir" test_shader_build_creates_dir
     run_test "Links only selected repo" test_shader_build_links_selected_repo
     run_test "Excludes unselected repo" test_shader_build_excludes_unselected_repo

@@ -108,19 +108,7 @@ function linkShaderFilesTo() {
     done
 }
 
-# Merge shader directories into an arbitrary output base directory.
-function mergeShaderDirsTo() {
-    [[ $1 != ReShade_shaders && $1 != External_shaders ]] && return
-    local _outBase="$3"
-    local _repoRoot="" dirPath
-
-    if [[ $1 == "ReShade_shaders" ]]; then
-        _repoRoot="$MAIN_PATH/$1/$2"
-    else
-        _repoRoot="$MAIN_PATH/$1"
-    fi
-
-    for dirName in Shaders Textures; do
+# Link nested .fxh headers up to the top of the merged Shaders directory.
 function exposeNestedShaderHeadersToRoot() {
     local _outBase="$1"
     local _shadersDir="$_outBase/Shaders"
@@ -134,6 +122,7 @@ function exposeNestedShaderHeadersToRoot() {
     done < <(find "$_shadersDir" -mindepth 2 \( -type f -o -type l \) -name '*.fxh' -print0)
 }
 
+# Mirror top-level .fxh headers into the merged root so relative includes resolve.
 function mirrorShaderHeadersToMergedRoot() {
     local _outBase="$1"
     local _shadersDir="$_outBase/Shaders"
@@ -146,6 +135,20 @@ function mirrorShaderHeadersToMergedRoot() {
         ln -s "$(realpath "$_file")" "$_outBase/$_basename"
     done < <(find "$_shadersDir" -maxdepth 1 \( -type f -o -type l \) -name '*.fxh' -print0)
 }
+
+# Merge shader directories into an arbitrary output base directory.
+function mergeShaderDirsTo() {
+    [[ $1 != ReShade_shaders && $1 != External_shaders ]] && return
+    local _outBase="$3"
+    local _repoRoot="" dirPath
+
+    if [[ $1 == "ReShade_shaders" ]]; then
+        _repoRoot="$MAIN_PATH/$1/$2"
+    else
+        _repoRoot="$MAIN_PATH/$1"
+    fi
+
+    for dirName in Shaders Textures; do
         if [[ $1 == "ReShade_shaders" ]]; then
             if [[ -d "$_repoRoot/$dirName" ]]; then
                 dirPath="$_repoRoot/$dirName"
