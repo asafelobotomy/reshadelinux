@@ -112,7 +112,9 @@ https://github.com/smolbbsoop/smolbbsoopshaders|smolbbsoop-shaders||smolbbsoopsh
 https://github.com/yplebedev/BFBFX|bfbfx-shaders||BFBFX|RTGI and SSAO, requires ZenteonFX;\
 https://github.com/outmode/rendepth-reshade|rendepth||Rendepth|Stereoscopic 2D to 3D conversion;\
 https://github.com/P0NYSLAYSTATION/Scaling-Shaders|scaling-shaders||Crop and Resize|Downsample, crop and resize;\
-https://github.com/umar-afzaal/LumeniteFX|lumenite-fx||LumeniteFX|RTAO, LSAO, SSR, AnamorphicBloom"}
+https://github.com/umar-afzaal/LumeniteFX|lumenite-fx||LumeniteFX|RTAO, LSAO, SSR, AnamorphicBloom;\
+https://github.com/JakobPCoder/Reshade-Shades|jakobpcoder-shades||Shades|TFAA temporal anti-aliasing, requires a depth buffer and iMMERSE LAUNCHPAD;\
+https://github.com/vertver/verfx|verfx||verfx Shaders|Faithful NTSC and retro filters"}
     RESHADE_VERSION=${RESHADE_VERSION:-"latest"}
     RESHADE_ADDON_SUPPORT=${RESHADE_ADDON_SUPPORT:-0}
     FORCE_RESHADE_UPDATE_CHECK=${FORCE_RESHADE_UPDATE_CHECK:-0}

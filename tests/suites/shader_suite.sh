@@ -243,11 +243,52 @@ test_helper_functions_do_not_leak_loop_variables() {
     done
 }
 
+test_default_shader_registry_entries_are_well_formed_and_unique() {
+    local _entry _count=0 _name
+    local -A _seen=()
+
+    unset SHADER_REPOS
+    init_test_runtime_defaults
+
+    while IFS= read -r _entry; do
+        parseShaderRepoEntry "$_entry"
+        _count=$((_count + 1))
+
+        [[ $_shaderRepoUri =~ ^https://github\.com/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]] || { echo "bad URL: $_entry" >&2; return 1; }
+        [[ $_shaderRepoName =~ ^[a-z0-9-]+$ ]] || { echo "bad local name: $_entry" >&2; return 1; }
+        [[ -z ${_seen["$_shaderRepoName"]+x} ]] || { echo "duplicate local name: $_shaderRepoName" >&2; return 1; }
+        _seen["$_shaderRepoName"]=1
+        [[ -n $_shaderRepoTitle && -n $_shaderRepoDesc ]] || { echo "missing title or description: $_entry" >&2; return 1; }
+    done < <(listConfiguredShaderRepoEntries)
+
+    [[ $_count -ge 40 ]]
+    for _name in ${FIRST_RUN_SHADER_REPOS//,/ }; do
+        [[ -n ${_seen["$_name"]+x} ]] || { echo "first-run repo is not in the registry: $_name" >&2; return 1; }
+    done
+}
+
+test_default_shader_registry_carries_the_official_reshade_packages() {
+    local _entry _uris=""
+
+    unset SHADER_REPOS
+    init_test_runtime_defaults
+    while IFS= read -r _entry; do
+        parseShaderRepoEntry "$_entry"
+        _uris+="${_shaderRepoUri,,} "
+    done < <(listConfiguredShaderRepoEntries)
+
+    # Packages from the official EffectPackages.ini that were once missing.
+    [[ $_uris == *"https://github.com/jakobpcoder/reshade-shades "* ]]
+    [[ $_uris == *"https://github.com/vertver/verfx "* ]]
+}
+
 run_shader_tests() {
     echo -e "${BLUE}Shader Selection Tests${NC}"
     run_test "Header helpers exist before any merge runs" test_shader_header_helpers_exist_before_any_merge_runs
     run_test "Build with no repos or external shaders is quiet" test_shader_build_with_no_repos_and_no_external_shaders_is_quiet
     run_test "Helpers do not leak loop variables" test_helper_functions_do_not_leak_loop_variables
+    run_test "Default registry entries are well formed" test_default_shader_registry_entries_are_well_formed_and_unique
+    run_test "Default registry carries the official packages" test_default_shader_registry_carries_the_official_reshade_packages
     run_test "Build creates output dir" test_shader_build_creates_dir
     run_test "Links only selected repo" test_shader_build_links_selected_repo
     run_test "Excludes unselected repo" test_shader_build_excludes_unselected_repo
