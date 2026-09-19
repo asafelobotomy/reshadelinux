@@ -115,20 +115,63 @@ function pickBestExeInDir() {
     printf '%s\n' "$_best"
 }
 
+# Split an executable name into lowercase words on punctuation, letter/digit
+# boundaries and camelCase humps: "UnityCrashHandler64.exe" -> "unity crash handler 64".
+function _exeNameTokens() {
+    local _stem="${1%.[eE][xX][eE]}" _out="" _c _prev="" _i
+
+    for ((_i = 0; _i < ${#_stem}; _i++)); do
+        _c=${_stem:_i:1}
+        if [[ $_c != [A-Za-z0-9] ]]; then
+            _out+=" "
+            _prev=""
+            continue
+        fi
+        if [[ $_c == [A-Z] && $_prev == [a-z0-9] ]] || [[ $_c == [0-9] && $_prev == [A-Za-z] ]]; then
+            _out+=" "
+        fi
+        _out+="$_c"
+        _prev="$_c"
+    done
+    printf '%s\n' "${_out,,}"
+}
+
+# Succeed when an executable name looks like an installer, crash handler, launcher
+# or anti-cheat helper rather than the game itself. Distinctive names match anywhere
+# in the name; short words that also occur inside ordinary names ("reach" contains
+# "eac", "latest" contains "test") must be a whole word.
+function _isUtilityExeName() {
+    local _tokens _joined _token
+    local -a _words=()
+
+    _tokens=$(_exeNameTokens "$1")
+    _joined=${_tokens// /}
+    [[ $_joined =~ (unityplayer|unitycrash|crashhandler|easyanticheat|battleye|vcredist|dxsetup|redist|uninstall|installer|crashreport|crashpad|benchmark|consultant) ]] && return 0
+
+    read -ra _words <<< "$_tokens"
+    for _token in "${_words[@]}"; do
+        case $_token in
+            unins*|setup*|remov*|eac|asp|test|tests|check|checker|update|updater|launcher|error|errors) return 0 ;;
+        esac
+    done
+    return 1
+}
+
 # Score a specific executable candidate for a directory using the same heuristics.
 function scoreExeCandidate() {
-    local _dir="$1" _name="$2" _lname _parentDir _score=50
+    local _dir="$1" _name="$2" _lname _stem _parentDir _score=50
     [[ -z $_name ]] && { printf '%s\n' "-999999"; return; }
     _lname=${_name,,}
+    _stem=${_lname%.exe}
     _parentDir=$(basename "$_dir" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9')
 
-    [[ $_lname =~ (unityplayer|unitycrash|crashhandler|easyanticheat|battleye|asp|unins|uninstall|setup|installer|vcredist|redist|eac|crashreport|crashpad|benchmark|test|launcher|update|check|remov|error|consultant) ]] && _score=$((_score - 200))
+    _isUtilityExeName "$_name" && _score=$((_score - 200))
     [[ $_lname =~ ^mono\. ]] && _score=$((_score - 200))
     [[ $_lname =~ debug ]] && _score=$((_score - 80))
-    [[ "$_lname" == *"${_parentDir}"* ]] && _score=$((_score + 150))
+    [[ -n $_parentDir && $_lname == *"$_parentDir"* ]] && _score=$((_score + 150))
     [[ $_lname =~ (game|main|app|engine|client|server|game_?setup) ]] && _score=$((_score + 80))
     [[ $_lname =~ (win64|x64|win32|i386|64|x86|ia32) ]] && _score=$((_score + 40))
-    [[ $_lname =~ ^[a-z][a-z0-9]?$ || $_lname == "app.exe" ]] && _score=$((_score - 30))
+    [[ $_stem =~ ^[a-z][a-z0-9]?$ || $_lname == "app.exe" ]] && _score=$((_score - 30))
 
     printf '%s\n' "$_score"
 }

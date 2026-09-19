@@ -318,6 +318,87 @@ EOF
     [[ ${DETECTED_GAME_EXES[0]} == "AutoDetectGame.exe" ]]
 }
 
+test_exe_score_keeps_names_that_only_contain_utility_words() {
+    local _name _score
+
+    # Each name contains a utility word ("eac", "test", "asp", "check") as a
+    # substring but is an ordinary game executable.
+    for _name in reach.exe latest.exe teacher.exe aspect.exe wasp.exe beacon.exe contest.exe checkers.exe; do
+        _score=$(scoreExeCandidate "/games/Anything" "$_name")
+        if [[ $_score -lt 50 ]]; then
+            echo "$_name scored $_score, expected at least 50" >&2
+            return 1
+        fi
+    done
+}
+
+test_exe_score_still_penalizes_utility_executables() {
+    local _name _score
+
+    for _name in unins000.exe vc_redist.x64.exe UnityCrashHandler64.exe UnityCrashHandler32.exe \
+        EasyAntiCheat.exe EasyAntiCheat_Setup.exe crashpad_handler.exe CrashReporter.exe \
+        setup.exe Setup_x64.exe uninstall.exe installer.exe launcher.exe GameLauncher.exe \
+        eac.exe EAC_Launcher.exe test.exe update.exe Updater.exe error.exe benchmark.exe \
+        remove.exe UnityPlayer.exe DXSETUP.exe dxsetup.exe Errors.exe; do
+        _score=$(scoreExeCandidate "/games/Anything" "$_name")
+        if [[ $_score -ge 0 ]]; then
+            echo "$_name scored $_score, expected a negative score" >&2
+            return 1
+        fi
+    done
+}
+
+test_exe_score_penalizes_very_short_names() {
+    local _name _score
+
+    for _name in a.exe ab.exe x1.exe; do
+        _score=$(scoreExeCandidate "/games/Anything" "$_name")
+        if [[ $_score -ge 50 ]]; then
+            echo "$_name scored $_score, expected a penalty below 50" >&2
+            return 1
+        fi
+    done
+}
+
+test_exe_score_ignores_parent_name_bonus_when_it_has_no_letters() {
+    local _score
+
+    _score=$(scoreExeCandidate "/games/!!!" "zzz.exe")
+    [[ $_score -eq 50 ]]
+}
+
+test_exe_pick_best_finds_single_exe_with_utility_substring() {
+    local _game_dir="$TEST_GAMES_DIR/ReachGame"
+    local _result
+
+    mkdir -p "$_game_dir"
+    touch "$_game_dir/reach.exe"
+
+    _result=$(pickBestExeInDir "$_game_dir")
+    [[ $_result == "reach.exe" ]]
+}
+
+test_detect_steam_games_keeps_game_whose_only_exe_has_utility_substring() {
+    local steamapps_dir="$HOME/.local/share/Steam/steamapps"
+
+    mkdir -p "$steamapps_dir/common/Reach"
+    touch "$steamapps_dir/common/Reach/reach.exe"
+    cat > "$steamapps_dir/appmanifest_111.acf" <<'EOF'
+"AppState"
+{
+    "appid"        "111"
+    "name"         "Reach"
+    "installdir"   "Reach"
+    "type"         "game"
+}
+EOF
+
+    detectSteamGames
+
+    [[ ${#DETECTED_GAME_APPIDS[@]} -eq 1 ]]
+    [[ ${DETECTED_GAME_EXES[0]} == "reach.exe" ]]
+}
+
 run_detection_tests() {
     echo -e "${BLUE}Exe Detection Tests${NC}"
     run_test "Warhammer 40K exe selection" test_exe_warhammer
@@ -326,6 +407,11 @@ run_detection_tests() {
     run_test "No exes handling" test_exe_no_exes
     run_test "Utility-only dirs return empty" test_exe_all_utilities_returns_empty
     run_test "Name matching bonus" test_exe_name_match
+    run_test "Keeps names that only contain utility words" test_exe_score_keeps_names_that_only_contain_utility_words
+    run_test "Still penalizes utility executables" test_exe_score_still_penalizes_utility_executables
+    run_test "Penalizes very short names" test_exe_score_penalizes_very_short_names
+    run_test "Parent-name bonus ignores letterless folders" test_exe_score_ignores_parent_name_bonus_when_it_has_no_letters
+    run_test "Best exe finds reach.exe alone" test_exe_pick_best_finds_single_exe_with_utility_substring
     echo ""
 
     echo -e "${BLUE}Icon Detection Tests${NC}"
@@ -365,5 +451,6 @@ run_detection_tests() {
     run_test "Custom install-dir preset wins" test_install_dir_uses_custom_preset_when_present
     run_test "Install dir scan fallback finds nested exe" test_install_dir_scan_fallback_finds_best_nested_exe
     run_test "Manifest autodetect resolves install path" test_detect_steam_games_reads_manifest_install_path
+    run_test "Autodetect keeps game with utility-like exe name" test_detect_steam_games_keeps_game_whose_only_exe_has_utility_substring
     echo ""
 }
