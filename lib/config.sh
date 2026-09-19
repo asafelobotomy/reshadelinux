@@ -10,6 +10,10 @@ function init_runtime_config() {
     [[ $_backend_rc -eq 0 ]] || return $_backend_rc
     _UI_BACKEND="$_backend_value"
 
+    if [[ ${UI_AUTO_CONFIRM:-0} == 1 ]]; then
+        printf '%bWarning: UI_AUTO_CONFIRM=1 answers every dialog automatically. It is a testing hook.%b\n' "$_YLW" "$_R" >&2
+    fi
+
     _CURL_PROG=(--progress-bar)
     [[ $_UI_BACKEND != cli ]] && _CURL_PROG=(--silent)
 

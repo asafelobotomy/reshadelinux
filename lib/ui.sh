@@ -165,7 +165,7 @@ function ui_msgbox() {
     case $_UI_BACKEND in
         yad)
             read -r _pxHeight _pxWidth < <(ui_yad_dims "$_height" "$_width")
-            ui_run yad --info --title="$_title" --text="$_text" --height="$_pxHeight" --width="$_pxWidth" >/dev/null 2>&1
+            ui_run yad --info --no-markup --title="$_title" --text="$_text" --height="$_pxHeight" --width="$_pxWidth" >/dev/null 2>&1
             ;;
         whiptail) ui_run whiptail --clear --title "$_title" --msgbox "$_text" "$_height" "$_width" ;;
         dialog) ui_run dialog --clear --title "$_title" --msgbox "$_text" "$_height" "$_width" ;;
@@ -180,7 +180,7 @@ function ui_yesno() {
     case $_UI_BACKEND in
         yad)
             read -r _pxHeight _pxWidth < <(ui_yad_dims "$_height" "$_width")
-            ui_run yad --question --title="$_title" --text="$_text" --height="$_pxHeight" --width="$_pxWidth" >/dev/null 2>&1
+            ui_run yad --question --no-markup --title="$_title" --text="$_text" --height="$_pxHeight" --width="$_pxWidth" >/dev/null 2>&1
             ;;
         whiptail) ui_run whiptail --clear --title "$_title" --yesno "$_text" "$_height" "$_width" ;;
         dialog) ui_run dialog --clear --title "$_title" --yesno "$_text" "$_height" "$_width" ;;

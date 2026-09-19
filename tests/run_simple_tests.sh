@@ -79,6 +79,11 @@ source "$SCRIPT_DIR/suites/repos_suite.sh" || {
     echo "Failed to source suites/repos_suite.sh"
     exit 1
 }
+# shellcheck source=./suites/ui_suite.sh
+source "$SCRIPT_DIR/suites/ui_suite.sh" || {
+    echo "Failed to source suites/ui_suite.sh"
+    exit 1
+}
 # shellcheck source=./suites/cli_suite.sh
 source "$SCRIPT_DIR/suites/cli_suite.sh" || {
     echo "Failed to source suites/cli_suite.sh"
@@ -185,6 +190,7 @@ main() {
     run_install_tests
     run_update_tests
     run_repo_sync_tests
+    run_ui_tests
     run_cli_tests
 
     echo -e "${BLUE}========================================${NC}"
