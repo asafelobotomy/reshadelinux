@@ -33,7 +33,7 @@ print_detected_game_duplicate_counts() {
     local appid count
 
     for appid in "${DETECTED_GAME_APPIDS[@]}"; do
-        ((appid_counts["$appid"]++))
+        appid_counts["$appid"]=$(( ${appid_counts["$appid"]:-0} + 1 ))
     done
 
     for appid in "${!appid_counts[@]}"; do

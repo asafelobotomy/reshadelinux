@@ -4,7 +4,7 @@
 set -eu
 
 DIAGNOSTICS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_DIR="$(cd "$DIAGNOSTICS_DIR/../.." && pwd)"
+REPO_DIR="$(cd "$DIAGNOSTICS_DIR/../../.." && pwd)"
 
 source "$REPO_DIR/lib/logging.sh"
 source "$REPO_DIR/lib/ui.sh"
