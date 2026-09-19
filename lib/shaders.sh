@@ -12,11 +12,17 @@ function _gitNoPrompt() {
 
 # Fast-forward a managed shader clone. When upstream history was rewritten a
 # fast-forward can never succeed, so re-sync to upstream instead, but only when the
-# clone has no local edits or untracked files: those may be the user's own tweaks.
+# clone holds nothing of the user's: no local commits, edits or untracked files.
+# The local commits are counted before `pull`, because pull fetches first and moves
+# the remote-tracking ref, after which the comparison would be meaningless.
 function _updateShaderRepoClone() {
-    local _dir="$1"
+    local _dir="$1" _knownUpstream _localCommits
+
+    _knownUpstream=$(_gitNoPrompt -C "$_dir" rev-parse '@{upstream}') || return 1
+    _localCommits=$(_gitNoPrompt -C "$_dir" rev-list --count "$_knownUpstream..HEAD") || return 1
 
     _gitNoPrompt -C "$_dir" pull --ff-only && return 0
+    [[ $_localCommits -eq 0 ]] || return 1
     [[ -z $(_gitNoPrompt -C "$_dir" status --porcelain) ]] || return 1
     _gitNoPrompt -C "$_dir" fetch --depth 1 || return 1
     _gitNoPrompt -C "$_dir" reset --hard '@{upstream}'

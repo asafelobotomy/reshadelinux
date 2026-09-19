@@ -97,11 +97,34 @@ test_shader_repo_sync_runs_git_without_credential_prompts() {
     assert_fails grep -qv '^0$' "$_log"
 }
 
+test_shader_repo_update_never_discards_local_commits() {
+    local _url _clone _status=0
+
+    _url=$(_make_upstream_repo repo-a "v1")
+    _prepare_repo_sync_environment "$_url"
+    ensureSelectedShaderRepos "repo-a" >/dev/null 2>&1
+    _clone="$MAIN_PATH/ReShade_shaders/repo-a"
+
+    # A committed local change leaves a perfectly clean working tree.
+    printf 'my committed tweak\n' > "$_clone/Shaders/marker.fx"
+    git -C "$_clone" -c user.name=me -c user.email=me@example.invalid commit -q -am "local tweak"
+    [[ -z $(git -C "$_clone" status --porcelain) ]]
+
+    _force_push_new_history repo-a "v2"
+    ensureSelectedShaderRepos "repo-a" >/dev/null 2>&1 || _status=$?
+
+    [[ $_status -ne 0 ]]
+    [[ $_failedRepos == repo-a ]]
+    [[ $(<"$_clone/Shaders/marker.fx") == "my committed tweak" ]]
+    [[ $(git -C "$_clone" log -1 --format=%s) == "local tweak" ]]
+}
+
 run_repo_sync_tests() {
     echo -e "${BLUE}Shader Repository Sync Tests${NC}"
     run_test "Clone follows the upstream branch" test_shader_repo_clone_then_update_follows_normal_upstream_commits
     run_test "Update recovers from rewritten upstream history" test_shader_repo_update_recovers_when_upstream_history_was_rewritten
     run_test "Update never discards local edits" test_shader_repo_update_never_discards_local_edits
+    run_test "Update never discards local commits" test_shader_repo_update_never_discards_local_commits
     run_test "Sync runs git without credential prompts" test_shader_repo_sync_runs_git_without_credential_prompts
     echo ""
 }
