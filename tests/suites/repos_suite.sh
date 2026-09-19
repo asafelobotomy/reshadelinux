@@ -91,7 +91,7 @@ test_shader_repo_sync_runs_git_without_credential_prompts() {
     PATH="$_stub:$PATH" ensureSelectedShaderRepos "repo-a" >/dev/null 2>&1 || true
 
     [[ -s $_log ]]
-    ! grep -qv '^0$' "$_log"
+    assert_fails grep -qv '^0$' "$_log"
 }
 
 run_repo_sync_tests() {

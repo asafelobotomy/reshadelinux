@@ -66,8 +66,8 @@ test_extra_dll_overrides_extend_the_known_list_and_ignore_invalid_entries() {
     isKnownDllOverride winmm
     isKnownDllOverride version
     isKnownDllOverride dxgi
-    ! isKnownDllOverride bad-name
-    ! isKnownDllOverride ../evil
+    assert_fails isKnownDllOverride bad-name
+    assert_fails isKnownDllOverride ../evil
     [[ " $COMMON_OVERRIDES " != *" bad-name "* ]]
 }
 
@@ -112,7 +112,7 @@ test_batch_update_accepts_a_tracked_extra_dll_only_when_it_is_configured() {
 
     unset EXTRA_DLL_OVERRIDES
     init_test_runtime_defaults
-    ! validateBatchUpdateState "$_state"
+    assert_fails validateBatchUpdateState "$_state"
 
     export EXTRA_DLL_OVERRIDES="winmm"
     init_test_runtime_defaults
@@ -240,7 +240,7 @@ test_detaching_game_shaders_is_a_no_op_when_nothing_is_there() {
 }
 
 test_no_code_path_deletes_a_game_shader_directory_outright() {
-    ! grep -rnE 'rm -rf "[^"]*ReShade_shaders"' "$REPO_DIR/lib"
+    assert_fails grep -rqE 'rm -rf "[^"]*ReShade_shaders"' "$REPO_DIR/lib"
 }
 
 test_download_url_check_accepts_only_official_setup_urls() {

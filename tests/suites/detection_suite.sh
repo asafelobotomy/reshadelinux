@@ -137,7 +137,7 @@ test_appimage_apprun_delegates_to_gui_wrapper() {
 }
 
 test_ui_backend_rejects_invalid_override() {
-    ! UI_BACKEND=broken chooseUiBackend 1 >/dev/null 2>&1
+    ( UI_BACKEND=broken; assert_fails chooseUiBackend 1 )
 }
 
 test_preset_cyberpunk() {

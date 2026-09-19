@@ -45,7 +45,7 @@ test_fatal_error_dialog_treats_text_as_plain_text() {
 
 test_progress_dialog_keeps_its_intentional_markup() {
     grep -q '<tt>' "$REPO_DIR/lib/shaders.sh"
-    ! grep -q -- '--no-markup' <(grep -n 'yad --progress' "$REPO_DIR/lib/utils.sh")
+    assert_fails grep -q -- '--no-markup' <(grep -n 'yad --progress' "$REPO_DIR/lib/utils.sh")
 }
 
 test_ui_auto_confirm_announces_itself_at_startup() {
