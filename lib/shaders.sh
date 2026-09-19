@@ -2,22 +2,40 @@
 
 # Shader repository sync, per-game ini/preset files, and the selection UI.
 
+# Run git without ever asking for credentials (a repository that was renamed or made
+# private would otherwise block on a prompt) and give up on a stalled connection.
+function _gitNoPrompt() {
+    GIT_TERMINAL_PROMPT=0 git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=60 "$@"
+}
+
+# Fast-forward a managed shader clone. When upstream history was rewritten a
+# fast-forward can never succeed, so re-sync to upstream instead, but only when the
+# clone has no local edits or untracked files: those may be the user's own tweaks.
+function _updateShaderRepoClone() {
+    local _dir="$1"
+
+    _gitNoPrompt -C "$_dir" pull --ff-only && return 0
+    [[ -z $(_gitNoPrompt -C "$_dir" status --porcelain) ]] || return 1
+    _gitNoPrompt -C "$_dir" fetch --depth 1 || return 1
+    _gitNoPrompt -C "$_dir" reset --hard '@{upstream}'
+}
+
 # Clone or update selected shader repositories; records failures in _failedRepos.
 function ensureSelectedShaderRepos() {
     local _selectedRepos="$1"
     [[ -z $_selectedRepos ]] && return 0
-    local _entry _status
+    local _entry _status _repoDir
     _failedRepos=""
 
     while IFS= read -r _entry || [[ -n $_entry ]]; do
         parseShaderRepoEntry "$_entry"
         repoIsSelected "$_selectedRepos" "$_shaderRepoName" || continue
-        if [[ -d "$MAIN_PATH/ReShade_shaders/$_shaderRepoName" ]]; then
+        _repoDir="$MAIN_PATH/ReShade_shaders/$_shaderRepoName"
+        if [[ -d $_repoDir ]]; then
             if [[ $UPDATE_RESHADE -eq 1 ]]; then
-                cd "$MAIN_PATH/ReShade_shaders/$_shaderRepoName" || continue
                 printf '%bUpdating shader repo:%b %s\n' "$_GRN" "$_R" "$_shaderRepoUri"
                 withProgress "Updating shader repo:\n<tt>$_shaderRepoUri</tt>" \
-                    git pull --ff-only
+                    _updateShaderRepoClone "$_repoDir"
                 _status=$?
                 if [[ $_status -ne 0 ]]; then
                     printf '%bCould not update shader repo: %s%b\n' "$_YLW" "$_shaderRepoUri" "$_R"
@@ -26,12 +44,11 @@ function ensureSelectedShaderRepos() {
             fi
         else
             mkdir -p "$MAIN_PATH/ReShade_shaders" || exit
-            cd "$MAIN_PATH/ReShade_shaders" || exit
             local branchArgs=()
             [[ -n $_shaderRepoBranch ]] && branchArgs=(--branch "$_shaderRepoBranch" --single-branch)
             printf '%bCloning shader repo:%b %s\n' "$_GRN" "$_R" "$_shaderRepoUri"
             withProgress "Cloning shader repo:\n<tt>$_shaderRepoUri</tt>" \
-                git clone --depth 1 "${branchArgs[@]}" "$_shaderRepoUri" "$_shaderRepoName"
+                _gitNoPrompt clone --depth 1 "${branchArgs[@]}" "$_shaderRepoUri" "$_repoDir"
             _status=$?
             if [[ $_status -ne 0 ]]; then
                 printf '%bCould not clone shader repo: %s%b\n' "$_YLW" "$_shaderRepoUri" "$_R"
