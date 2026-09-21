@@ -128,7 +128,7 @@ function getGamePath() {
                 --text="Detected installed Steam games. Double-click to select, or choose Manual path." \
                 --column="Key" --column="Game" --column="App ID" --column="Executable" \
                 --hide-column=1 --print-column=1 --separator="" \
-                --height="$_pxHeight" --width="$_pxWidth" "${_items[@]}" 2>/dev/null) || exit 0
+                --height="$_pxHeight" --width="$_pxWidth" "${_items[@]}") || exit 0
         else
             for ((_i=0; _i<${#DETECTED_GAME_PATHS[@]}; _i++)); do
                 _displayName=$(formatDetectedGameLabel "${DETECTED_GAME_NAMES[_i]}" "${DETECTED_GAME_APPIDS[_i]}" "${DETECTED_GAME_PATHS[_i]}")

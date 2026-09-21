@@ -71,6 +71,30 @@ source "$SCRIPT_DIR/suites/shader_requirements_suite.sh" || {
     exit 1
 }
 
+# shellcheck source=./suites/compile_check_report_suite.sh
+source "$SCRIPT_DIR/suites/compile_check_report_suite.sh" || {
+    echo "Failed to source suites/compile_check_report_suite.sh"
+    exit 1
+}
+
+# shellcheck source=./suites/compile_check_suite.sh
+source "$SCRIPT_DIR/suites/compile_check_suite.sh" || {
+    echo "Failed to source suites/compile_check_suite.sh"
+    exit 1
+}
+
+# shellcheck source=./suites/gui_launch_suite.sh
+source "$SCRIPT_DIR/suites/gui_launch_suite.sh" || {
+    echo "Failed to source suites/gui_launch_suite.sh"
+    exit 1
+}
+
+# shellcheck source=./suites/gui_flow_suite.sh
+source "$SCRIPT_DIR/suites/gui_flow_suite.sh" || {
+    echo "Failed to source suites/gui_flow_suite.sh"
+    exit 1
+}
+
 # shellcheck source=./suites/flow_suite.sh
 source "$SCRIPT_DIR/suites/flow_suite.sh" || {
     echo "Failed to source suites/flow_suite.sh"
@@ -226,9 +250,13 @@ main() {
     run_update_tests
     run_repo_sync_tests
     run_ui_tests
+    run_gui_flow_tests
+    run_gui_launch_tests
     run_pe_tests
     run_release_tests
     run_diagnostics_tests
+    run_compile_check_report_tests
+    run_compile_check_tests
     run_cli_tests
 
     echo -e "${BLUE}========================================${NC}"

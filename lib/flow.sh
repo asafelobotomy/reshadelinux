@@ -180,6 +180,11 @@ function performDirectXUninstall() {
     fi
     printf '%bFinished uninstalling ReShade for:%b %s\n' "$_GRN$_B" "$_R" "$gamePath"
     printf '%bMake sure to remove or unset the %bWINEDLLOVERRIDES%b environment variable.%b\n' "$_GRN" "$_CYN$_B" "$_R$_GRN" "$_R"
+    # whiptail and dialog run in a terminal, where the lines above are already visible.
+    if [[ $_UI_BACKEND == yad ]]; then
+        ui_msgbox "ReShade - Uninstall Complete" \
+            "ReShade was removed from:\n$gamePath\n\nRemove the WINEDLLOVERRIDES setting from the game's Steam launch options." 12 74
+    fi
     exit 0
 }
 
@@ -287,7 +292,7 @@ function exitWhenBatchUpdateHasNothingToDo() {
 }
 
 function maybeHandleBatchUpdate() {
-    local _stateDir _ok _fail _sf _gameKey _requestedRepos
+    local _stateDir _ok _fail _sf _gameKey _requestedRepos _summary
 
     [[ $_BATCH_UPDATE -eq 1 ]] || return
 
@@ -311,6 +316,11 @@ function maybeHandleBatchUpdate() {
     done
     printf '%bBatch update complete: %d game(s) updated, %d skipped.%b\n' \
         "$_GRN$_B" "$_ok" "$_fail" "$_R"
+    if [[ $_UI_BACKEND == yad ]]; then
+        _summary="Updated $_ok game(s); skipped $_fail."
+        [[ $_fail -eq 0 ]] || _summary+="\n\nA skipped game is missing ReShade files or its folder moved. Install it again from the main menu."
+        ui_msgbox "ReShade - Update Complete" "$_summary" 12 70
+    fi
     exit 0
 }
 

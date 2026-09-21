@@ -73,12 +73,13 @@ function ensureSelectedShaderRepos() {
 # ReShade only searches subfolders of a search path that ends in "\**", and packs keep
 # effects in subfolders (SweetFX, CameraFilterPack ...), so an ini written by an older
 # version, which named the merged folders without it, hid them. Only lines that are exactly
-# what we wrote are changed; a search path list the user edited is left alone.
+# what we wrote are changed; a search path list the user edited is left alone. A symlinked
+# ini (shared between games) is edited in place, not replaced by a copy.
 function _migrateSearchPathsToRecursive() {
     local _ini="$1"
 
     grep -Eq '^(Effect|Texture)SearchPaths=\.\\ReShade_shaders\\Merged\\(Shaders|Textures)'$'\r''?$' "$_ini" || return 0
-    sed -i -E 's/^(EffectSearchPaths=\.\\ReShade_shaders\\Merged\\Shaders)(\r?)$/\1\\**\2/;
+    sed -i --follow-symlinks -E 's/^(EffectSearchPaths=\.\\ReShade_shaders\\Merged\\Shaders)(\r?)$/\1\\**\2/;
         s/^(TextureSearchPaths=\.\\ReShade_shaders\\Merged\\Textures)(\r?)$/\1\\**\2/' "$_ini" \
         || logDebug "Could not migrate the search paths in $_ini"
 }

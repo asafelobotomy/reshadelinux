@@ -89,3 +89,47 @@ jobs:
 
       - name: Validate desktop entry
         run: desktop-file-validate packaging/appimage/AppDir/io.github.asafelobotomy.reshadelinux.desktop
+
+  # Real yad dialogs on a virtual display. Ubuntu 22.04 and 24.04 ship yad 0.42, an older release
+  # than the one the dialogs were audited on, so this is where option differences show up. It does
+  # not block merging until it has proven stable on both runners.
+  gui-smoke:
+    name: GUI smoke (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-22.04
+          - ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            bash coreutils curl file git p7zip-full python3 sed \
+            yad xvfb xdotool openbox imagemagick
+
+      - name: Show tool versions
+        run: |
+          yad --version
+          bash --version | head -n 1
+          xdotool version
+
+      - name: Run yad smoke test
+        env:
+          SMOKE_YAD_SHOTS: ${{ runner.temp }}/yad-shots
+        run: bash scripts/diagnostics/smoke_yad.sh
+
+      - name: Keep the dialog screenshots when it fails
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: yad-smoke-${{ matrix.os }}
+          path: ${{ runner.temp }}/yad-shots
+          if-no-files-found: ignore

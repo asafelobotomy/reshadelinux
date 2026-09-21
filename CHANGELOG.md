@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, adapted for this repository.
 
+## [Unreleased]
+
+### Fixed
+
+- Graphical interface: message, question and error dialogs never appeared on current yad (yad 15 has no `--info`, `--question` or `--error` and the wrapper hid its complaint). The shader download and installation-complete dialogs were missing, fatal errors were invisible under the GUI, and every yes/no question was silently answered No. They now use plain dialogs with an icon and buttons, and yad's own messages go to the debug log.
+- Graphical interface: choosing "Uninstall" or "Update all" by clicking its label and pressing OK started an install instead, because the action list was a radio list that keeps its pre-selected radio. Single-choice lists now answer with the highlighted row.
+- Graphical interface: game and pack names containing `<` or `>` were corrupted on bash 5.2 and newer (an unquoted `&` in a bash replacement means "the matched text").
+- Graphical interface: uninstall and update-all now finish with a dialog (the folder that was cleaned, the number of games updated and skipped). Before, the result was printed only to a terminal that a menu launch does not have. whiptail and dialog keep the terminal summary and get no extra dialog.
+- Graphical interface: Enter on a question answers Yes, as in whiptail and dialog.
+- An existing `ReShade.ini` that is a symlink (shared between games) is updated in place when its search paths are corrected. Version 1.3.3 replaced the link with a copy.
+- Graphical interface: dialogs, including the fatal-error dialog, still open when the temporary directory is full or unwritable; before, yad's message capture failed first and nothing appeared.
+- Graphical interface: the terminal fallback of `reshadelinux-gui.sh` passes on the installer's own exit status (read back from the terminal run, because xterm and others always exit 0) and no longer starts the install a second time in another terminal emulator after a cancel or an error.
+- `ui_menu` no longer aborts when its caller runs under `set -e`.
+- Launching `reshadelinux-gui.sh` from the application menu without `yad` used to do nothing visible. It now opens a terminal emulator for the text interface (or shows a desktop notification when there is none).
+
+### Added
+
+- `scripts/diagnostics/smoke_yad.sh`: an opt-in smoke test that drives the real yad dialogs end to end on a private X server, plus an experimental `gui-smoke` CI job that runs it on Ubuntu 22.04 and 24.04.
+- `docs/testing/`: smoke checklists for launch and packaging, every GUI dialog in order, the manage flows, dialog behaviour, the terminal interfaces, shader packs in a real game, errors and edge cases, and a short release pass, with the audit that produced them.
+- `scripts/diagnostics/compile_check.sh`, an opt-in check that runs the real ReShade under GE-Proton against the merged shader directory of any packs and reports which effects compile. It is how the 1.3.3 fixes were found and verified. It downloads pinned, checksum-verified tools into its own cache directory, never touches the real workspace, and is not part of CI.
+
 ## [1.3.3] - 2026-09-21
 
 ### Added in 1.3.3

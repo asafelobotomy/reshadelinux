@@ -40,7 +40,7 @@ cd reshadelinux
 ./reshadelinux.sh
 ```
 
-Install `yad` when you want the graphical flow. If `yad` is unavailable, the script falls back to `whiptail`, then `dialog`, then plain CLI prompts.
+Install `yad` when you want the graphical flow. If `yad` is unavailable, the script falls back to `whiptail`, then `dialog`, then plain CLI prompts. When it is started from the application menu (no terminal) without `yad`, `reshadelinux-gui.sh` opens a terminal emulator for the text interface instead of doing nothing.
 
 ## See what the installer handles
 

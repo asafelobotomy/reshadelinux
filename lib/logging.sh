@@ -15,7 +15,7 @@ function printStep() {
 function printErr() {
     printf '%b[ERROR] %s%b\n' "$_RED$_B" "$*" "$_R" >&2
     if [[ ${_UI_BACKEND:-cli} == yad ]]; then
-        yad --error --no-markup --title="ReShade - Error" --text="$*" --width=520 >/dev/null 2>&1 || true
+        ui_error "ReShade - Error" "$*"
     fi
     exit 1
 }

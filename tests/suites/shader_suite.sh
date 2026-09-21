@@ -230,6 +230,18 @@ test_game_ini_migration_is_idempotent() {
     grep -Fqx 'EffectSearchPaths=.\ReShade_shaders\Merged\Shaders\**' "$_game_dir/ReShade.ini"
 }
 
+test_game_ini_migration_updates_a_symlinked_ini_in_place() {
+    local _game_dir="$TEST_TEMP_DIR/link-ini-game" _shared="$TEST_TEMP_DIR/shared-ReShade.ini"
+    mkdir -p "$_game_dir"
+    printf '[GENERAL]\nEffectSearchPaths=.\\ReShade_shaders\\Merged\\Shaders\n' > "$_shared"
+    ln -s "$_shared" "$_game_dir/ReShade.ini"
+
+    ensureGameIni "$_game_dir"
+
+    [[ -L "$_game_dir/ReShade.ini" ]]
+    grep -Fqx 'EffectSearchPaths=.\ReShade_shaders\Merged\Shaders\**' "$_shared"
+}
+
 test_game_ini_migration_leaves_custom_search_paths_alone() {
     local _game_dir="$TEST_TEMP_DIR/custom-ini-game"
     mkdir -p "$_game_dir"
@@ -348,5 +360,6 @@ run_shader_tests() {
     run_test "Old non-recursive ReShade.ini paths are migrated" test_game_ini_migrates_the_old_non_recursive_search_paths
     run_test "ReShade.ini migration is idempotent" test_game_ini_migration_is_idempotent
     run_test "ReShade.ini migration keeps custom search paths" test_game_ini_migration_leaves_custom_search_paths_alone
+    run_test "ReShade.ini migration follows a symlinked ini" test_game_ini_migration_updates_a_symlinked_ini_in_place
     echo ""
 }
