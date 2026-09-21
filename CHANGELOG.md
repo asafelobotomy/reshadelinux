@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, adapted for this repository.
 
+## [Unreleased]
+
+### Fixed
+
+- `reshadelinux-gui.sh` opens the terminal fallback (added in 1.3.4) only for a launch without arguments, which is what a menu launch is. A run with arguments, such as a script or the release tool's `--update-all` check on a machine with a display and a terminal emulator, no longer gets a terminal window that waits for Enter.
+
 ## [1.3.4] - 2026-09-21
 
 ### Fixed in 1.3.4

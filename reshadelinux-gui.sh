@@ -56,8 +56,10 @@ if command -v yad >/dev/null 2>&1; then
 else
     printf 'Warning: yad is not installed; falling back to the default UI backend.\n' >&2
     # The text interface needs a terminal, and a desktop launch (Terminal=false) has none, so
-    # without this the application would simply never appear.
-    if [[ ! -t 0 && ! -t 1 && -n ${DISPLAY:-}${WAYLAND_DISPLAY:-} && -z ${RESHADELINUX_IN_TERMINAL:-} ]]; then
+    # without this the application would simply never appear. A desktop launch passes no
+    # arguments: a run with arguments is a script or a shortcut (the release tool's --update-all
+    # check, cron), and a window that waits for Enter would hang it.
+    if [[ $# -eq 0 && ! -t 0 && ! -t 1 && -n ${DISPLAY:-}${WAYLAND_DISPLAY:-} && -z ${RESHADELINUX_IN_TERMINAL:-} ]]; then
         if open_in_terminal "$@"; then
             exit "$TERMINAL_STATUS"
         fi

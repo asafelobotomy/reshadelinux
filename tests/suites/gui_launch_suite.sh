@@ -34,9 +34,16 @@ _add_fake_program() {
     chmod +x "$TEST_TEMP_DIR/wrapper-bin/$_name"
 }
 
+# A menu launch passes no arguments, so that is what the terminal-fallback tests do; a run with
+# arguments is a script or a shortcut and is covered by _run_wrapper_with_arguments.
 _run_wrapper() {
     env -i PATH="$TEST_TEMP_DIR/wrapper-bin" HOME="$TEST_TEMP_DIR" "$@" \
-        "$TEST_TEMP_DIR/wrapper/reshadelinux-gui.sh" --cli --game-path=/g 2>&1 </dev/null
+        "$TEST_TEMP_DIR/wrapper/reshadelinux-gui.sh" 2>&1 </dev/null
+}
+
+_run_wrapper_with_arguments() {
+    env -i PATH="$TEST_TEMP_DIR/wrapper-bin" HOME="$TEST_TEMP_DIR" "$@" \
+        "$TEST_TEMP_DIR/wrapper/reshadelinux-gui.sh" --update-all 2>&1 </dev/null
 }
 
 test_wrapper_uses_yad_when_it_is_installed() {
@@ -62,7 +69,7 @@ test_wrapper_opens_a_terminal_when_yad_is_missing_and_launched_from_the_desktop(
 
     [[ $_output != *"BACKEND="* ]]
     grep -q -- '^-e bash -c ' "$TEST_TEMP_DIR/wrapper-xterm.log"
-    grep -q -- 'reshadelinux-gui.sh --cli --game-path=/g' "$TEST_TEMP_DIR/wrapper-xterm.log"
+    grep -q -- 'reshadelinux-gui.sh' "$TEST_TEMP_DIR/wrapper-xterm.log"
     grep -q 'IN_TERMINAL=1' "$TEST_TEMP_DIR/wrapper-xterm.log"
 }
 
@@ -234,6 +241,20 @@ test_wrapper_does_not_open_a_second_terminal_from_inside_one() {
     [[ ! -e $TEST_TEMP_DIR/wrapper-xterm.log ]]
 }
 
+# A menu launch has no arguments. A script (the release tool's `--update-all` check, cron) does, and
+# it must never get a terminal window that waits for Enter.
+test_wrapper_never_opens_a_terminal_for_a_scripted_run_with_arguments() {
+    local _output
+
+    _make_wrapper_sandbox
+    _add_fake_program xterm
+
+    _output=$(_run_wrapper_with_arguments DISPLAY=:0)
+
+    [[ $_output == *"BACKEND=auto"* && $_output == *"ARGS=--update-all"* ]]
+    [[ ! -e $TEST_TEMP_DIR/wrapper-xterm.log ]]
+}
+
 test_wrapper_does_nothing_special_without_a_display() {
     local _output
 
@@ -323,5 +344,6 @@ run_gui_launch_tests() {
     run_test "Smoke failure report skips binary logs" test_smoke_failure_report_skips_binary_logs
     run_test "Wrapper reports the installer's status past an xterm-like emulator" test_wrapper_reports_the_installers_status_even_when_the_terminal_always_exits_zero
     run_test "Wrapper returns zero when the terminal run succeeds" test_wrapper_returns_zero_when_the_run_in_the_terminal_succeeds
+    run_test "Wrapper never opens a terminal for a scripted run" test_wrapper_never_opens_a_terminal_for_a_scripted_run_with_arguments
     echo ""
 }
