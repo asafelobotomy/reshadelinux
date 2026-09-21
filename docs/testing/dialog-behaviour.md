@@ -15,6 +15,9 @@ environments you support, and with each yad version you ship for.
   between paragraphs is kept.
 - [ ] **DLG-05 P0** Text is shown literally: `&`, `<`, `>` and `%` in game names and paths are not
   interpreted as markup. Test with `Tom & Jerry <Demo>` and a path containing `&amp;`.
+- [ ] **DLG-07 P1** Messages that report a problem (path does not exist, unsupported DLL name, packs that could not
+  be downloaded) show a **warning** icon; plain information and results show the information icon.
+  **Auto:** unit tests for the dialog options
 - [ ] **DLG-06 P2** A very long line (a 200-character path) wraps or scrolls without making the window wider
   than the screen.
 

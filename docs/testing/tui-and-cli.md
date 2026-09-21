@@ -42,5 +42,6 @@ The same flows as the GUI, on the text backends. Run with a real terminal.
 - [ ] **CLI-08 P1** Closed standard input (`</dev/null`) ends with "Input closed while waiting for user
   response", not an endless loop.
 - [ ] **CLI-09 P2** `--version`, `-V`, `--help` and `-h` print and exit 0 without touching the data folder.
-- [ ] **CLI-10 P2** Known gap: colour codes are always written, `NO_COLOR` is not honoured, and piping the output
-  (`| tee log.txt`) keeps the escape sequences. Confirm the output is still readable in a plain log viewer.
+- [ ] **CLI-10 P1** Colour is used only on a terminal: `./reshadelinux.sh --version | cat` and a redirect to a file
+  contain no escape sequences, `NO_COLOR=1` turns colour off on a terminal, and `CLICOLOR_FORCE=1` turns it on
+  in a pipe. **Auto:** unit tests, including a pseudo terminal

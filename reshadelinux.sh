@@ -43,6 +43,7 @@ SCRIPT_DIR="$(dirname "$(realpath -- "$0")")"
 
 . "$SCRIPT_DIR/lib/logging.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/logging.sh" >&2; exit 1; }
 . "$SCRIPT_DIR/lib/ui.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/ui.sh" >&2; exit 1; }
+. "$SCRIPT_DIR/lib/ui_auto.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/ui_auto.sh" >&2; exit 1; }
 . "$SCRIPT_DIR/lib/utils.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/utils.sh" >&2; exit 1; }
 . "$SCRIPT_DIR/lib/cli.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/cli.sh" >&2; exit 1; }
 . "$SCRIPT_DIR/lib/config.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/config.sh" >&2; exit 1; }

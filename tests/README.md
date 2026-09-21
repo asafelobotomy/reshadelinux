@@ -23,6 +23,7 @@ bash tests/run_simple_tests.sh
 - `suites/shader_requirements_suite.sh` - packs that require other packs, the always-cloned core headers, and effects that never compile
 - `suites/compile_check_report_suite.sh` - the compile check's log report: compiled, failed, unreported and known-broken effects, from fixture logs
 - `suites/compile_check_suite.sh` - the opt-in Proton compile check: log report parsing, option handling, checksum-verified downloads and the wait logic (no Proton or network)
+- `suites/ui_dialogs_suite.sh` - shader picker select all/none, warning dialogs, and when output is coloured
 - `suites/gui_flow_suite.sh` - what the graphical backend shows at the end of each flow (completion dialogs, and only on yad)
 - `suites/gui_launch_suite.sh` - how the graphical interface starts: the `reshadelinux-gui.sh` wrapper (fake terminals and notifier) and the yad smoke tooling
 - `suites/flow_suite.sh` - UI helpers, dependency checks, ReShade download, and batch-update flows

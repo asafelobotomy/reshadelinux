@@ -83,6 +83,12 @@ source "$SCRIPT_DIR/suites/compile_check_suite.sh" || {
     exit 1
 }
 
+# shellcheck source=./suites/ui_dialogs_suite.sh
+source "$SCRIPT_DIR/suites/ui_dialogs_suite.sh" || {
+    echo "Failed to source suites/ui_dialogs_suite.sh"
+    exit 1
+}
+
 # shellcheck source=./suites/gui_launch_suite.sh
 source "$SCRIPT_DIR/suites/gui_launch_suite.sh" || {
     echo "Failed to source suites/gui_launch_suite.sh"
@@ -250,6 +256,7 @@ main() {
     run_update_tests
     run_repo_sync_tests
     run_ui_tests
+    run_ui_dialog_tests
     run_gui_flow_tests
     run_gui_launch_tests
     run_pe_tests

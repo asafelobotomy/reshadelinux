@@ -6,7 +6,8 @@
 # Put a fake yad first on PATH that records its arguments, one call per line. It rejects
 # the dialog kinds that yad 15 removed (--info, --question, --error, --warning) exactly as the
 # real program does, so a wrapper that still uses them fails here instead of on a user's desktop.
-# YAD_STUB_STATUS sets the exit status of an accepted call; YAD_STUB_STDERR is printed to stderr.
+# YAD_STUB_STATUS sets the exit status of an accepted call, or YAD_STUB_SEQUENCE ("10 0") the status of
+# each call in turn; YAD_STUB_STDERR is printed to stderr.
 _install_recording_yad() {
     local _stub="$TEST_TEMP_DIR/yad-bin" _log="$TEST_TEMP_DIR/yad-args.log"
 
@@ -22,6 +23,14 @@ for _arg in "\$@"; do
     esac
 done
 [ -n "\${YAD_STUB_STDERR:-}" ] && printf '%s\n' "\$YAD_STUB_STDERR" >&2
+if [ -n "\${YAD_STUB_SEQUENCE:-}" ]; then
+    _seq="$_stub/yad-sequence"
+    [ -f "\$_seq" ] || printf '%s\n' "\$YAD_STUB_SEQUENCE" > "\$_seq"
+    _first=\$(cut -d' ' -f1 "\$_seq")
+    _rest=\$(cut -s -d' ' -f2- "\$_seq")
+    printf '%s\n' "\$_rest" > "\$_seq"
+    exit "\$_first"
+fi
 exit "\${YAD_STUB_STATUS:-0}"
 EOF
     chmod +x "$_stub/yad"
