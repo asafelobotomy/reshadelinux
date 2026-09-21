@@ -19,6 +19,8 @@ bash tests/run_simple_tests.sh
 - `suites/state_suite.sh` - per-game state, repo selection helpers, and shader repo entry parsing
 - `suites/release_metadata_suite.sh` - `VERSION` and `CHANGELOG.md` consistency
 - `suites/shader_suite.sh` - per-game shader directory construction, selection, and `ReShade.ini` generation
+- `suites/shader_layout_suite.sh` - shader repo layouts: directory-name case and effects kept at the repo root
+- `suites/shader_requirements_suite.sh` - packs that require other packs, the always-cloned core headers, and effects that never compile
 - `suites/flow_suite.sh` - UI helpers, dependency checks, ReShade download, and batch-update flows
 - `suites/deps_suite.sh` - missing-dependency reporting: package names per manager, stderr output, and the yad error dialog
 - `suites/install_suite.sh` - hash pin and download URL checks, DLL override entry, temp-dir cleanup, linking, and uninstall

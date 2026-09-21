@@ -30,8 +30,10 @@ function _updateShaderRepoClone() {
 
 # Clone or update selected shader repositories; records failures in _failedRepos.
 function ensureSelectedShaderRepos() {
-    local _selectedRepos="$1"
+    local _selectedRepos
+    _selectedRepos=$(resolveShaderRepoRequirements "$1")
     [[ -z $_selectedRepos ]] && return 0
+    _selectedRepos+="${SHADER_CORE_REPOS:+,$SHADER_CORE_REPOS}"
     local _entry _status _repoDir
     _failedRepos=""
 
@@ -68,17 +70,33 @@ function ensureSelectedShaderRepos() {
     return 0
 }
 
+# ReShade only searches subfolders of a search path that ends in "\**", and packs keep
+# effects in subfolders (SweetFX, CameraFilterPack ...), so an ini written by an older
+# version, which named the merged folders without it, hid them. Only lines that are exactly
+# what we wrote are changed; a search path list the user edited is left alone.
+function _migrateSearchPathsToRecursive() {
+    local _ini="$1"
+
+    grep -Eq '^(Effect|Texture)SearchPaths=\.\\ReShade_shaders\\Merged\\(Shaders|Textures)'$'\r''?$' "$_ini" || return 0
+    sed -i -E 's/^(EffectSearchPaths=\.\\ReShade_shaders\\Merged\\Shaders)(\r?)$/\1\\**\2/;
+        s/^(TextureSearchPaths=\.\\ReShade_shaders\\Merged\\Textures)(\r?)$/\1\\**\2/' "$_ini" \
+        || logDebug "Could not migrate the search paths in $_ini"
+}
+
 # Create a per-game ReShade.ini when needed.
 function ensureGameIni() {
     local _gamePath="$1"
     [[ $GLOBAL_INI == 0 ]] && return 0
     local _target="$_gamePath/ReShade.ini"
-    [[ -f $_target ]] && return 0
+    if [[ -f $_target ]]; then
+        _migrateSearchPathsToRecursive "$_target"
+        return 0
+    fi
     if [[ $GLOBAL_INI == ReShade.ini ]]; then
         cat > "$_target" <<'EOF'
 [GENERAL]
-EffectSearchPaths=.\ReShade_shaders\Merged\Shaders
-TextureSearchPaths=.\ReShade_shaders\Merged\Textures
+EffectSearchPaths=.\ReShade_shaders\Merged\Shaders\**
+TextureSearchPaths=.\ReShade_shaders\Merged\Textures\**
 EOF
         return 0
     fi

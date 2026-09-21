@@ -100,7 +100,7 @@ https://github.com/vortigern11/vort_Shaders|vort-shaders||vort_Shaders|Static an
 https://github.com/liuxd17thu/BX-Shade|bx-shade||BX-Shade|Curve tools, 1D and 3D LUTs;\
 https://github.com/IAmTreyM/SHADERDECK|shaderdeck||SHADERDECK|Film emulation, FSR1 upscaling;\
 https://github.com/martymcmodding/METEOR|meteor-shaders||METEOR|ChromaticAberration, FilmGrain, Halftone, LongExposure, NVSharpen;\
-https://github.com/AnastasiaGals/Ann-ReShade|ann-reshade||Ann-ReShade|Artistic effects, requires CShade;\
+https://github.com/AnastasiaGals/Ann-ReShade|ann-reshade||Ann-ReShade|Artistic effects, requires CShade|cshade;\
 https://github.com/Filoppi/PumboAutoHDR|pumbo-autohdr||AdvancedAutoHDR|AutoHDR and HDR tonemapping helpers;\
 https://github.com/Zenteon/ZenteonFX|zenteon-fx||ZenteonFX|TurboGI, XenonBloom, SSAO, LocalContrast;\
 https://github.com/Mortalitas/GShade-Shaders|gshade-shaders||GShade-Shaders|Legacy GShade collection;\
@@ -108,14 +108,39 @@ https://github.com/PthoEastCoast/Ptho-FX|ptho-fx||Ptho-FX|DownsampleSSAA;\
 https://github.com/GimleLarpes/potatoFX|potato-fx||potatoFX|HDR-compatible color and noise shaders;\
 https://github.com/nullfrctl/reshade-shaders|anagrama-shaders||Anagrama Collection|Cinematic anamorphic and blur effects;\
 https://github.com/MaxG2D/ReshadeSimpleHDRShaders|maxg3d-hdr-shaders||Reshade Simple HDR Shaders|HDR Bloom, MotionBlur, Saturation;\
-https://github.com/BarbatosBachiko/Reshade-Shaders|barbatos-shaders||reshade-shaders by Barbatos|GI, SSR, SSAO, XeGTAO, Deband, NVSharpen;\
+https://github.com/BarbatosAWLS/Reshade-Shaders|barbatos-shaders||reshade-shaders by Barbatos|GI, SSR, SSAO, XeGTAO, Deband, NVSharpen;\
 https://github.com/smolbbsoop/smolbbsoopshaders|smolbbsoop-shaders||smolbbsoopshaders|HDR to SDR converter, RadialBlur;\
-https://github.com/yplebedev/BFBFX|bfbfx-shaders||BFBFX|RTGI and SSAO, requires ZenteonFX;\
+https://github.com/yplebedev/BFBFX|bfbfx-shaders||BFBFX|RTGI and SSAO, requires ZenteonFX|zenteon-fx;\
 https://github.com/outmode/rendepth-reshade|rendepth||Rendepth|Stereoscopic 2D to 3D conversion;\
 https://github.com/P0NYSLAYSTATION/Scaling-Shaders|scaling-shaders||Crop and Resize|Downsample, crop and resize;\
 https://github.com/umar-afzaal/LumeniteFX|lumenite-fx||LumeniteFX|RTAO, LSAO, SSR, AnamorphicBloom;\
-https://github.com/JakobPCoder/Reshade-Shades|jakobpcoder-shades||Shades|TFAA temporal anti-aliasing, requires a depth buffer and iMMERSE LAUNCHPAD;\
-https://github.com/vertver/verfx|verfx||verfx Shaders|Faithful NTSC and retro filters"}
+https://github.com/JakobPCoder/Reshade-Shades|jakobpcoder-shades||Shades|TFAA temporal anti-aliasing, requires a depth buffer and iMMERSE LAUNCHPAD|immerse-shaders;\
+https://github.com/vertver/verfx|verfx||verfx Shaders|Faithful NTSC and retro filters;\
+https://github.com/rj200/Glamarye_Fast_Effects_for_ReShade|glamarye-fast-effects|main|Glamarye Fast Effects|Fast FXAA, AO, sharpening, DOF and fake GI in one shader;\
+https://github.com/lordbean-git/reshade-shaders|lordbean-shaders|main|lordbean Shaders|Quality-focused AA and effects, requires SweetFX|sweetfx-shaders;\
+https://github.com/clshortfuse/renofx|renofx||RenoFX|HDR toolkit ported from RenoDX;\
+https://github.com/martymcmodding/ReShade-Optical-Flow|optical-flow||ReShade Optical Flow|Optical flow motion vectors, requires qUINT|quintfx;\
+https://github.com/bituq/ZealShaders|zeal-shaders||ZealShaders|Collection of personal effects;\
+https://github.com/murchalloo/murchFX|murchfx||murchFX|Assorted colour and lens effects;\
+https://github.com/Zenteon/QuarkFX|quarkfx||QuarkFX|Archived ZenteonFX predecessor: 3D lighting and stylisation;\
+https://github.com/WhiteMagicRaven/fakebilinear2|fakebilinear2||fakebilinear2|Fake bilinear filtering for upscaled pixel art;\
+https://github.com/thatshaman/ReShadeShaders|thatshaman-shaders||shaman ReShade Shaders|Custom effects by thatshaman;\
+https://github.com/KaiserThompson/Reshade-Shaders|kaiserthompson-shaders||KaiserThompson Shaders|UI detection and overall effect, requires ReShade Shaders;\
+https://github.com/DespairArdor/QD-OLED-APL-FIXER|qd-oled-apl-fixer||QD-OLED APL Fixer|Emulates the EOTF Boost feature of QD-OLED monitors;\
+https://github.com/Matsilagi/RSJankShaders|rsjank-shaders||RSJankShaders|Ported Shadertoy and misc effects;\
+https://github.com/Matsilagi/RSUnityShaders|rsunity-shaders||RSUnityShaders|Effects ported from Unity, RetroTV;\
+https://github.com/JakobPCoder/ReshadeTFAA|reshade-tfaa||ReshadeTFAA|Temporal AA add-on, requires iMMERSE LAUNCHPAD|immerse-shaders;\
+https://github.com/JakobPCoder/ReshadeMotionEstimation|reshade-motion-estimation||ReshadeMotionEstimation|Motion estimation library and effect;\
+https://github.com/JakobPCoder/ReshadeBUR|reshade-bur||ReshadeBUR|Bad Upscaling Replacer: better spatial upscaling with FSR1;\
+https://github.com/artzox/CRT-Standalone|crt-standalone||CRT-Standalone|Full CRT signal chain with phosphors and black frame insertion;\
+https://github.com/Riskdiver/CRT-Dusha|crt-dusha||CRT-Dusha|Motion-clarity CRT simulation;\
+https://github.com/Zackin5/Filmic-Tonemapping-ReShade|filmic-tonemapping||Filmic Tonemapping|Gamma-correct filmic tonemapping operators;\
+https://github.com/Zackin5/Misc-ReShade-Shaders|zackin5-misc-shaders||Zackin5 Misc Shaders|Night vision and thermal vision effects;\
+https://github.com/guestrr/ReshadeShaders|guestrr-shaders||guestrr Shaders|CRT and scanline effects;\
+https://github.com/aston89/Smart-vibrance-for-reshade|smart-vibrance||Smart Vibrance|Vibrance that spares already saturated colours;\
+https://github.com/grebord/LXAA-Antialiasing-Shader|lxaa||LXAA|Efficient FXAA v3 based anti-aliasing;\
+https://github.com/grebord/Fast-Adaptive-AA|fast-adaptive-aa||Fast Adaptive AA|FXAA v3 variant with a different edge detector;\
+https://github.com/chuusou/DeTintX|detintx||DeTintX|Removes colour tint while preserving brightness"}
     RESHADE_VERSION=${RESHADE_VERSION:-"latest"}
     RESHADE_ADDON_SUPPORT=${RESHADE_ADDON_SUPPORT:-0}
     FORCE_RESHADE_UPDATE_CHECK=${FORCE_RESHADE_UPDATE_CHECK:-0}
@@ -123,6 +148,14 @@ https://github.com/vertver/verfx|verfx||verfx Shaders|Faithful NTSC and retro fi
     RESHADE_DEBUG_LOG=${RESHADE_DEBUG_LOG:-""}
     BUILTIN_SHADER_EFFECT_EXCLUDES=${BUILTIN_SHADER_EFFECT_EXCLUDES:-"306130|BX_XIV_ChromakeyPlus.fx,GrainSpread.fx,NTSCCustom.fx,NTSC_XOT.fx"}
     SHADER_EFFECT_EXCLUDES=${SHADER_EFFECT_EXCLUDES:-"$BUILTIN_SHADER_EFFECT_EXCLUDES"}
+    # Packs whose headers every other pack includes (ReShade.fxh, ReShadeUI.fxh ...). They are
+    # always cloned and their headers linked, but their effects only appear when selected.
+    SHADER_CORE_REPOS=${SHADER_CORE_REPOS:-"reshade-shaders"}
+    # Effects that fail to compile under ReShade 6.8 with the native d3dcompiler_47.dll on
+    # Proton (checked by running every pack), so they are left out instead of showing an error.
+    # ZenWork.fx (BFBFX) redefines OCTtoUV, which the current ZenteonFX header also defines.
+    # Set it empty to keep them. Paths are relative to a pack's Shaders folder.
+    SHADER_BROKEN_EFFECTS=${SHADER_BROKEN_EFFECTS-"GrainSpread.fx,NTSCCustom.fx,NTSC_XOT.fx,BX_XIV_ChromakeyPlus.fx,TrooCullers.fx,CameraFilterPack/OilPaint.fx,ZenWork.fx"}
     # shellcheck disable=SC2034
     RESHADE_URL="https://reshade.me"
     # shellcheck disable=SC2034

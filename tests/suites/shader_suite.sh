@@ -201,8 +201,45 @@ test_game_ini_is_per_game_and_relative() {
     local _game_dir="$TEST_TEMP_DIR/nonsteam-game"
     mkdir -p "$_game_dir"
     ensureGameIni "$_game_dir"
-    grep -Fqx 'EffectSearchPaths=.\ReShade_shaders\Merged\Shaders' "$_game_dir/ReShade.ini"
-    grep -Fqx 'TextureSearchPaths=.\ReShade_shaders\Merged\Textures' "$_game_dir/ReShade.ini"
+    grep -Fqx 'EffectSearchPaths=.\ReShade_shaders\Merged\Shaders\**' "$_game_dir/ReShade.ini"
+    grep -Fqx 'TextureSearchPaths=.\ReShade_shaders\Merged\Textures\**' "$_game_dir/ReShade.ini"
+}
+
+# ReShade only descends into subfolders when a search path ends in "\**".
+test_game_ini_migrates_the_old_non_recursive_search_paths() {
+    local _game_dir="$TEST_TEMP_DIR/old-ini-game"
+    mkdir -p "$_game_dir"
+    printf '[GENERAL]\r\nEffectSearchPaths=.\\ReShade_shaders\\Merged\\Shaders\r\nTextureSearchPaths=.\\ReShade_shaders\\Merged\\Textures\r\nPerformanceMode=1\r\n' \
+        > "$_game_dir/ReShade.ini"
+
+    ensureGameIni "$_game_dir"
+
+    grep -Fqx $'EffectSearchPaths=.\\ReShade_shaders\\Merged\\Shaders\\**\r' "$_game_dir/ReShade.ini"
+    grep -Fqx $'TextureSearchPaths=.\\ReShade_shaders\\Merged\\Textures\\**\r' "$_game_dir/ReShade.ini"
+    grep -Fqx $'PerformanceMode=1\r' "$_game_dir/ReShade.ini"
+}
+
+test_game_ini_migration_is_idempotent() {
+    local _game_dir="$TEST_TEMP_DIR/twice-ini-game"
+    mkdir -p "$_game_dir"
+    printf '[GENERAL]\nEffectSearchPaths=.\\ReShade_shaders\\Merged\\Shaders\n' > "$_game_dir/ReShade.ini"
+
+    ensureGameIni "$_game_dir"
+    ensureGameIni "$_game_dir"
+
+    grep -Fqx 'EffectSearchPaths=.\ReShade_shaders\Merged\Shaders\**' "$_game_dir/ReShade.ini"
+}
+
+test_game_ini_migration_leaves_custom_search_paths_alone() {
+    local _game_dir="$TEST_TEMP_DIR/custom-ini-game"
+    mkdir -p "$_game_dir"
+    printf '[GENERAL]\nEffectSearchPaths=.\\ReShade_shaders\\Merged\\Shaders,C:\\My Shaders\nTextureSearchPaths=D:\\Textures\n' \
+        > "$_game_dir/ReShade.ini"
+
+    ensureGameIni "$_game_dir"
+
+    grep -Fqx 'EffectSearchPaths=.\ReShade_shaders\Merged\Shaders,C:\My Shaders' "$_game_dir/ReShade.ini"
+    grep -Fqx 'TextureSearchPaths=D:\Textures' "$_game_dir/ReShade.ini"
 }
 
 test_shader_header_helpers_exist_before_any_merge_runs() {
@@ -307,6 +344,9 @@ run_shader_tests() {
     run_test "Auto-confirm defaults shader selection" test_shader_auto_confirm_defaults_to_all_repos_when_selection_is_empty
     run_test "Install first run defaults to curated subset" test_install_first_run_defaults_to_curated_subset
     run_test "YAD checklist accepts multiline output" test_shader_yad_selection_accepts_multiline_output
-    run_test "Per-game ReShade.ini uses relative paths" test_game_ini_is_per_game_and_relative
+    run_test "Per-game ReShade.ini uses relative recursive paths" test_game_ini_is_per_game_and_relative
+    run_test "Old non-recursive ReShade.ini paths are migrated" test_game_ini_migrates_the_old_non_recursive_search_paths
+    run_test "ReShade.ini migration is idempotent" test_game_ini_migration_is_idempotent
+    run_test "ReShade.ini migration keeps custom search paths" test_game_ini_migration_leaves_custom_search_paths_alone
     echo ""
 }

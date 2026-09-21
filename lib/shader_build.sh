@@ -8,6 +8,7 @@
 function buildGameShaderDir() {
     local _gameKey="$1" _selectedRepos="$2" _appId="${3:-}"
     [[ -z $_gameKey ]] && return 1
+    _selectedRepos=$(resolveShaderRepoRequirements "$_selectedRepos")
     logDebug "buildGameShaderDir start gameKey=$_gameKey appId=${_appId:-<none>} repos=${_selectedRepos:-<none>}"
     local _gameShaderDir="$MAIN_PATH/game-shaders/$_gameKey"
     rm -rf "$_gameShaderDir"
@@ -71,36 +72,44 @@ function detachGameShaderDir() {
     fi
 }
 
+# Remove one effect (a path relative to Shaders) from the build; fails when it is absent.
+function _removeEffectFromBuild() {
+    local _target="$1/Shaders/$2"
+
+    [[ -L $_target || -f $_target ]] || return 1
+    rm -f "$_target"
+}
+
 function removeExcludedShaderEffectsFromBuild() {
     local _outBase="$1" _appId="$2"
     local _effect _removed=0
 
-    [[ -n $_appId ]] || return 0
-
     while IFS= read -r _effect || [[ -n $_effect ]]; do
         [[ -n $_effect ]] || continue
-        if [[ -L "$_outBase/Shaders/$_effect" || -f "$_outBase/Shaders/$_effect" ]]; then
-            rm -f "$_outBase/Shaders/$_effect"
+        if _removeEffectFromBuild "$_outBase" "$_effect"; then
             _removed=1
-            printf '%bSkipping known incompatible effect for AppID %s:%b %s\n' \
-                "$_YLW" "$_appId" "$_R" "$_effect"
+            printf '%bSkipping effect that fails to compile:%b %s\n' "$_YLW" "$_R" "$_effect"
         fi
-    done < <(listExcludedShaderEffectsForApp "$_appId")
+    done < <(printf '%s' "${SHADER_BROKEN_EFFECTS:-}" | tr ',' '\n')
 
-    [[ $_removed -eq 0 ]] || logDebug "Removed excluded effects for appId=$_appId"
+    if [[ -n $_appId ]]; then
+        while IFS= read -r _effect || [[ -n $_effect ]]; do
+            [[ -n $_effect ]] || continue
+            if _removeEffectFromBuild "$_outBase" "$_effect"; then
+                _removed=1
+                printf '%bSkipping known incompatible effect for AppID %s:%b %s\n' \
+                    "$_YLW" "$_appId" "$_R" "$_effect"
+            fi
+        done < <(listExcludedShaderEffectsForApp "$_appId")
+    fi
+
+    [[ $_removed -eq 0 ]] || logDebug "Removed excluded effects appId=${_appId:-<none>}"
 }
 
 # Link shared .fxh includes from a repo into the merged output.
 function linkRepoIncludesTo() {
     local _repoRoot="$1" _outBase="$2" _shadersDir _outDir _file _basename
-    if [[ -d "$_repoRoot/Shaders" ]]; then
-        _shadersDir="$_repoRoot/Shaders"
-    else
-        _shadersDir=$(find "$_repoRoot" \
-            -maxdepth 4 \
-            \( -path '*/.git' -o -path '*/.github' -o -path '*/download' \) -prune -o \
-            -type d -name "Shaders" -print -quit)
-    fi
+    _shadersDir=$(_findRepoContentDir "$_repoRoot" Shaders)
     [[ -z $_shadersDir || ! -d $_shadersDir ]] && return
     _outDir="$_outBase/Shaders"
     mkdir -p "$_outDir"
@@ -165,22 +174,21 @@ function mergeShaderDirsTo() {
 
     if [[ $1 == "ReShade_shaders" ]]; then
         _repoRoot="$MAIN_PATH/$1/$2"
+        _reportConflictingShaderFiles "$_repoRoot" "$_outBase" "$2"
     else
         _repoRoot="$MAIN_PATH/$1"
     fi
 
     for dirName in Shaders Textures; do
         if [[ $1 == "ReShade_shaders" ]]; then
-            if [[ -d "$_repoRoot/$dirName" ]]; then
-                dirPath="$_repoRoot/$dirName"
-            else
-                dirPath=$(find "$_repoRoot" \
-                    -maxdepth 4 \
-                    \( -path '*/.git' -o -path '*/.github' -o -path '*/download' \) -prune -o \
-                    -type d -name "$dirName" -print -quit)
-            fi
+            dirPath=$(_findRepoContentDir "$_repoRoot" "$dirName")
         else
-            dirPath="$_repoRoot/$dirName"
+            dirPath=$(_findRepoContentDir "$_repoRoot" "$dirName" shallow)
+        fi
+        if [[ -z $dirPath && $dirName == Shaders && $1 == "ReShade_shaders" ]] \
+            && _repoHasRootLevelEffects "$_repoRoot"; then
+            _linkRootLevelEffectsTo "$_repoRoot" "$_outBase"
+            continue
         fi
         [[ -z $dirPath || ! -d $dirPath ]] && continue
         linkShaderFilesTo "$dirPath" "$dirName" "$_outBase"

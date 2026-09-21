@@ -59,6 +59,18 @@ source "$SCRIPT_DIR/suites/shader_suite.sh" || {
     echo "Failed to source suites/shader_suite.sh"
     exit 1
 }
+# shellcheck source=./suites/shader_layout_suite.sh
+source "$SCRIPT_DIR/suites/shader_layout_suite.sh" || {
+    echo "Failed to source suites/shader_layout_suite.sh"
+    exit 1
+}
+
+# shellcheck source=./suites/shader_requirements_suite.sh
+source "$SCRIPT_DIR/suites/shader_requirements_suite.sh" || {
+    echo "Failed to source suites/shader_requirements_suite.sh"
+    exit 1
+}
+
 # shellcheck source=./suites/flow_suite.sh
 source "$SCRIPT_DIR/suites/flow_suite.sh" || {
     echo "Failed to source suites/flow_suite.sh"
@@ -206,6 +218,8 @@ main() {
     run_state_tests
     run_release_metadata_tests
     run_shader_tests
+    run_shader_layout_tests
+    run_shader_requirements_tests
     run_flow_tests
     run_deps_tests
     run_install_tests

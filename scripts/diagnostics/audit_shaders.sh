@@ -40,21 +40,12 @@ count_merged_entries() {
     find "$dir_path" \( -type f -o -type l \) | wc -l | awk '{print $1}'
 }
 
+# Use the installer's own discovery so this audit can never disagree with it.
 find_repo_asset_dir() {
     local repo_root="$1"
     local dir_name="$2"
-    local dir_path=""
 
-    if [[ -d "$repo_root/$dir_name" ]]; then
-        dir_path="$repo_root/$dir_name"
-    else
-        dir_path=$(find "$repo_root" \
-            -maxdepth 4 \
-            \( -path '*/.git' -o -path '*/.github' -o -path '*/download' \) -prune -o \
-            -type d -name "$dir_name" -print -quit)
-    fi
-
-    printf '%s\n' "$dir_path"
+    _findRepoContentDir "$repo_root" "$dir_name"
 }
 
 list_shader_repo_entries() {
@@ -122,6 +113,10 @@ audit_shader_repo() {
     fi
 
     shader_dir=$(find_repo_asset_dir "$repo_root" "Shaders")
+    # Single-shader repos keep their effects at the root; the installer links those too.
+    if [[ -z $shader_dir ]] && _repoHasRootLevelEffects "$repo_root"; then
+        shader_dir="$repo_root"
+    fi
     texture_dir=$(find_repo_asset_dir "$repo_root" "Textures")
     source_shader_count=$(count_source_shader_files "$shader_dir")
     source_texture_count=$(count_regular_files "$texture_dir")

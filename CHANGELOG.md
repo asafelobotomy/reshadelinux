@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, adapted for this repository.
 
+## [Unreleased]
+
+### Added
+
+- 25 more shader packs (69 in total), all checked for a compatible layout, resolvable `#include`s and no bundled binaries or download links: Glamarye Fast Effects, lordbean Shaders, RenoFX, Optical Flow, ZealShaders, murchFX, QuarkFX, fakebilinear2, shaman Shaders, KaiserThompson Shaders, QD-OLED APL Fixer, RSJankShaders, RSUnityShaders, ReshadeTFAA, ReshadeMotionEstimation, ReshadeBUR, CRT-Standalone, CRT-Dusha, Filmic Tonemapping, Zackin5 Misc Shaders, guestrr Shaders, Smart Vibrance, LXAA, Fast Adaptive AA and DeTintX. Several have not been updated for years but still compile against current ReShade.
+- Packs that keep their effects at the repository root instead of in a `Shaders/` folder (most single-shader repos) are now installed; previously nothing was linked. Only `.fx` and `.fxh` files are linked, keeping their relative paths, and a `Shaders/` folder still takes precedence.
+
+- Packs can declare that they need other packs (a sixth `requires` field in a registry entry). Ann-ReShade needs CShade, BFBFX needs ZenteonFX, ReshadeTFAA and Shades need iMMERSE (LAUNCHPAD), Optical Flow needs qUINT and lordbean Shaders need SweetFX; selecting one now clones and merges what it needs.
+- `SHADER_CORE_REPOS` (default `reshade-shaders`) and `SHADER_BROKEN_EFFECTS` settings, see the README.
+
+### Fixed
+
+- Effects in subfolders of a shader pack never appeared in ReShade: SweetFX's 28 effects, CameraFilterPack, SHADERDECK and about 30 more, roughly one effect in ten. The generated `ReShade.ini` named the merged folders without the `\**` suffix ReShade needs to search subfolders. New files use it, and an `ReShade.ini` this installer wrote earlier is corrected the next time the game is installed or updated. Search path lists you edited are left alone.
+- A shader pack selected on its own did not compile (`could not open included file 'ReShade.fxh'`) because only the selected packs were cloned and the headers live in Standard Effects. That pack is now always cloned and its headers linked, without adding its effects.
+- Effects that fail to compile with ReShade 6.8 on Proton no longer show an error in every game: `GrainSpread`, `NTSCCustom`, `NTSC_XOT`, `BX_XIV_ChromakeyPlus`, `TrooCullers`, `OilPaint` and `ZenWork` are left out. This was found by running every pack under GE-Proton; the first four were already excluded for The Elder Scrolls Online only.
+- When two packs ship different copies of the same header (BFBFX and ZenteonFX both have `ZenteonCommon.fxh`, and RSUnity and GShade both have `RetroTV.fxh`), the build now warns that the first copy is used for both.
+- Shader packs whose content folders are not named exactly `Shaders` and `Textures` are now found. CShade moved to a lowercase `shaders/` folder, so selecting it linked nothing; ReShade under Wine ignores case, so upstream authors never notice. Lookup now accepts any case and prefers an exact match, for repositories and for `External_shaders`.
+- The shader audit diagnostic reuses the installer's folder lookup instead of its own copy, so the two cannot disagree.
+
+### Changed
+
+- The Barbatos shader pack now points at its current GitHub owner, `BarbatosAWLS`. The old `BarbatosBachiko` account no longer exists and only redirected.
+
 ## [1.3.2] - 2026-09-19
 
 ### Fixed in 1.3.2

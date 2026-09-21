@@ -116,8 +116,10 @@ That keeps credit visible in CLI, `dialog`, `whiptail`, and `yad` pickers.
 Replace or trim the registry with `SHADER_REPOS`. Each entry uses this format:
 
 ```text
-URI|local-name[|branch[|title[|description]]]
+URI|local-name[|branch[|title[|description[|requires]]]]
 ```
+
+`requires` is a comma-separated list of other local names whose effects the pack needs, for example `immerse-shaders` for a pack that reads the iMMERSE LAUNCHPAD motion vectors. Required packs are cloned and merged automatically without being shown as selected.
 
 Examples:
 
@@ -143,10 +145,12 @@ VARIABLE=value ./reshadelinux.sh
 | `UPDATE_RESHADE` | `1` | Skip update checks when set to `0`. |
 | `RESHADE_VERSION` | `latest` | Pin a specific ReShade version such as `4.9.1`. |
 | `RESHADE_ADDON_SUPPORT` | `0` | Use the addon-enabled ReShade build when set to `1`. |
-| `SHADER_REPOS` | built-in registry | Provide a semicolon-separated list of `URI\|local-name[\|branch[\|title[\|description]]]` entries. |
+| `SHADER_REPOS` | built-in registry | Provide a semicolon-separated list of `URI\|local-name[\|branch[\|title[\|description[\|requires]]]]` entries. |
 | `FIRST_RUN_SHADER_REPOS` | `reshade-shaders,sweetfx-shaders,quintfx,prod80-shaders,astrayfx-shaders` | Pick the default first-run shader subset. Unknown names are ignored. If none match, the full configured list is used. |
 | `GAME_DIR_PRESETS` | empty | Override exe subdirectories for specific App IDs such as `12345\|Binaries/Win64`. |
 | `EXTRA_DLL_OVERRIDES` | empty | Add DLL override names to the accepted list (`d3d8 d3d9 d3d11 d3d12 ddraw dinput8 dxgi opengl32`), separated by spaces or commas, for example `winmm`. Only plain names are accepted. Applies to `--dll-override`, the manual prompt and `--update-all`. |
+| `SHADER_CORE_REPOS` | `reshade-shaders` | Packs that hold the headers every other pack includes (`ReShade.fxh`, `ReShadeUI.fxh`). They are always cloned and their headers linked, so a pack selected on its own still compiles; their effects only appear when selected. |
+| `SHADER_BROKEN_EFFECTS` | see `lib/config.sh` | Comma-separated effect paths (relative to a pack's `Shaders` folder) left out of every game because they fail to compile with ReShade 6.8 on Proton. Set it empty to keep them. |
 | `GLOBAL_INI` | `ReShade.ini` | Use this as the per-game template. Set to `0` to let ReShade create it later. |
 | `LINK_PRESET` | empty | Copy a preset `.ini` from `MAIN_PATH` into a game directory on first install. |
 | `WINEPREFIX` | auto | Force a specific Wine or Proton prefix instead of auto-detecting from `compatdata`. |

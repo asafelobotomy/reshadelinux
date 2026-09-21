@@ -4,7 +4,8 @@
 # Shader repository registry: entry parsing, labels, default and requested selections.
 
 # Parse a SHADER_REPOS entry into shared variables.
-# Format: URL|localname[|branch[|title[|description]]]
+# Format: URL|localname[|branch[|title[|description[|requires]]]]
+# "requires" is a comma-separated list of other local names whose effects this pack needs.
 function parseShaderRepoEntry() {
     local _entry="$1"
     local _savedIFS="$IFS"
@@ -18,6 +19,7 @@ function parseShaderRepoEntry() {
     _shaderRepoBranch="${_parts[2]:-}"
     _shaderRepoTitle="${_parts[1]:-}"
     _shaderRepoDesc=""
+    _shaderRepoRequires="${_parts[5]:-}"
 
     if (( ${#_parts[@]} == 4 )); then
         _shaderRepoDesc="${_parts[3]:-}"
@@ -69,6 +71,36 @@ function listConfiguredShaderRepoEntries() {
         _seen["$_shaderRepoName"]=1
         printf '%s\n' "$_entry"
     done
+}
+
+# Print the selection followed by every pack it needs, directly or through another pack,
+# without duplicates. Names the registry does not know are dropped from the requirements
+# and a cycle ends at the first repeat.
+function resolveShaderRepoRequirements() {
+    local _selected="$1" _entry _name _required
+    local -A _needs=() _seen=()
+    local -a _queue=() _result=()
+
+    [[ -n $_selected ]] || return 0
+    while IFS= read -r _entry || [[ -n $_entry ]]; do
+        parseShaderRepoEntry "$_entry"
+        _needs["$_shaderRepoName"]="$_shaderRepoRequires"
+    done < <(listConfiguredShaderRepoEntries)
+
+    IFS=',' read -ra _queue <<< "$_selected"
+    while (( ${#_queue[@]} > 0 )); do
+        _name="${_queue[0]}"
+        _queue=("${_queue[@]:1}")
+        [[ -n $_name && -z ${_seen["$_name"]+x} ]] || continue
+        _seen["$_name"]=1
+        _result+=("$_name")
+        for _required in ${_needs["$_name"]//,/ }; do
+            [[ -n ${_needs["$_required"]+x} ]] && _queue+=("$_required")
+        done
+    done
+
+    local IFS=','
+    printf '%s\n' "${_result[*]}"
 }
 
 function collectSelectedInstalledShaderRepos() {
