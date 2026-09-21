@@ -115,11 +115,11 @@ jobs:
             bash coreutils curl file git p7zip-full python3 sed \
             yad xvfb xdotool openbox imagemagick
 
+      # yad --version opens GTK and fails without a display, so read the package versions instead.
       - name: Show tool versions
         run: |
-          yad --version
+          dpkg-query -W -f='${Package} ${Version}\n' yad xvfb xdotool openbox
           bash --version | head -n 1
-          xdotool version
 
       - name: Run yad smoke test
         env:
