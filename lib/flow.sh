@@ -125,7 +125,7 @@ function ensureSelectedShaderReposWithRetry() {
                 return 0
             fi
             printf '%b⚠ Still unable to download some repositories. Continuing without those shaders.%b\n' "$_YLW" "$_R"
-            ui_msgbox "ReShade - Download Error" "Some shader repositories could not be downloaded. Installation will continue without them." 10 60
+            ui_warnbox "ReShade - Download Error" "Some shader repositories could not be downloaded. Installation will continue without them." 10 60
             return 1
         fi
     else

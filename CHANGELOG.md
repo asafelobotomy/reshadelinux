@@ -6,6 +6,15 @@ The format is based on Keep a Changelog, adapted for this repository.
 
 ## [Unreleased]
 
+### Added
+
+- The shader picker on the graphical interface has **Select all** and **Select none** buttons (Alt+A and Alt+N). Two more scenarios in `smoke_yad.sh` cover them.
+
+### Changed
+
+- Messages that report a problem (a path that does not exist, an unsupported DLL name, packs that could not be downloaded) use a warning icon instead of the information icon.
+- Output is coloured only on a terminal, so logs and pipes stay readable. `NO_COLOR` turns colour off and `CLICOLOR_FORCE=1` turns it on for a pipe.
+
 ### Fixed
 
 - `reshadelinux-gui.sh` opens the terminal fallback (added in 1.3.4) only for a launch without arguments, which is what a menu launch is. A run with arguments, such as a script or the release tool's `--update-all` check on a machine with a display and a terminal emulator, no longer gets a terminal window that waits for Enter.

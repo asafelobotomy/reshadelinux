@@ -29,6 +29,7 @@ The suite redirects `HOME`, `XDG_CACHE_HOME` and `MAIN_PATH` into a temp tree. N
 | `reshadelinux-gui.sh` | Wrapper that prefers the `yad` backend, then execs the entrypoint. |
 | `lib/logging.sh` | Colours, `printStep`, `printErr` (exits the process), `logDebug`. |
 | `lib/ui.sh` | Backend choice and the `ui_*` wrappers over yad/whiptail/dialog. |
+| `lib/ui_auto.sh` | The `UI_AUTO_CONFIRM` testing hook: auto-answers for dialogs. |
 | `lib/utils.sh` | `checkStdin`, `withProgress`, clipboard, temp-dir helpers. |
 | `lib/cli.sh` | Flag parsing and validation. |
 | `lib/config.sh` | `init_runtime_config`: defaults, `MAIN_PATH`, and the `SHADER_REPOS` registry. |

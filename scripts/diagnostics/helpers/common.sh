@@ -8,6 +8,7 @@ REPO_DIR="$(cd "$DIAGNOSTICS_DIR/../../.." && pwd)"
 
 source "$REPO_DIR/lib/logging.sh"
 source "$REPO_DIR/lib/ui.sh"
+source "$REPO_DIR/lib/ui_auto.sh"
 source "$REPO_DIR/lib/utils.sh"
 source "$REPO_DIR/lib/config.sh"
 source "$REPO_DIR/lib/state.sh"

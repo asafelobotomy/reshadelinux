@@ -14,7 +14,7 @@ yad:                bash:               Steam: native | Flatpak      Proton:
 - [ ] `shellcheck $(git ls-files '*.sh')` — no output
 - [ ] `bash scripts/diagnostics/smoke_cli.sh` — `SMOKE_RESULT=PASS`
 - [ ] `bash scripts/diagnostics/smoke_whiptail.sh` — `SMOKE_RESULT=PASS`
-- [ ] `bash scripts/diagnostics/smoke_yad.sh` — `SMOKE_RESULT=PASS` (ten scenarios)
+- [ ] `bash scripts/diagnostics/smoke_yad.sh` — `SMOKE_RESULT=PASS` (twelve scenarios)
 - [ ] `scripts/release/check-version-sync.sh` — versions agree in all five places
 - [ ] `scripts/release/release-appimage.sh --build-only` — AppImage builds and validates
 - [ ] CI on the release commit is green (tests on Ubuntu 22.04 and 24.04, ShellCheck, packaging)

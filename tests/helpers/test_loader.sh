@@ -33,6 +33,7 @@ function use_fatal_printErr() {
 }
 
 source "$REPO_DIR/lib/ui.sh"
+source "$REPO_DIR/lib/ui_auto.sh"
 source "$REPO_DIR/lib/utils.sh"
 source "$REPO_DIR/lib/config.sh"
 source "$REPO_DIR/lib/state.sh"

@@ -159,6 +159,8 @@ VARIABLE=value ./reshadelinux.sh
 | `PROGRESS_UI` | `1` | Disable progress widgets without changing the selected dialog backend. |
 | `RESHADE_DEBUG_LOG` | empty | Append timestamped debug lines here for backend or flow debugging. |
 | `RESHADE_SETUP_SHA256` | empty | Require the downloaded official ReShade setup executable to match this 64-character sha256 before extraction continues. Anything that is not a plain hex digest is rejected. |
+| `NO_COLOR` | unset | Turn colour off even on a terminal ([no-color.org](https://no-color.org)). Output that is not a terminal is never coloured. |
+| `CLICOLOR_FORCE` | unset | Set to `1` to colour output that is not a terminal, for example when piping into a pager. |
 | `UI_AUTO_CONFIRM` | `0` | Testing hook: answers every dialog automatically. A warning is printed when it is on. Do not set it for normal use. |
 
 ## Pass explicit command-line options

@@ -316,7 +316,7 @@ test_yad_smoke_lists_a_scenario_for_every_flow_the_checklists_mark_as_automated(
 
     for _scenario in install_with_defaults cancel_at_the_first_dialog cancel_at_the_game_picker \
         game_with_markup_characters_in_its_name unsupported_dll_name_is_rejected no_shader_packs_selected \
-        failed_shader_download_offers_a_retry action_list_follows_the_highlighted_row \
+        shader_picker_select_all_and_none shader_picker_select_none_installs_no_packs failed_shader_download_offers_a_retry action_list_follows_the_highlighted_row \
         update_all_ends_with_a_confirmation fatal_errors_are_shown_in_a_dialog; do
         grep -q "^scenario_$_scenario()" "$REPO_DIR/scripts/diagnostics/smoke_yad.sh" || { echo "missing scenario $_scenario" >&2; return 1; }
         grep -q "^    $_scenario\$" "$REPO_DIR/scripts/diagnostics/smoke_yad.sh" || { echo "$_scenario is not in SCENARIOS" >&2; return 1; }

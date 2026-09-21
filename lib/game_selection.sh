@@ -38,7 +38,7 @@ function promptGamePathManual() {
             gamePath=$(realpath "$gamePath" 2>/dev/null)
             [[ -f $gamePath ]] && gamePath=$(dirname "$gamePath")
             if [[ -z $gamePath || ! -d $gamePath ]]; then
-                ui_msgbox "ReShade" "Path does not exist:\n$gamePath" 12 70
+                ui_warnbox "ReShade" "Path does not exist:\n$gamePath" 12 70
                 continue
             fi
             if ! compgen -G "$gamePath/*.exe" &>/dev/null; then

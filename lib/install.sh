@@ -217,7 +217,7 @@ function resolveInstallDllSelection() {
                     "dxgi") || exit 0
                 wantedDll=$(normalizeDllOverrideInput "$wantedDll")
                 isKnownDllOverride "$wantedDll" && break
-                ui_msgbox "ReShade" "'$wantedDll' is not a supported DLL override.\n\nChoose one of: $COMMON_OVERRIDES\n(Add more with EXTRA_DLL_OVERRIDES.)" 12 70
+                ui_warnbox "ReShade" "'$wantedDll' is not a supported DLL override.\n\nChoose one of: $COMMON_OVERRIDES\n(Add more with EXTRA_DLL_OVERRIDES.)" 12 70
             done
         else
             printf '%bManually enter the dll override for ReShade.%b Common values: %b%s%b\n' "$_CYN" "$_R" "$_B" "$COMMON_OVERRIDES" "$_R"

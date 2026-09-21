@@ -103,6 +103,32 @@ scenario_no_shader_packs_selected() {
     [[ -z $(state_field selected_repos) ]] || { echo "a pack was still selected" >&2; return 1; }
 }
 
+# The shader picker has "Select all" and "Select none" buttons (Alt+A, Alt+N). Each reopens the
+# dialog with every pack ticked or unticked.
+scenario_shader_picker_select_all_and_none() {
+    begin shader_picker_select_all_and_none
+    yadsmoke_answer "ReShade" Return &&
+        yadsmoke_answer "ReShade - Select Game" Return &&
+        yadsmoke_answer "ReShade" Return &&
+        yadsmoke_answer "ReShade - Shader Repositories" alt+n &&
+        yadsmoke_answer "ReShade - Shader Repositories" alt+a &&
+        yadsmoke_answer "ReShade - Shader Repositories" Return &&
+        yadsmoke_answer "ReShade - Shaders" Return &&
+        yadsmoke_answer "ReShade - Installation Complete" Return && finish 0 || return 1
+    [[ $(state_field selected_repos) == "repo-a,repo-b" ]] || { echo "select all did not select every pack" >&2; return 1; }
+}
+
+scenario_shader_picker_select_none_installs_no_packs() {
+    begin shader_picker_select_none_installs_no_packs
+    yadsmoke_answer "ReShade" Return &&
+        yadsmoke_answer "ReShade - Select Game" Return &&
+        yadsmoke_answer "ReShade" Return &&
+        yadsmoke_answer "ReShade - Shader Repositories" alt+n &&
+        yadsmoke_answer "ReShade - Shader Repositories" Return &&
+        yadsmoke_answer "ReShade - Installation Complete" Return && finish 0 || return 1
+    [[ -z $(state_field selected_repos) ]] || { echo "a pack was still selected" >&2; return 1; }
+}
+
 scenario_failed_shader_download_offers_a_retry() {
     begin failed_shader_download_offers_a_retry SHADER_REPOS='file:///nonexistent/repo.git|broken-pack||Broken Pack|cannot be cloned'
     yadsmoke_answer "ReShade" Return &&
@@ -150,6 +176,8 @@ SCENARIOS=(
     game_with_markup_characters_in_its_name
     unsupported_dll_name_is_rejected
     no_shader_packs_selected
+    shader_picker_select_all_and_none
+    shader_picker_select_none_installs_no_packs
     failed_shader_download_offers_a_retry
     action_list_follows_the_highlighted_row
     update_all_ends_with_a_confirmation

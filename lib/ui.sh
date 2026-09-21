@@ -123,47 +123,6 @@ function ui_run() {
     return $_status
 }
 
-function ui_auto_respond_enabled() {
-    [[ ${UI_AUTO_CONFIRM:-0} == 1 && $_UI_BACKEND != cli ]]
-}
-
-function ui_auto_select_first_tag() {
-    local _tag _label _state
-
-    while [[ $# -ge 3 ]]; do
-        _tag="$1"
-        _label="$2"
-        _state="$3"
-        if [[ $_state == ON ]]; then
-            printf '%s\n' "$_tag"
-            return 0
-        fi
-        shift 3
-    done
-
-    if [[ $# -ge 1 ]]; then
-        printf '%s\n' "$1"
-        return 0
-    fi
-    return 1
-}
-
-function ui_auto_select_checked_tags() {
-    local _tag _label _state
-    local -a _selected=()
-
-    while [[ $# -ge 3 ]]; do
-        _tag="$1"
-        _label="$2"
-        _state="$3"
-        [[ $_state == ON ]] && _selected+=("$_tag")
-        shift 3
-    done
-
-    local IFS=' '
-    printf '%s\n' "${_selected[*]}"
-}
-
 # A scratch file for a dialog's stderr. When none can be made (a full or unwritable temporary
 # directory, which is also when a fatal error most needs its dialog) the output is dropped:
 # the dialog itself must still open.
@@ -205,15 +164,25 @@ function _ui_yad_message() {
         --height="$_pxHeight" --width="$_pxWidth" "$@"
 }
 
-function ui_msgbox() {
-    local _title="$1" _text="$2" _height="${3:-14}" _width="${4:-70}"
+# A message dialog with the given icon (dialog-information, dialog-warning).
+function _ui_msgbox() {
+    local _icon="$1" _title="$2" _text="$3" _height="${4:-14}" _width="${5:-70}"
     [[ ${UI_AUTO_CONFIRM:-0} == 1 ]] && return 0
     case $_UI_BACKEND in
-        yad) _ui_yad_message dialog-information "$_title" "$_text" "$_height" "$_width" --button=OK:0 ;;
+        yad) _ui_yad_message "$_icon" "$_title" "$_text" "$_height" "$_width" --button=OK:0 ;;
         whiptail) ui_run whiptail --clear --title "$_title" --msgbox "$_text" "$_height" "$_width" ;;
         dialog) ui_run dialog --clear --title "$_title" --msgbox "$_text" "$_height" "$_width" ;;
         *) return 0 ;;
     esac
+}
+
+function ui_msgbox() {
+    _ui_msgbox dialog-information "$1" "$2" "${3:-14}" "${4:-70}"
+}
+
+# For something the user should correct or be told went wrong, without stopping the program.
+function ui_warnbox() {
+    _ui_msgbox dialog-warning "$1" "$2" "${3:-14}" "${4:-70}"
 }
 
 function ui_yesno() {
@@ -364,16 +333,33 @@ function ui_checklist() {
 
     case $_UI_BACKEND in
         yad)
-            while [[ $# -ge 3 ]]; do
-                _tag="$1"; _label="$(_pango_escape "$2")"; _state="$3"; shift 3
-                [[ $_state == ON ]] && _yadState=TRUE || _yadState=FALSE
-                _rows+=("$_yadState" "$_tag" "$_label")
-            done
+            # "Select all" and "Select none" answer with their own exit status; the dialog is then
+            # opened again with every row ticked or unticked. Alt+A and Alt+N are the shortcuts.
+            local -a _args=("$@")
+            local _setAll="" _out _status
             read -r _pxHeight _pxWidth < <(ui_yad_dims "$_height" "$_width")
-            ui_capture yad --list --checklist --title="$_title" --text="$_text" \
-                --column="" --column="Key" --column="Choice" --hide-column=2 \
-                --print-column=2 --separator=" " --height="$_pxHeight" --width="$_pxWidth" \
-                "${_rows[@]}"
+            while true; do
+                _rows=()
+                set -- "${_args[@]}"
+                while [[ $# -ge 3 ]]; do
+                    _tag="$1"; _label="$(_pango_escape "$2")"; _state="$3"; shift 3
+                    [[ $_setAll == all ]] && _state=ON
+                    [[ $_setAll == none ]] && _state=OFF
+                    [[ $_state == ON ]] && _yadState=TRUE || _yadState=FALSE
+                    _rows+=("$_yadState" "$_tag" "$_label")
+                done
+                _out=$(ui_capture yad --list --checklist --title="$_title" --text="$_text" \
+                    --column="" --column="Key" --column="Choice" --hide-column=2 \
+                    --print-column=2 --separator=" " --height="$_pxHeight" --width="$_pxWidth" \
+                    --button="Select _all:10" --button="Select _none:11" --button=Cancel:1 --button=OK:0 \
+                    "${_rows[@]}")
+                _status=$?
+                case $_status in
+                    10) _setAll=all ;;
+                    11) _setAll=none ;;
+                    *) printf '%s' "$_out"; return $_status ;;
+                esac
+            done
             ;;
         whiptail) ui_capture whiptail --clear --title "$_title" --checklist "$_text" "$_height" "$_width" "$_listHeight" "$@" ;;
         dialog) ui_capture dialog --clear --title "$_title" --checklist "$_text" "$_height" "$_width" "$_listHeight" "$@" ;;

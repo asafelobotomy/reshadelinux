@@ -62,8 +62,10 @@ a Steam `appmanifest` file is enough).
 - [ ] **INST-43 P1** On a re-run the previous selection is ticked.
 - [ ] **INST-44 P1** Selecting a pack that needs another (for example Ann-ReShade needs CShade, BFBFX
   needs ZenteonFX) also installs the required pack without showing it as ticked.
-- [ ] **INST-45 P2** There is no "select all / none" control (known gap): confirm all ticks can be changed
-  by clicking the check boxes only, not the labels.
+- [ ] **INST-45 P1** **Select all** (Alt+A) reopens the picker with every pack ticked and **Select none** (Alt+N) with
+  none ticked; the last choice wins, OK keeps what is ticked, and Cancel leaves without installing.
+  **Auto:** `shader_picker_select_all_and_none`, `shader_picker_select_none_installs_no_packs`
+- [ ] **INST-46 P2** Enter in the pack list confirms with **OK** (it must not trigger Select all).
 
 ## 6. Downloading and building
 

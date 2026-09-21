@@ -23,7 +23,7 @@ real display shows that.
 | `bash tests/run_simple_tests.sh` | Logic, dialog arguments against a strict fake `yad`, wrappers, packaging metadata | bash, git, python3 |
 | `bash scripts/diagnostics/smoke_cli.sh` | Full CLI installs, autodetect, shader retry, `--update-all` | 7z |
 | `bash scripts/diagnostics/smoke_whiptail.sh` | Full install on the whiptail backend | whiptail, 7z |
-| `bash scripts/diagnostics/smoke_yad.sh` | Ten real-yad scenarios on a private X server (see below) | yad, Xvfb, xdotool |
+| `bash scripts/diagnostics/smoke_yad.sh` | Twelve real-yad scenarios on a private X server (see below) | yad, Xvfb, xdotool |
 | `bash scripts/diagnostics/compile_check.sh --packs NAME` | Real ReShade under GE-Proton compiles the merged effects | network, about 4 GB, a display |
 
 `smoke_yad.sh` never touches your desktop: it starts its own X server, drives real dialogs with
