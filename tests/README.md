@@ -21,6 +21,10 @@ bash tests/run_simple_tests.sh
 - `suites/shader_suite.sh` - per-game shader directory construction, selection, and `ReShade.ini` generation
 - `suites/shader_layout_suite.sh` - shader repo layouts: directory-name case and effects kept at the repo root
 - `suites/shader_requirements_suite.sh` - packs that require other packs, the always-cloned core headers, and effects that never compile
+- `suites/compile_check_report_suite.sh` - the compile check's log report: compiled, failed, unreported and known-broken effects, from fixture logs
+- `suites/compile_check_suite.sh` - the opt-in Proton compile check: log report parsing, option handling, checksum-verified downloads and the wait logic (no Proton or network)
+- `suites/gui_flow_suite.sh` - what the graphical backend shows at the end of each flow (completion dialogs, and only on yad)
+- `suites/gui_launch_suite.sh` - how the graphical interface starts: the `reshadelinux-gui.sh` wrapper (fake terminals and notifier) and the yad smoke tooling
 - `suites/flow_suite.sh` - UI helpers, dependency checks, ReShade download, and batch-update flows
 - `suites/deps_suite.sh` - missing-dependency reporting: package names per manager, stderr output, and the yad error dialog
 - `suites/install_suite.sh` - hash pin and download URL checks, DLL override entry, temp-dir cleanup, linking, and uninstall

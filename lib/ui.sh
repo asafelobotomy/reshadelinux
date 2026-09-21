@@ -54,11 +54,14 @@ function chooseUiBackend() {
     printf 'cli\n'
 }
 
+# Escape text for a yad list cell (cells are read as pango markup). The replacements are
+# quoted because bash 5.2 reads an unquoted & in a replacement as "the matched text", which
+# turned "<" into "<lt;".
 function _pango_escape() {
     local _s="$1"
-    _s=${_s//&/&amp;}
-    _s=${_s//</&lt;}
-    _s=${_s//>/&gt;}
+    _s=${_s//&/'&amp;'}
+    _s=${_s//</'&lt;'}
+    _s=${_s//>/'&gt;'}
     printf '%s' "$_s"
 }
 
@@ -71,7 +74,7 @@ function ui_yad_dims() {
 }
 
 function ui_capture() {
-    local _result _status _had_errexit=0
+    local _result _status _errFile _had_errexit=0
     [[ $- == *e* ]] && _had_errexit=1
     set +e
     case $_UI_BACKEND in
@@ -84,8 +87,10 @@ function ui_capture() {
             _status=$?
             ;;
         *)
-            _result=$("$@")
+            _errFile=$(_ui_scratch_file)
+            _result=$("$@" 2>"$_errFile")
             _status=$?
+            _ui_scratch_done "$_errFile" "$1"
             ;;
     esac
     [[ $_had_errexit -eq 1 ]] && set -e
@@ -159,15 +164,52 @@ function ui_auto_select_checked_tags() {
     printf '%s\n' "${_selected[*]}"
 }
 
+# A scratch file for a dialog's stderr. When none can be made (a full or unwritable temporary
+# directory, which is also when a fatal error most needs its dialog) the output is dropped:
+# the dialog itself must still open.
+function _ui_scratch_file() {
+    mktemp || { logDebug "No temporary file for dialog output"; printf '/dev/null\n'; }
+}
+
+# Log what a dialog wrote to stderr, and remove its scratch file.
+function _ui_scratch_done() {
+    local _file="$1" _who="$2"
+
+    if [[ $_file != /dev/null ]]; then
+        [[ -s $_file ]] && logDebug "$_who wrote to stderr: $(<"$_file")"
+        rm -f "$_file"
+    fi
+    return 0
+}
+
+# Run yad for a dialog whose answer is its exit status. yad's own complaints (a bad option
+# exits 1, which a caller cannot tell from "cancel") go to the debug log, not into the void.
+function _ui_yad_run() {
+    local _errFile _status
+
+    _errFile=$(_ui_scratch_file)
+    ui_run yad "$@" >/dev/null 2>"$_errFile"
+    _status=$?
+    _ui_scratch_done "$_errFile" yad
+    return $_status
+}
+
+# A message dialog with an icon and buttons. yad 15 has no --info/--question/--error
+# dialog kinds (it exits with "Unknown option"), and a plain dialog works on every version.
+function _ui_yad_message() {
+    local _icon="$1" _title="$2" _text="$3" _height="$4" _width="$5" _pxHeight _pxWidth
+
+    shift 5
+    read -r _pxHeight _pxWidth < <(ui_yad_dims "$_height" "$_width")
+    _ui_yad_run --no-markup --image="$_icon" --title="$_title" --text="$_text" \
+        --height="$_pxHeight" --width="$_pxWidth" "$@"
+}
+
 function ui_msgbox() {
     local _title="$1" _text="$2" _height="${3:-14}" _width="${4:-70}"
-    local _pxHeight _pxWidth
     [[ ${UI_AUTO_CONFIRM:-0} == 1 ]] && return 0
     case $_UI_BACKEND in
-        yad)
-            read -r _pxHeight _pxWidth < <(ui_yad_dims "$_height" "$_width")
-            ui_run yad --info --no-markup --title="$_title" --text="$_text" --height="$_pxHeight" --width="$_pxWidth" >/dev/null 2>&1
-            ;;
+        yad) _ui_yad_message dialog-information "$_title" "$_text" "$_height" "$_width" --button=OK:0 ;;
         whiptail) ui_run whiptail --clear --title "$_title" --msgbox "$_text" "$_height" "$_width" ;;
         dialog) ui_run dialog --clear --title "$_title" --msgbox "$_text" "$_height" "$_width" ;;
         *) return 0 ;;
@@ -176,17 +218,21 @@ function ui_msgbox() {
 
 function ui_yesno() {
     local _title="$1" _text="$2" _height="${3:-12}" _width="${4:-70}"
-    local _pxHeight _pxWidth
     [[ ${UI_AUTO_CONFIRM:-0} == 1 ]] && return 0
     case $_UI_BACKEND in
-        yad)
-            read -r _pxHeight _pxWidth < <(ui_yad_dims "$_height" "$_width")
-            ui_run yad --question --no-markup --title="$_title" --text="$_text" --height="$_pxHeight" --width="$_pxWidth" >/dev/null 2>&1
-            ;;
+        # yad focuses its first button, so Yes goes first: Enter answers Yes, as in whiptail and dialog.
+        yad) _ui_yad_message dialog-question "$_title" "$_text" "$_height" "$_width" --button=Yes:0 --button=No:1 ;;
         whiptail) ui_run whiptail --clear --title "$_title" --yesno "$_text" "$_height" "$_width" ;;
         dialog) ui_run dialog --clear --title "$_title" --yesno "$_text" "$_height" "$_width" ;;
         *) return 1 ;;
     esac
+}
+
+# Error dialog for the graphical backend only: the other backends print to the terminal.
+function ui_error() {
+    local _title="$1" _text="$2" _height="${3:-10}" _width="${4:-65}"
+    [[ ${_UI_BACKEND:-} == yad ]] || return 0
+    _ui_yad_message dialog-error "$_title" "$_text" "$_height" "$_width" --button=Close:0
 }
 
 function ui_inputbox() {
@@ -201,7 +247,7 @@ function ui_inputbox() {
     case $_UI_BACKEND in
         yad)
             read -r _pxHeight _pxWidth < <(ui_yad_dims "$_height" "$_width")
-            ui_capture yad --entry --title="$_title" --text="$_text" --entry-text="$_default" --height="$_pxHeight" --width="$_pxWidth" 2>/dev/null
+            ui_capture yad --entry --title="$_title" --text="$_text" --entry-text="$_default" --height="$_pxHeight" --width="$_pxWidth"
             ;;
         whiptail) ui_capture whiptail --clear --title "$_title" --inputbox "$_text" "$_height" "$_width" "$_default" ;;
         dialog) ui_capture dialog --clear --title "$_title" --inputbox "$_text" "$_height" "$_width" "$_default" ;;
@@ -215,7 +261,7 @@ function ui_directorybox() {
     case $_UI_BACKEND in
         yad)
             read -r _pxHeight _pxWidth < <(ui_yad_dims "$_height" "$_width")
-            ui_capture yad --file --directory --title="$_title" --filename="$_startDir/" --height="$_pxHeight" --width="$_pxWidth" 2>/dev/null
+            ui_capture yad --file --directory --title="$_title" --filename="$_startDir/" --height="$_pxHeight" --width="$_pxWidth"
             ;;
         *)
             ui_inputbox "$_title" "Enter a directory path:" "$_startDir/" "$_height" "$_width"
@@ -247,13 +293,13 @@ function ui_menu() {
                 else
                     _yadArgs+=("$1")
                 fi
-                (( _toggle = !_toggle ))
+                _toggle=$((1 - _toggle))
                 shift
             done
             read -r _pxHeight _pxWidth < <(ui_yad_dims "$_height" "$_width")
             ui_capture yad --list --title="$_title" --text="$_text" \
-                --column="Key" --column="Choice" --print-column=1 --separator="" \
-                --height="$_pxHeight" --width="$_pxWidth" "${_yadArgs[@]}" 2>/dev/null
+                --column="Key" --column="Choice" --hide-column=1 --print-column=1 --separator="" \
+                --height="$_pxHeight" --width="$_pxWidth" "${_yadArgs[@]}"
             ;;
         whiptail) ui_capture whiptail --clear --title "$_title" --menu "$_text" "$_height" "$_width" "$_menuHeight" "$@" ;;
         dialog) ui_capture dialog --clear --title "$_title" --menu "$_text" "$_height" "$_width" "$_menuHeight" "$@" ;;
@@ -263,8 +309,7 @@ function ui_menu() {
 
 function ui_radiolist() {
     local _title="$1" _text="$2" _height="$3" _width="$4" _listHeight="$5"
-    local _pxHeight _pxWidth _tag _label _state _yadState
-    local -a _rows=()
+    local _pxHeight _pxWidth _tag _label _state
     shift 5
 
     if ui_auto_respond_enabled; then
@@ -278,16 +323,23 @@ function ui_radiolist() {
 
     case $_UI_BACKEND in
         yad)
+            # A radio button only moves when its own cell is clicked, so a user who clicked a
+            # label and pressed OK got the pre-selected option. A plain list answers with the
+            # highlighted row instead. yad highlights the first row, so the default goes first.
+            local -a _first=() _others=()
             while [[ $# -ge 3 ]]; do
                 _tag="$1"; _label="$(_pango_escape "$2")"; _state="$3"; shift 3
-                [[ $_state == ON ]] && _yadState=TRUE || _yadState=FALSE
-                _rows+=("$_yadState" "$_tag" "$_label")
+                if [[ $_state == ON && ${#_first[@]} -eq 0 ]]; then
+                    _first=("$_tag" "$_label")
+                else
+                    _others+=("$_tag" "$_label")
+                fi
             done
             read -r _pxHeight _pxWidth < <(ui_yad_dims "$_height" "$_width")
-            ui_capture yad --list --radiolist --title="$_title" --text="$_text" \
-                --column="" --column="Key" --column="Choice" --hide-column=2 \
-                --print-column=2 --separator="" --height="$_pxHeight" --width="$_pxWidth" \
-                "${_rows[@]}" 2>/dev/null
+            ui_capture yad --list --title="$_title" --text="$_text" \
+                --column="Key" --column="Choice" --hide-column=1 \
+                --print-column=1 --separator="" --height="$_pxHeight" --width="$_pxWidth" \
+                "${_first[@]}" "${_others[@]}"
             ;;
         whiptail) ui_capture whiptail --clear --title "$_title" --radiolist "$_text" "$_height" "$_width" "$_listHeight" "$@" ;;
         dialog) ui_capture dialog --clear --title "$_title" --radiolist "$_text" "$_height" "$_width" "$_listHeight" "$@" ;;
@@ -321,7 +373,7 @@ function ui_checklist() {
             ui_capture yad --list --checklist --title="$_title" --text="$_text" \
                 --column="" --column="Key" --column="Choice" --hide-column=2 \
                 --print-column=2 --separator=" " --height="$_pxHeight" --width="$_pxWidth" \
-                "${_rows[@]}" 2>/dev/null
+                "${_rows[@]}"
             ;;
         whiptail) ui_capture whiptail --clear --title "$_title" --checklist "$_text" "$_height" "$_width" "$_listHeight" "$@" ;;
         dialog) ui_capture dialog --clear --title "$_title" --checklist "$_text" "$_height" "$_width" "$_listHeight" "$@" ;;

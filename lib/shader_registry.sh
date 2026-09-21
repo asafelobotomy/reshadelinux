@@ -77,7 +77,7 @@ function listConfiguredShaderRepoEntries() {
 # without duplicates. Names the registry does not know are dropped from the requirements
 # and a cycle ends at the first repeat.
 function resolveShaderRepoRequirements() {
-    local _selected="$1" _entry _name _required
+    local _selected="$1" _entry _name _required _requiredList
     local -A _needs=() _seen=()
     local -a _queue=() _result=()
 
@@ -94,7 +94,8 @@ function resolveShaderRepoRequirements() {
         [[ -n $_name && -z ${_seen["$_name"]+x} ]] || continue
         _seen["$_name"]=1
         _result+=("$_name")
-        for _required in ${_needs["$_name"]//,/ }; do
+        _requiredList="${_needs["$_name"]:-}"
+        for _required in ${_requiredList//,/ }; do
             [[ -n ${_needs["$_required"]+x} ]] && _queue+=("$_required")
         done
     done

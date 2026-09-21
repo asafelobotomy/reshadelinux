@@ -107,12 +107,16 @@ test_deps_shows_an_error_dialog_for_the_yad_backend() {
     local _stub _log="$TEST_TEMP_DIR/yad.log" _rc
 
     _stub=$(_make_stub_path pacman)
+    # The dialog wrapper needs working mktemp and rm; the stub directory is otherwise all fakes.
+    ln -sf "$(command -v mktemp)" "$_stub/mktemp"
+    ln -sf "$(command -v rm)" "$_stub/rm"
     printf '#!/bin/sh\nprintf "%%s\\n" "$*" >> "%s"\nexit 0\n' "$_log" > "$_stub/yad"
     chmod +x "$_stub/yad"
 
     set +e
     (
         source "$REPO_DIR/lib/logging.sh"
+        source "$REPO_DIR/lib/ui.sh"
         PATH="$_stub"
         _UI_BACKEND=yad
         checkRequiredExecutables 7z
@@ -122,7 +126,7 @@ test_deps_shows_an_error_dialog_for_the_yad_backend() {
 
     [[ $_rc -ne 0 ]]
     [[ -f $_log ]]
-    grep -q -- '--error' "$_log"
+    grep -q -- '--image=dialog-error' "$_log"
     grep -q '7z' "$_log"
 }
 

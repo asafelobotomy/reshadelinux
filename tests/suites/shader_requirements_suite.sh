@@ -46,6 +46,12 @@ test_requirement_cycles_and_unknown_names_are_harmless() {
     [[ $(resolveShaderRepoRequirements "alpha") == "alpha,beta" ]]
 }
 
+test_resolving_a_name_the_registry_does_not_know_keeps_it_even_under_set_u() {
+    _use_registry "$(_registry_entry alpha beta)" "$(_registry_entry beta)"
+
+    [[ $( set -u; resolveShaderRepoRequirements "ghost,alpha" ) == "ghost,alpha,beta" ]]
+}
+
 test_resolving_nothing_prints_nothing() {
     _use_registry "$(_registry_entry alpha beta)" "$(_registry_entry beta)"
 
@@ -271,5 +277,6 @@ run_shader_requirements_tests() {
     run_test "Empty broken effect list keeps everything" test_an_empty_broken_effect_list_keeps_everything
     run_test "Default broken effect list matches the compile results" test_default_broken_effect_list_matches_the_proton_compile_results
     run_test "Broken effects keep app-specific excludes working" test_broken_effects_do_not_hide_app_specific_excludes
+    run_test "Unknown selected names survive set -u" test_resolving_a_name_the_registry_does_not_know_keeps_it_even_under_set_u
     echo ""
 }

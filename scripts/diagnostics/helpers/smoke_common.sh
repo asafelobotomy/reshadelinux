@@ -16,6 +16,8 @@ smoke_finish() {
     if [[ $status -ne 0 ]]; then
         printf 'SMOKE_RESULT=FAIL (workspace kept: %s)\n' "$root" >&2
         while IFS= read -r log; do
+            # Some libraries leave binary files with a .log name in the workspace's HOME.
+            grep -Iq . "$log" || continue
             printf '\n--- %s ---\n' "$log" >&2
             tail -n 20 "$log" >&2
         done < <(find "$root" -name '*.log' -type f 2>/dev/null | sort)
