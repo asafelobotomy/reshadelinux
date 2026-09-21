@@ -64,7 +64,7 @@ GPU / driver:   (for example Intel Mesa 25.2, NVIDIA 580)
 
 At least these should be covered over a release cycle, because they behave differently:
 
-- **yad 0.42** (Ubuntu 22.04 and 24.04) and **yad 14 or newer** (Arch, Fedora). Newer yad rejects
+- **yad 0.40** (Ubuntu 22.04 and 24.04) and **yad 14 or newer** (Arch, Fedora). Newer yad rejects
   options that older releases accepted, and the reverse.
 - **bash 5.1** (Ubuntu 22.04) and **bash 5.2 or newer**.
 - **X11 and Wayland.** GTK dialogs open through XWayland or natively, and window placement and

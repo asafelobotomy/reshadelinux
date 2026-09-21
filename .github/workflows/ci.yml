@@ -90,7 +90,7 @@ jobs:
       - name: Validate desktop entry
         run: desktop-file-validate packaging/appimage/AppDir/io.github.asafelobotomy.reshadelinux.desktop
 
-  # Real yad dialogs on a virtual display. Ubuntu 22.04 and 24.04 ship yad 0.42, an older release
+  # Real yad dialogs on a virtual display. Ubuntu 22.04 and 24.04 ship yad 0.40, an older release
   # than the one the dialogs were audited on, so this is where option differences show up. It does
   # not block merging until it has proven stable on both runners.
   gui-smoke:
