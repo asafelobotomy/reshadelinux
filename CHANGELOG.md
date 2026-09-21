@@ -4,9 +4,9 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, adapted for this repository.
 
-## [Unreleased]
+## [1.3.4] - 2026-09-21
 
-### Fixed
+### Fixed in 1.3.4
 
 - Graphical interface: message, question and error dialogs never appeared on current yad (yad 15 has no `--info`, `--question` or `--error` and the wrapper hid its complaint). The shader download and installation-complete dialogs were missing, fatal errors were invisible under the GUI, and every yes/no question was silently answered No. They now use plain dialogs with an icon and buttons, and yad's own messages go to the debug log.
 - Graphical interface: choosing "Uninstall" or "Update all" by clicking its label and pressing OK started an install instead, because the action list was a radio list that keeps its pre-selected radio. Single-choice lists now answer with the highlighted row.
@@ -19,7 +19,7 @@ The format is based on Keep a Changelog, adapted for this repository.
 - `ui_menu` no longer aborts when its caller runs under `set -e`.
 - Launching `reshadelinux-gui.sh` from the application menu without `yad` used to do nothing visible. It now opens a terminal emulator for the text interface (or shows a desktop notification when there is none).
 
-### Added
+### Added in 1.3.4
 
 - `scripts/diagnostics/smoke_yad.sh`: an opt-in smoke test that drives the real yad dialogs end to end on a private X server, plus an experimental `gui-smoke` CI job that runs it on Ubuntu 22.04 and 24.04.
 - `docs/testing/`: smoke checklists for launch and packaging, every GUI dialog in order, the manage flows, dialog behaviour, the terminal interfaces, shader packs in a real game, errors and edge cases, and a short release pass, with the audit that produced them.
