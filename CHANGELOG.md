@@ -4,9 +4,9 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, adapted for this repository.
 
-## [Unreleased]
+## [1.4.0] - 2026-10-22
 
-### Added
+### Added in 1.4.0
 
 - `--no-input`: a run that never prompts or opens a dialog. It uses the flags, the game's stored settings and what was detected, and stops with exit status 2 and the flag to add when an answer is still missing.
 - `--dry-run` (`-n`): prints what an install, uninstall or `--update-all` would download, link and write, and changes nothing. It does not create the data folder or use the network.
@@ -17,14 +17,14 @@ The format is based on Keep a Changelog, adapted for this repository.
 - `--help` starts with examples and names the project page.
 - `scripts/release/pin-reshade.sh` and `scripts/release/pin-shader-repos.sh` refresh the pins described below; the second prints a compare link for every pack that moved, for review.
 
-### Changed
+### Changed in 1.4.0
 
 - **ReShade downloads are verified by default.** The installer carries the SHA-256 of the official ReShade 6.6.2 to 6.8.0 setup files (standard and add-on) and refuses a download that does not match. When reshade.me offers a build newer than the installer knows, the newest known build is installed with a warning. `RESHADE_SETUP_SHA256` still pins a digest of your own, and `RESHADE_ALLOW_UNPINNED=1` installs an unknown build unverified.
 - **Shader packs are installed at a reviewed commit.** Every built-in pack is pinned, and existing clones move to their pinned commit on the next run. A clone holding your own edits or commits is left alone, with a warning. Packs added through `SHADER_REPOS` follow their branch as before, and `SHADER_REPOS_TRACK_HEAD=1` makes every pack follow its branch.
 - The graphical progress window shows each step in a readable log below the bar instead of only in small text inside it.
 - Warnings are printed on stderr.
 
-### Fixed
+### Fixed in 1.4.0
 
 - A game path, DLL name or error message containing a backslash (for example a literal `\n`) is shown literally in yad dialogs instead of turning into a line break or tab.
 - The graphical installer could hang for good after a step, with an empty progress window left on screen. yad handles SIGTERM in its main loop, so a progress window whose loop was stuck ignored it and the installer waited for it forever; it is now killed after two seconds. Seen as an intermittent failure of `smoke_yad.sh` on yad 15.
