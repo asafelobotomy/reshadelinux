@@ -233,7 +233,7 @@ load_functions_from_script() {
 pin_test_reshade_builds() {
     local _builds=("$@")
     _TEST_PINNED_RESHADE_BUILDS="${_builds[*]}"
-    # shellcheck disable=SC2329  # replaces the generated table, called by lib/integrity.sh
+    # shellcheck disable=SC2317,SC2329  # replaces the generated table, called by lib/integrity.sh
     listPinnedReshadeSetups() {
         local _build
         for _build in $_TEST_PINNED_RESHADE_BUILDS; do
