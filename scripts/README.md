@@ -29,4 +29,6 @@ All smoke diagnostics share `diagnostics/helpers/smoke_common.sh` for runtime wo
 
 - `release/release-appimage.sh` - validates the repository, builds the AppImage, and publishes a release from the current `VERSION` and `CHANGELOG.md`. Use `--build-only` for a build with no commit, tag, push or GitHub changes. A release run must start on `main` with only the version files changed.
 - `release/lib-release.sh` - helper functions for the release tool (sourced, and covered by `tests/suites/release_suite.sh`)
+- `release/pin-reshade.sh [VERSION...]` - downloads the official ReShade setup files (standard and add-on) for each version, or for the version reshade.me offers, and records their SHA-256 in `lib/reshade_pins.sh`. Refuses to re-pin a file whose digest changed. Never runs what it downloads.
+- `release/pin-shader-repos.sh [--check] [NAME...]` - records the current commit of every built-in shader pack, or only the named ones, in `lib/shader_pins.sh` using `git ls-remote`, and prints a GitHub compare link for each pack that moved so the change can be reviewed. `--check` only reports.
 - `release/check-version-sync.sh` - verifies that `VERSION`, the changelog, the AppStream metainfo, the `reshadelinux.sh` fallback and the desktop entry agree

@@ -70,8 +70,9 @@ a Steam `appmanifest` file is enough).
 ## 6. Downloading and building
 
 - [ ] **INST-50 P0** A progress window titled "ReShade" appears while a pack is cloned ("Cloning shader
-  repo:" and the address) and while the shader folder is built. The large text names the operation and
-  the small text inside the bar shows the current step.
+  repo:" and the address) and while the shader folder is built. The large text names the operation, and
+  each step ("[2/5] Merging sweetfx-shaders") is added to the expanded **Details** log below the bar in
+  normal-sized text.
 - [ ] **INST-51 P1** The progress bar keeps moving for at least ten seconds without freezing; closing
   the progress window with its close button does not stop the install and leaves no orphan process.
 - [ ] **INST-52 P0** After a successful download: "Shaders have been successfully downloaded and will

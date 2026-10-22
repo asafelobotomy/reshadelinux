@@ -58,15 +58,19 @@ yadsmoke_pid_is_progress() {
 # Print "<window id>|<title>" of the newest yad dialog (progress windows are skipped), waiting up
 # to YADSMOKE_DIALOG_WAIT seconds.
 yadsmoke_next_dialog() {
-    local _i _id _pid
+    local _i _id _pid _name
 
     for _i in $(seq 1 $((YADSMOKE_DIALOG_WAIT * 4))); do
         while IFS= read -r _id; do
+            # A window that is still being mapped, or whose process just exited (a progress window
+            # closing), has no pid or no title yet: look again on the next pass.
             _pid=$(xdotool getwindowpid "$_id" 2>/dev/null || true)
-            if [[ -n $_pid ]] && yadsmoke_pid_is_progress "$_pid"; then
-                continue
-            fi
-            printf '%s|%s\n' "$_id" "$(xdotool getwindowname "$_id")"
+            _name=$(xdotool getwindowname "$_id" 2>/dev/null || true)
+            [[ -n $_pid && -n $_name ]] || continue
+            # An exiting process has an empty command line, so it cannot be told from a dialog yet.
+            [[ -n $(tr -d '\0' < "/proc/$_pid/cmdline" 2>/dev/null) ]] || continue
+            yadsmoke_pid_is_progress "$_pid" && continue
+            printf '%s|%s\n' "$_id" "$_name"
             return 0
         done < <(xdotool search --onlyvisible --class yad 2>/dev/null | tac)
         sleep 0.25
@@ -80,9 +84,15 @@ yadsmoke_answer() {
     local _expected="$1" _dialog _id _title _pid _key _i
     shift
 
-    _dialog=$(yadsmoke_next_dialog) || { printf 'FAIL: no dialog appeared (expected "%s")\n' "$_expected" >&2; return 1; }
-    _id="${_dialog%%|*}"
-    _title="${_dialog#*|}"
+    # A window that only flashes past (a progress window between two dialogs) can be the newest one
+    # for a moment, so a wrong title is looked at again for a few seconds before it counts.
+    for _i in $(seq 1 20); do
+        _dialog=$(yadsmoke_next_dialog) || { printf 'FAIL: no dialog appeared (expected "%s")\n' "$_expected" >&2; return 1; }
+        _id="${_dialog%%|*}"
+        _title="${_dialog#*|}"
+        [[ $_title == "$_expected" ]] && break
+        sleep 0.25
+    done
     _pid=$(xdotool getwindowpid "$_id" 2>/dev/null || true)
     if [[ $_title != "$_expected" ]]; then
         printf 'FAIL: expected a dialog titled "%s" but got "%s"\n' "$_expected" "$_title" >&2

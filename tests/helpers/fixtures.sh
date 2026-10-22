@@ -228,6 +228,20 @@ load_functions_from_script() {
     fi
 }
 
+# Replace the built-in ReShade checksums with the given builds, each pinned to the digest of
+# a file holding "hello". Lets update tests use made-up versions without unpinned downloads.
+pin_test_reshade_builds() {
+    local _builds=("$@")
+    _TEST_PINNED_RESHADE_BUILDS="${_builds[*]}"
+    # shellcheck disable=SC2329  # replaces the generated table, called by lib/integrity.sh
+    listPinnedReshadeSetups() {
+        local _build
+        for _build in $_TEST_PINNED_RESHADE_BUILDS; do
+            printf '%s 5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03\n' "$_build"
+        done
+    }
+}
+
 # Helper: assert file exists
 # Fail the test when the command succeeds. A bare `! cmd` cannot do this: bash exempts
 # negated commands from errexit, so the test would carry on and pass. The command runs

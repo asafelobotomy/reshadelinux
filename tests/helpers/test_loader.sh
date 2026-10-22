@@ -28,11 +28,12 @@ function init_test_runtime_defaults() {
 function use_fatal_printErr() {
     function printErr() {
         printf '%b[ERROR] %s%b\n' "${_RED:-}" "$*" "${_R:-}" >&2
-        exit 1
+        exit "${_errExitCode:-1}"
     }
 }
 
 source "$REPO_DIR/lib/ui.sh"
+source "$REPO_DIR/lib/ui_yad.sh"
 source "$REPO_DIR/lib/ui_auto.sh"
 source "$REPO_DIR/lib/utils.sh"
 source "$REPO_DIR/lib/config.sh"
@@ -45,9 +46,14 @@ source "$REPO_DIR/lib/steam_detection.sh"
 source "$REPO_DIR/lib/steam_metadata.sh"
 source "$REPO_DIR/lib/game_selection.sh"
 source "$REPO_DIR/lib/cli.sh"
+source "$REPO_DIR/lib/integrity.sh"
+source "$REPO_DIR/lib/reshade_pins.sh"
+source "$REPO_DIR/lib/shader_pins.sh"
 source "$REPO_DIR/lib/install.sh"
 source "$REPO_DIR/lib/deps.sh"
 source "$REPO_DIR/lib/flow.sh"
+source "$REPO_DIR/lib/batch_update.sh"
+source "$REPO_DIR/lib/dry_run.sh"
 
 _UI_BACKEND=cli
 export GLOBAL_INI=ReShade.ini

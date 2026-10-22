@@ -151,6 +151,21 @@ source "$SCRIPT_DIR/suites/cli_suite.sh" || {
     echo "Failed to source suites/cli_suite.sh"
     exit 1
 }
+# shellcheck source=./suites/cli_flags_suite.sh
+source "$SCRIPT_DIR/suites/cli_flags_suite.sh" || {
+    echo "Failed to source suites/cli_flags_suite.sh"
+    exit 1
+}
+# shellcheck source=./suites/desktop_suite.sh
+source "$SCRIPT_DIR/suites/desktop_suite.sh" || {
+    echo "Failed to source suites/desktop_suite.sh"
+    exit 1
+}
+# shellcheck source=./suites/pinning_suite.sh
+source "$SCRIPT_DIR/suites/pinning_suite.sh" || {
+    echo "Failed to source suites/pinning_suite.sh"
+    exit 1
+}
 
 # Run one test function in an isolated environment and return its status.
 #
@@ -255,8 +270,10 @@ main() {
     run_install_tests
     run_update_tests
     run_repo_sync_tests
+    run_pinning_tests
     run_ui_tests
     run_ui_dialog_tests
+    run_desktop_tests
     run_gui_flow_tests
     run_gui_launch_tests
     run_pe_tests
@@ -265,6 +282,7 @@ main() {
     run_compile_check_report_tests
     run_compile_check_tests
     run_cli_tests
+    run_cli_flag_tests
 
     echo -e "${BLUE}========================================${NC}"
     echo -e "${BLUE}Test Summary${NC}"

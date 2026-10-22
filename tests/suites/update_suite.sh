@@ -18,6 +18,7 @@ _stub_reshade_update_environment() {
     export RESHADE_VERSION=latest
     export FORCE_RESHADE_UPDATE_CHECK=1
     init_test_runtime_defaults
+    pin_test_reshade_builds "$_remote"
     UPDATE_RESHADE=1
     RESHADE_URL="https://reshade.example.invalid"
     RESHADE_URL_ALT="https://reshade-alt.example.invalid"

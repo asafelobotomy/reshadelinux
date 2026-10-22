@@ -28,42 +28,121 @@ function _updateShaderRepoClone() {
     _gitNoPrompt -C "$_dir" reset --hard '@{upstream}'
 }
 
+# Where a pinned clone records the commit this installer last checked out, to tell its own
+# checkouts from commits the user made.
+function _shaderPinMarker() {
+    printf '%s/.git/reshadelinux-pin\n' "$1"
+}
+
+# True when HEAD is something this installer put there: the commit it last pinned, or a commit
+# upstream has (a clone made before pinning sits on its branch). A commit only the user has is not.
+function _shaderCloneHeadIsOurs() {
+    local _dir="$1" _head="$2" _marker _recorded=""
+
+    _marker=$(_shaderPinMarker "$_dir")
+    [[ -f $_marker ]] && _recorded=$(<"$_marker")
+    [[ -n $_recorded && $_recorded == "$_head" ]] && return 0
+    [[ -n $(_gitNoPrompt -C "$_dir" for-each-ref --contains "$_head" refs/remotes 2>/dev/null) ]]
+}
+
+# Check a clone out at its pinned commit, fetching that one commit when the clone lacks it.
+# The clone is left alone, and the call fails, when it holds edits or commits of the user's.
+function _checkoutPinnedShaderCommit() {
+    local _dir="$1" _commit="$2" _head
+
+    _head=$(_gitNoPrompt -C "$_dir" rev-parse HEAD) || return 1
+    [[ $_head == "$_commit" ]] && return 0
+    if [[ -n $(_gitNoPrompt -C "$_dir" status --porcelain) ]] || ! _shaderCloneHeadIsOurs "$_dir" "$_head"; then
+        printWarn "Not moving $_dir to its pinned commit: it holds local changes. Commit or discard them, or remove the folder."
+        return 1
+    fi
+    if ! _gitNoPrompt -C "$_dir" cat-file -e "$_commit^{commit}" 2>/dev/null; then
+        _gitNoPrompt -C "$_dir" fetch --depth 1 origin "$_commit" || return 1
+    fi
+    _gitNoPrompt -C "$_dir" -c advice.detachedHead=false checkout --quiet --detach "$_commit" || return 1
+    printf '%s\n' "$_commit" > "$(_shaderPinMarker "$_dir")"
+}
+
+# A clone that was pinned and should now follow its branch (SHADER_REPOS_TRACK_HEAD=1, or the pin
+# was removed) is detached; put it back on its branch so a fast-forward can work.
+function _reattachShaderClone() {
+    local _dir="$1" _branch="$2"
+
+    _gitNoPrompt -C "$_dir" symbolic-ref -q HEAD >/dev/null && return 0
+    if [[ -z $_branch ]]; then
+        _branch=$(_gitNoPrompt -C "$_dir" for-each-ref --format='%(refname:short)' --count=1 refs/heads) || return 1
+    fi
+    [[ -n $_branch ]] || return 1
+    _gitNoPrompt -C "$_dir" checkout --quiet "$_branch"
+}
+
+function _recordFailedShaderRepo() {
+    _failedRepos="${_failedRepos:+$_failedRepos,}$1"
+}
+
+# Bring one existing clone to what it should be: its pinned commit, or the head of its branch.
+function _syncExistingShaderClone() {
+    local _dir="$1" _commit="$2" _head
+
+    if [[ -n $_commit ]]; then
+        _head=$(_gitNoPrompt -C "$_dir" rev-parse HEAD 2>/dev/null) || _head=""
+        [[ $_head == "$_commit" ]] && return 0
+        printf '%bMoving shader repo to its pinned commit:%b %s %s\n' "$_GRN" "$_R" "$_shaderRepoUri" "${_commit:0:12}"
+        withProgress "Updating shader repo:\n<tt>$_shaderRepoUri</tt>" \
+            _checkoutPinnedShaderCommit "$_dir" "$_commit"
+        return
+    fi
+    [[ $UPDATE_RESHADE -eq 1 ]] || return 0
+    printf '%bUpdating shader repo:%b %s\n' "$_GRN" "$_R" "$_shaderRepoUri"
+    withProgress "Updating shader repo:\n<tt>$_shaderRepoUri</tt>" \
+        _reattachAndUpdateShaderClone "$_dir" "$_shaderRepoBranch"
+}
+
+function _reattachAndUpdateShaderClone() {
+    _reattachShaderClone "$1" "$2" || return 1
+    _updateShaderRepoClone "$1"
+}
+
+# Clone a pack; a pinned pack is then checked out at its commit, and a clone that cannot reach the
+# pin is removed rather than left at an unreviewed commit.
+function _cloneShaderRepo() {
+    local _dir="$1" _commit="$2"
+    local -a _branchArgs=()
+
+    [[ -n $_shaderRepoBranch ]] && _branchArgs=(--branch "$_shaderRepoBranch" --single-branch)
+    _gitNoPrompt clone --depth 1 "${_branchArgs[@]}" "$_shaderRepoUri" "$_dir" || return 1
+    [[ -n $_commit ]] || return 0
+    _checkoutPinnedShaderCommit "$_dir" "$_commit" && return 0
+    rm -rf "$_dir"
+    return 1
+}
+
 # Clone or update selected shader repositories; records failures in _failedRepos.
 function ensureSelectedShaderRepos() {
     local _selectedRepos
     _selectedRepos=$(resolveShaderRepoRequirements "$1")
     [[ -z $_selectedRepos ]] && return 0
     _selectedRepos+="${SHADER_CORE_REPOS:+,$SHADER_CORE_REPOS}"
-    local _entry _status _repoDir
+    local _entry _repoDir _commit
     _failedRepos=""
 
+    mkdir -p "$MAIN_PATH/ReShade_shaders" || exit
     while IFS= read -r _entry || [[ -n $_entry ]]; do
         parseShaderRepoEntry "$_entry"
         repoIsSelected "$_selectedRepos" "$_shaderRepoName" || continue
         _repoDir="$MAIN_PATH/ReShade_shaders/$_shaderRepoName"
+        _commit=$(shaderRepoWantedCommit "$_shaderRepoUri" "$_shaderRepoBranch") || _commit=""
         if [[ -d $_repoDir ]]; then
-            if [[ $UPDATE_RESHADE -eq 1 ]]; then
-                printf '%bUpdating shader repo:%b %s\n' "$_GRN" "$_R" "$_shaderRepoUri"
-                withProgress "Updating shader repo:\n<tt>$_shaderRepoUri</tt>" \
-                    _updateShaderRepoClone "$_repoDir"
-                _status=$?
-                if [[ $_status -ne 0 ]]; then
-                    printf '%bCould not update shader repo: %s%b\n' "$_YLW" "$_shaderRepoUri" "$_R"
-                    _failedRepos="${_failedRepos:+$_failedRepos,}$_shaderRepoName"
-                fi
+            if ! _syncExistingShaderClone "$_repoDir" "$_commit"; then
+                printWarn "Could not update shader repo: $_shaderRepoUri"
+                _recordFailedShaderRepo "$_shaderRepoName"
             fi
-        else
-            mkdir -p "$MAIN_PATH/ReShade_shaders" || exit
-            local branchArgs=()
-            [[ -n $_shaderRepoBranch ]] && branchArgs=(--branch "$_shaderRepoBranch" --single-branch)
-            printf '%bCloning shader repo:%b %s\n' "$_GRN" "$_R" "$_shaderRepoUri"
-            withProgress "Cloning shader repo:\n<tt>$_shaderRepoUri</tt>" \
-                _gitNoPrompt clone --depth 1 "${branchArgs[@]}" "$_shaderRepoUri" "$_repoDir"
-            _status=$?
-            if [[ $_status -ne 0 ]]; then
-                printf '%bCould not clone shader repo: %s%b\n' "$_YLW" "$_shaderRepoUri" "$_R"
-                _failedRepos="${_failedRepos:+$_failedRepos,}$_shaderRepoName"
-            fi
+            continue
+        fi
+        printf '%bCloning shader repo:%b %s\n' "$_GRN" "$_R" "$_shaderRepoUri"
+        if ! withProgress "Cloning shader repo:\n<tt>$_shaderRepoUri</tt>" _cloneShaderRepo "$_repoDir" "$_commit"; then
+            printWarn "Could not clone shader repo: $_shaderRepoUri"
+            _recordFailedShaderRepo "$_shaderRepoName"
         fi
     done < <(listConfiguredShaderRepoEntries)
     [[ -n $_failedRepos ]] && return 1

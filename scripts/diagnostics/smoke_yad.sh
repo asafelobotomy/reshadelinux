@@ -165,7 +165,7 @@ scenario_update_all_ends_with_a_confirmation() {
 scenario_fatal_errors_are_shown_in_a_dialog() {
     begin fatal_errors_are_shown_in_a_dialog SHADER_REPOS=';' -- --app-id=999999
     yadsmoke_answer "ReShade" Return &&
-        yadsmoke_answer "ReShade - Error" Return && finish 1 || return 1
+        yadsmoke_answer "ReShade - Error" Return && finish 2 || return 1
     grep -q "Could not find a detected Steam game" "$LOG" || { echo "unexpected error text" >&2; return 1; }
 }
 

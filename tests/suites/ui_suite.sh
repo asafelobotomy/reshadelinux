@@ -1,5 +1,7 @@
 #!/bin/bash
 # shellcheck disable=SC2030,SC2031  # PATH and other settings are changed inside subshells on purpose
+# shellcheck disable=SC2016  # fake programs are written with their own, unexpanded, variables
+# shellcheck disable=SC2034  # settings are set for the code under test
 
 # Dialog plumbing: yad text is plain text, and the auto-answer test hook announces itself.
 
@@ -224,7 +226,85 @@ test_no_source_file_uses_a_yad_dialog_kind_that_yad_15_removed() {
 
 test_progress_dialog_keeps_its_intentional_markup() {
     grep -q '<tt>' "$REPO_DIR/lib/shaders.sh"
-    assert_fails grep -q -- '--no-markup' <(grep -n 'yad --progress' "$REPO_DIR/lib/utils.sh")
+    grep -q 'yad --progress' "$REPO_DIR/lib/ui_yad.sh"
+    assert_fails grep -q -- '--no-markup' <(grep -A2 'yad --progress' "$REPO_DIR/lib/ui_yad.sh")
+}
+
+# A fake yad that records its arguments and the lines it is fed, then exits after $1 lines
+# (0: at once, as when the window is closed straight away).
+_install_progress_yad() {
+    local _bin="$TEST_TEMP_DIR/progress-bin"
+    mkdir -p "$_bin"
+    {
+        printf '#!/bin/bash\n'
+        printf 'printf "%%s\\n" "$*" > %q\n' "$TEST_TEMP_DIR/yad-args"
+        printf 'n=0\n'
+        printf 'while [[ $n -lt %d ]] && IFS= read -r line; do\n' "$1"
+        printf '    printf "%%s\\n" "$line" >> %q\n' "$TEST_TEMP_DIR/yad-fed"
+        printf '    n=$((n + 1))\n'
+        printf 'done\n'
+    } > "$_bin/yad"
+    chmod +x "$_bin/yad"
+    PATH="$_bin:$PATH"
+    _UI_BACKEND=yad
+    PROGRESS_UI=1
+}
+
+_progress_step() {
+    setProgressText "Step two"
+    sleep 0.4
+    return 3
+}
+
+test_progress_window_logs_each_step_in_readable_text() {
+    local _rc
+
+    _install_progress_yad 200
+    set +e
+    withProgress "Working" _progress_step
+    _rc=$?
+    set -e
+
+    [[ $_rc -eq 3 ]]
+    grep -q -- '--enable-log=Details' "$TEST_TEMP_DIR/yad-args"
+    grep -q -- '--log-expanded' "$TEST_TEMP_DIR/yad-args"
+    grep -qx '#Step two' "$TEST_TEMP_DIR/yad-fed"
+}
+
+# yad handles SIGTERM in its main loop; when that loop is stuck, SIGTERM does nothing. Seen on yad
+# 15 as an install that never got past a progress window.
+test_a_progress_window_that_ignores_sigterm_does_not_hang_the_run() {
+    local _bin="$TEST_TEMP_DIR/stubborn-bin" _rc _start
+
+    mkdir -p "$_bin"
+    printf '#!/bin/bash\ntrap "" TERM\ncat >/dev/null\nexec sleep 60\n' > "$_bin/yad"
+    chmod +x "$_bin/yad"
+    PATH="$_bin:$PATH"
+    _UI_BACKEND=yad
+    PROGRESS_UI=1
+    _start=$SECONDS
+    set +e
+    withProgress "Working" true
+    _rc=$?
+    set -e
+
+    [[ $_rc -eq 0 ]]
+    (( SECONDS - _start < 10 ))
+}
+
+test_closing_the_progress_window_lets_the_operation_finish() {
+    local _rc _start
+
+    _install_progress_yad 0
+    _start=$SECONDS
+    set +e
+    withProgress "Working" _progress_step
+    _rc=$?
+    set -e
+
+    [[ $_rc -eq 3 ]]
+    (( SECONDS - _start < 5 ))
+    grep -qF 'kill -0 "$_yadPid"' "$REPO_DIR/lib/ui_yad.sh"
 }
 
 test_ui_auto_confirm_announces_itself_at_startup() {
@@ -255,6 +335,9 @@ run_ui_tests() {
     run_test "yad fatal error dialog uses plain text" test_fatal_error_dialog_treats_text_as_plain_text
     run_test "No source uses a removed yad dialog kind" test_no_source_file_uses_a_yad_dialog_kind_that_yad_15_removed
     run_test "Progress dialog keeps intentional markup" test_progress_dialog_keeps_its_intentional_markup
+    run_test "Progress window logs each step readably" test_progress_window_logs_each_step_in_readable_text
+    run_test "Closing the progress window lets the run finish" test_closing_the_progress_window_lets_the_operation_finish
+    run_test "A progress window ignoring SIGTERM cannot hang" test_a_progress_window_that_ignores_sigterm_does_not_hang_the_run
     run_test "UI_AUTO_CONFIRM announces itself" test_ui_auto_confirm_announces_itself_at_startup
     run_test "Startup is silent without UI_AUTO_CONFIRM" test_startup_is_silent_when_ui_auto_confirm_is_not_set
     run_test "yad dialogs still open when mktemp fails" test_yad_dialogs_still_open_when_mktemp_fails

@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 function checkStdin() {
+    requireInput "a question needed an answer: $1"
     while true; do
         if ! read -rp "$(printf '%b%s%b' "$_YLW" "$1" "$_R")" userInput; then
             printf '\n' >&2
@@ -35,45 +36,10 @@ function withProgress() {
         return $_status
     fi
     if [[ $_UI_BACKEND == yad ]]; then
-        local _progressFile _stopFile _yadPipe _yadPipeFd _yadPid _writerPid _ret
-        _progressFile=$(mktemp)
-        _stopFile=$(mktemp)   # file existence signals the loop to keep running
-        _yadPipe=$(mktemp -u)
-        mkfifo "$_yadPipe"
-        setProgressText "$text"
-        _WITH_PROGRESS_FILE="$_progressFile"
-        exec {_yadPipeFd}<>"$_yadPipe"
-        yad --progress --pulsate --no-buttons --auto-close \
-            --title="ReShade" --text="$text" --width=520 <"$_yadPipe" >/dev/null 2>&1 &
-        _yadPid=$!
-        (
-            set +x
-            local _lastText=""
-            while [[ -f "$_stopFile" ]]; do
-                printf '1\n' >&$_yadPipeFd || break
-                if [[ -f "$_progressFile" ]]; then
-                    local _currentText
-                    _currentText=$(<"$_progressFile")
-                    if [[ "$_currentText" != "$_lastText" ]]; then
-                        printf '#%s\n' "$_currentText" >&$_yadPipeFd || break
-                        _lastText="$_currentText"
-                    fi
-                fi
-                sleep 0.1
-            done
-        ) &
-        _writerPid=$!
-        "$@"
-        _ret=$?
-        rm -f "$_stopFile"    # tell the loop to exit on next check
-        wait "$_writerPid" 2>/dev/null || true
-        exec {_yadPipeFd}>&-
-        kill "$_yadPid" 2>/dev/null || true
-        wait "$_yadPid" 2>/dev/null || true
-        rm -f "$_progressFile" "$_yadPipe"
-        unset _WITH_PROGRESS_FILE _WITH_PROGRESS_TEXT
-        logDebug "withProgress finish backend=yad status=$_ret elapsed=$(( $(date +%s) - _startTs ))s text=${text//$'\n'/ | }"
-        return $_ret
+        _withYadProgress "$text" "$@"
+        _status=$?
+        logDebug "withProgress finish backend=yad status=$_status elapsed=$(( $(date +%s) - _startTs ))s text=${text//$'\n'/ | }"
+        return $_status
     fi
     if [[ $_UI_BACKEND != cli ]]; then
         ui_infobox "ReShade" "$text" 10 70
@@ -86,19 +52,21 @@ function withProgress() {
     return $_status
 }
 
+# Copy text to the desktop clipboard with the first tool that works: wl-copy on Wayland, then xclip
+# or xsel on X11 (Xwayland included, so an X tool still helps when wl-copy is missing or fails).
 function copyToClipboard() {
     local _text="$1"
     if [[ -n ${WAYLAND_DISPLAY:-} ]] && command -v wl-copy &>/dev/null; then
-        printf '%s' "$_text" | wl-copy >/dev/null 2>&1
-        return $?
+        printf '%s' "$_text" | wl-copy >/dev/null 2>&1 && return 0
+        logDebug "wl-copy could not copy to the clipboard"
     fi
     if [[ -n ${DISPLAY:-} ]] && command -v xclip &>/dev/null; then
-        printf '%s' "$_text" | xclip -selection clipboard >/dev/null 2>&1
-        return $?
+        printf '%s' "$_text" | xclip -selection clipboard >/dev/null 2>&1 && return 0
+        logDebug "xclip could not copy to the clipboard"
     fi
     if [[ -n ${DISPLAY:-} ]] && command -v xsel &>/dev/null; then
-        printf '%s' "$_text" | xsel --clipboard --input >/dev/null 2>&1
-        return $?
+        printf '%s' "$_text" | xsel --clipboard --input >/dev/null 2>&1 && return 0
+        logDebug "xsel could not copy to the clipboard"
     fi
     return 1
 }

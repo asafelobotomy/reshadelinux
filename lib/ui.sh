@@ -10,13 +10,13 @@ function ensureUiBackendAvailable() {
             ;;
         yad|whiptail|dialog)
             if ! command -v "$_backend" &>/dev/null; then
-                printErr "Requested UI backend '$_backend' is not installed or not on PATH."
+                failWith "$EXIT_DEPENDENCY" "Requested UI backend '$_backend' is not installed or not on PATH."
                 return 1
             fi
             return 0
             ;;
         *)
-            printErr "Invalid UI backend '$_backend'."
+            failWith "$EXIT_USAGE" "Invalid UI backend '$_backend'."
             return 1
             ;;
     esac
@@ -33,7 +33,7 @@ function chooseUiBackend() {
             return
             ;;
         *)
-            printErr "Invalid UI_BACKEND='$_forced'. Expected one of: auto, yad, whiptail, dialog, cli."
+            failWith "$EXIT_USAGE" "Invalid UI_BACKEND='$_forced'. Expected one of: auto, yad, whiptail, dialog, cli."
             return 1
             ;;
     esac
@@ -52,25 +52,6 @@ function chooseUiBackend() {
         return
     fi
     printf 'cli\n'
-}
-
-# Escape text for a yad list cell (cells are read as pango markup). The replacements are
-# quoted because bash 5.2 reads an unquoted & in a replacement as "the matched text", which
-# turned "<" into "<lt;".
-function _pango_escape() {
-    local _s="$1"
-    _s=${_s//&/'&amp;'}
-    _s=${_s//</'&lt;'}
-    _s=${_s//>/'&gt;'}
-    printf '%s' "$_s"
-}
-
-function ui_yad_dims() {
-    local _height="${1:-14}" _width="${2:-70}"
-    local _pxHeight=$((_height * 24)) _pxWidth=$((_width * 8))
-    (( _pxHeight < 180 )) && _pxHeight=180
-    (( _pxWidth < 420 )) && _pxWidth=420
-    printf '%s %s\n' "$_pxHeight" "$_pxWidth"
 }
 
 function ui_capture() {
@@ -123,47 +104,6 @@ function ui_run() {
     return $_status
 }
 
-# A scratch file for a dialog's stderr. When none can be made (a full or unwritable temporary
-# directory, which is also when a fatal error most needs its dialog) the output is dropped:
-# the dialog itself must still open.
-function _ui_scratch_file() {
-    mktemp || { logDebug "No temporary file for dialog output"; printf '/dev/null\n'; }
-}
-
-# Log what a dialog wrote to stderr, and remove its scratch file.
-function _ui_scratch_done() {
-    local _file="$1" _who="$2"
-
-    if [[ $_file != /dev/null ]]; then
-        [[ -s $_file ]] && logDebug "$_who wrote to stderr: $(<"$_file")"
-        rm -f "$_file"
-    fi
-    return 0
-}
-
-# Run yad for a dialog whose answer is its exit status. yad's own complaints (a bad option
-# exits 1, which a caller cannot tell from "cancel") go to the debug log, not into the void.
-function _ui_yad_run() {
-    local _errFile _status
-
-    _errFile=$(_ui_scratch_file)
-    ui_run yad "$@" >/dev/null 2>"$_errFile"
-    _status=$?
-    _ui_scratch_done "$_errFile" yad
-    return $_status
-}
-
-# A message dialog with an icon and buttons. yad 15 has no --info/--question/--error
-# dialog kinds (it exits with "Unknown option"), and a plain dialog works on every version.
-function _ui_yad_message() {
-    local _icon="$1" _title="$2" _text="$3" _height="$4" _width="$5" _pxHeight _pxWidth
-
-    shift 5
-    read -r _pxHeight _pxWidth < <(ui_yad_dims "$_height" "$_width")
-    _ui_yad_run --no-markup --image="$_icon" --title="$_title" --text="$_text" \
-        --height="$_pxHeight" --width="$_pxWidth" "$@"
-}
-
 # A message dialog with the given icon (dialog-information, dialog-warning).
 function _ui_msgbox() {
     local _icon="$1" _title="$2" _text="$3" _height="${4:-14}" _width="${5:-70}"
@@ -197,11 +137,13 @@ function ui_yesno() {
     esac
 }
 
-# Error dialog for the graphical backend only: the other backends print to the terminal.
+# Error dialog for the graphical backend only: the other backends print to the terminal. The text
+# is shown literally (an error message carries paths, never intended escapes); line breaks in it
+# must be real newlines.
 function ui_error() {
     local _title="$1" _text="$2" _height="${3:-10}" _width="${4:-65}"
     [[ ${_UI_BACKEND:-} == yad ]] || return 0
-    _ui_yad_message dialog-error "$_title" "$_text" "$_height" "$_width" --button=Close:0
+    _ui_yad_message dialog-error "$_title" "$(uiQuote "$_text")" "$_height" "$_width" --button=Close:0
 }
 
 function ui_inputbox() {

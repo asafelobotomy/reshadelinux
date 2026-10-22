@@ -28,14 +28,17 @@ bash tests/run_simple_tests.sh
 - `suites/gui_launch_suite.sh` - how the graphical interface starts: the `reshadelinux-gui.sh` wrapper (fake terminals and notifier) and the yad smoke tooling
 - `suites/flow_suite.sh` - UI helpers, dependency checks, ReShade download, and batch-update flows
 - `suites/deps_suite.sh` - missing-dependency reporting: package names per manager, stderr output, and the yad error dialog
-- `suites/install_suite.sh` - hash pin and download URL checks, DLL override entry, temp-dir cleanup, linking, and uninstall
+- `suites/install_suite.sh` - ReShade checksum (built-in pins, `RESHADE_SETUP_SHA256`, `RESHADE_ALLOW_UNPINNED`) and download URL checks, DLL override entry, temp-dir cleanup, linking, and uninstall
 - `suites/update_suite.sh` - the `latest` ReShade link across failed, interrupted, and repeated updates
 - `suites/repos_suite.sh` - shader repository clone/update against real local git repositories
-- `suites/ui_suite.sh` - yad plain-text dialogs and the `UI_AUTO_CONFIRM` warning
+- `suites/ui_suite.sh` - yad plain-text dialogs, the progress window, and the `UI_AUTO_CONFIRM` warning
 - `suites/pe_suite.sh` - PE import analysis using synthetic executables built by `create_mock_pe`
 - `suites/release_suite.sh` - release tool helpers and the `--build-only` and full-release phase ordering, with every side-effecting phase stubbed
 - `suites/diagnostics_suite.sh` - smoke runners keep their workspace and log tails when a run fails
 - `suites/cli_suite.sh` - CLI parsing and flow test groups sourced by the runner
+- `suites/cli_flags_suite.sh` - `--no-input`, `--dry-run`, `--quiet`, `--json`, `--uninstall` and the exit statuses, mostly through the real entrypoint, plus the ReShade checksum fallback
+- `suites/pinning_suite.sh` - shader packs pinned to a commit, against real local git repositories, and that every built-in pack has a pin
+- `suites/desktop_suite.sh` - clipboard tool fallback and literal text in yad dialogs
 
 ## Coverage
 

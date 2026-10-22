@@ -9,9 +9,9 @@ function selectExplicitGamePath() {
     if [[ -f $_requestedPath || -d $_requestedPath ]]; then
         _resolvedPath=$(realpath "$_requestedPath" 2>/dev/null || true)
     fi
-    [[ -n $_resolvedPath ]] || printErr "The path supplied via --game-path does not exist: $_requestedPath"
+    [[ -n $_resolvedPath ]] || failWith "$EXIT_USAGE" "The path supplied via --game-path does not exist: $_requestedPath"
     [[ -f $_resolvedPath ]] && _resolvedPath=$(dirname "$_resolvedPath")
-    [[ -d $_resolvedPath ]] || printErr "The path supplied via --game-path is not a directory: $_requestedPath"
+    [[ -d $_resolvedPath ]] || failWith "$EXIT_USAGE" "The path supplied via --game-path is not a directory: $_requestedPath"
 
     gamePath="$_resolvedPath"
     _selectedAppId="${CLI_APP_ID:-}"
@@ -24,6 +24,7 @@ function selectExplicitGamePath() {
 
 # Prompt user for a game path manually (TUI or CLI).
 function promptGamePathManual() {
+    requireInput "no game was chosen. Pass --game-path, or --app-id for a detected Steam game."
     if [[ $_UI_BACKEND != cli ]]; then
         local _startDir="$HOME/.local/share/Steam/steamapps/common"
         [[ ! -d $_startDir ]] && _startDir="$HOME"
@@ -38,11 +39,11 @@ function promptGamePathManual() {
             gamePath=$(realpath "$gamePath" 2>/dev/null)
             [[ -f $gamePath ]] && gamePath=$(dirname "$gamePath")
             if [[ -z $gamePath || ! -d $gamePath ]]; then
-                ui_warnbox "ReShade" "Path does not exist:\n$gamePath" 12 70
+                ui_warnbox "ReShade" "Path does not exist:\n$(uiQuote "$gamePath")" 12 70
                 continue
             fi
             if ! compgen -G "$gamePath/*.exe" &>/dev/null; then
-                ui_yesno "ReShade" "No .exe file found in:\n$gamePath\n\nUse this folder anyway?" 12 72 \
+                ui_yesno "ReShade" "No .exe file found in:\n$(uiQuote "$gamePath")\n\nUse this folder anyway?" 12 72 \
                     || { _startDir="$gamePath"; continue; }
             fi
             break
@@ -90,6 +91,8 @@ function getGamePath() {
         return
     fi
 
+    [[ ${CLI_APP_ID_SET:-0} -eq 1 ]] \
+        || requireInput "no game was chosen. Pass --game-path, or --app-id for a detected Steam game."
     detectSteamGames
     if [[ ${CLI_APP_ID_SET:-0} -eq 1 ]]; then
         local _i
@@ -99,7 +102,7 @@ function getGamePath() {
                 return
             fi
         done
-        printErr "Could not find a detected Steam game for App ID '$CLI_APP_ID'."
+        failWith "$EXIT_USAGE" "Could not find a detected Steam game for App ID '$CLI_APP_ID'."
     fi
 
     if [[ ${#DETECTED_GAME_PATHS[@]} -eq 0 ]]; then

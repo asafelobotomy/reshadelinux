@@ -42,6 +42,18 @@ The same flows as the GUI, on the text backends. Run with a real terminal.
 - [ ] **CLI-08 P1** Closed standard input (`</dev/null`) ends with "Input closed while waiting for user
   response", not an endless loop.
 - [ ] **CLI-09 P2** `--version`, `-V`, `--help` and `-h` print and exit 0 without touching the data folder.
+- [ ] **CLI-11 P0** `--no-input` with `</dev/null` never waits: without `--game-path`/`--app-id` it stops at
+  once with status 2 and names the flags; with one it installs using the detected DLL and the stored or
+  starter shader packs. **Auto:** unit tests
+- [ ] **CLI-12 P0** `--dry-run` for an install, `--uninstall` and `--update-all` prints the plan and leaves the data
+  folder, the game folder and the network untouched (compare `find ~/.local/share/reshade | sort` before and
+  after). **Auto:** unit tests
+- [ ] **CLI-13 P1** `--quiet` prints nothing on stdout but the launch option (and the `--dry-run` plan or a list
+  when asked for); warnings and errors still appear on stderr.
+- [ ] **CLI-14 P1** `--list-shader-repos --json | python3 -m json.tool` is valid JSON. **Auto:** unit tests
+- [ ] **CLI-15 P1** Exit statuses: an unknown flag 2, a missing program 3, reshade.me unreachable 4, a checksum
+  mismatch 5. **Auto:** unit tests
+- [ ] **CLI-16 P2** `--help` starts with examples and ends with the exit statuses and the project page.
 - [ ] **CLI-10 P1** Colour is used only on a terminal: `./reshadelinux.sh --version | cat` and a redirect to a file
   contain no escape sequences, `NO_COLOR=1` turns colour off on a terminal, and `CLICOLOR_FORCE=1` turns it on
   in a pipe. **Auto:** unit tests, including a pseudo terminal

@@ -86,7 +86,7 @@ function checkRequiredExecutables() {
         done
     fi
 
-    printErr "$_message"
+    failWith "$EXIT_DEPENDENCY" "$_message"
     return 1
 }
 

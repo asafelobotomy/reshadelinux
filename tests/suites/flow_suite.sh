@@ -152,6 +152,7 @@ test_reshade_update_creates_latest_symlink_when_missing() {
         UPDATE_RESHADE=1
         RESHADE_URL="https://reshade.example.invalid"
         RESHADE_URL_ALT="https://reshade-alt.example.invalid"
+        pin_test_reshade_builds 9.9.9
 
         curl() {
             printf '<a href="/downloads/ReShade_Setup_9.9.9.exe">download</a>'

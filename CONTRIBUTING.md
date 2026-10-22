@@ -35,6 +35,12 @@ SHADER_REPOS='https://github.com/OWNER/REPO|my-shaders||Title|What it does' \
     bash scripts/diagnostics/audit_shaders.sh
 ```
 
+Then pin it, which records its current commit in `lib/shader_pins.sh` (a test fails for a built-in pack without a pin):
+
+```bash
+scripts/release/pin-shader-repos.sh my-shaders
+```
+
 The registry test rejects malformed or duplicate entries. The official package list is `EffectPackages.ini` on the `list` branch of `crosire/reshade-shaders`.
 
 ## Releasing

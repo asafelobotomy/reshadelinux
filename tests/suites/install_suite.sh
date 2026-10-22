@@ -9,7 +9,7 @@ test_hash_pin_rejects_glob_patterns_instead_of_matching_them() {
     printf 'hello\n' > "$_file"
     for _pin in '*' '?' '[0-9a-f]*' '*abc' '[!x]*'; do
         set +e
-        ( use_fatal_printErr; RESHADE_SETUP_SHA256="$_pin" verifyReshadeDownloadHash "$_file" ) >/dev/null 2>&1
+        ( use_fatal_printErr; RESHADE_SETUP_SHA256="$_pin" verifyReshadeDownloadHash "$_file" 1.0.0 ) >/dev/null 2>&1
         _rc=$?
         set -e
         if [[ $_rc -eq 0 ]]; then
@@ -26,7 +26,7 @@ test_hash_pin_rejects_a_well_formed_hash_that_does_not_match() {
     _pin=$(printf '0%.0s' {1..64})
 
     set +e
-    ( use_fatal_printErr; RESHADE_SETUP_SHA256="$_pin" verifyReshadeDownloadHash "$_file" ) >/dev/null 2>&1
+    ( use_fatal_printErr; RESHADE_SETUP_SHA256="$_pin" verifyReshadeDownloadHash "$_file" 1.0.0 ) >/dev/null 2>&1
     _rc=$?
     set -e
 
@@ -39,25 +39,93 @@ test_hash_pin_accepts_the_correct_hash_in_either_case() {
     printf 'hello\n' > "$_file"
     read -r _hash _rest < <(sha256sum "$_file")
 
-    ( use_fatal_printErr; RESHADE_SETUP_SHA256="$_hash" verifyReshadeDownloadHash "$_file" ) >/dev/null 2>&1
-    ( use_fatal_printErr; RESHADE_SETUP_SHA256="${_hash^^}" verifyReshadeDownloadHash "$_file" ) >/dev/null 2>&1
+    ( use_fatal_printErr; RESHADE_SETUP_SHA256="$_hash" verifyReshadeDownloadHash "$_file" 1.0.0 ) >/dev/null 2>&1
+    ( use_fatal_printErr; RESHADE_SETUP_SHA256="${_hash^^}" verifyReshadeDownloadHash "$_file" 1.0.0 ) >/dev/null 2>&1
 }
 
 test_hash_pin_names_the_variable_when_the_value_is_malformed() {
     local _file="$TEST_TEMP_DIR/payload.bin" _output
 
     printf 'hello\n' > "$_file"
-    _output=$( ( use_fatal_printErr; RESHADE_SETUP_SHA256='not-a-hash' verifyReshadeDownloadHash "$_file" ) 2>&1 || true )
+    _output=$( ( use_fatal_printErr; RESHADE_SETUP_SHA256='not-a-hash' verifyReshadeDownloadHash "$_file" 1.0.0 ) 2>&1 || true )
 
     [[ $_output == *"RESHADE_SETUP_SHA256"* ]]
     [[ $_output == *"64"* ]]
 }
 
-test_hash_pin_is_skipped_when_unset() {
+test_unpinned_reshade_build_is_refused_with_the_integrity_status() {
+    local _file="$TEST_TEMP_DIR/payload.bin" _output _rc
+
+    printf 'hello\n' > "$_file"
+    set +e
+    _output=$( ( unset RESHADE_SETUP_SHA256 RESHADE_ALLOW_UNPINNED; pin_test_reshade_builds 6.0.0
+        use_fatal_printErr; verifyReshadeDownloadHash "$_file" 1.0.0 ) 2>&1 )
+    _rc=$?
+    set -e
+
+    [[ $_rc -eq $EXIT_INTEGRITY ]]
+    [[ $_output == *"ReShade 1.0.0 has no built-in checksum"* ]]
+    [[ $_output == *"RESHADE_ALLOW_UNPINNED=1"* ]]
+}
+
+test_unpinned_reshade_build_is_installed_only_when_allowed_explicitly() {
+    local _file="$TEST_TEMP_DIR/payload.bin" _output
+
+    printf 'hello\n' > "$_file"
+    _output=$( ( unset RESHADE_SETUP_SHA256; RESHADE_ALLOW_UNPINNED=1; use_fatal_printErr
+        verifyReshadeDownloadHash "$_file" 1.0.0 ) 2>&1 )
+
+    [[ $_output == *"unverified"* ]]
+}
+
+test_built_in_pin_accepts_a_matching_download() {
     local _file="$TEST_TEMP_DIR/payload.bin"
 
     printf 'hello\n' > "$_file"
-    ( unset RESHADE_SETUP_SHA256; verifyReshadeDownloadHash "$_file" )
+    ( unset RESHADE_SETUP_SHA256; pin_test_reshade_builds 1.0.0; use_fatal_printErr
+        verifyReshadeDownloadHash "$_file" 1.0.0 ) >/dev/null 2>&1
+}
+
+test_built_in_pin_rejects_a_changed_download() {
+    local _file="$TEST_TEMP_DIR/payload.bin" _rc
+
+    printf 'tampered\n' > "$_file"
+    set +e
+    ( unset RESHADE_SETUP_SHA256; pin_test_reshade_builds 1.0.0; use_fatal_printErr
+        verifyReshadeDownloadHash "$_file" 1.0.0 ) >/dev/null 2>&1
+    _rc=$?
+    set -e
+
+    [[ $_rc -eq $EXIT_INTEGRITY ]]
+}
+
+test_user_digest_takes_precedence_over_the_built_in_pin() {
+    local _file="$TEST_TEMP_DIR/payload.bin" _hash _rest
+
+    printf 'tampered\n' > "$_file"
+    read -r _hash _rest < <(sha256sum "$_file")
+    ( pin_test_reshade_builds 1.0.0; RESHADE_SETUP_SHA256="$_hash"; use_fatal_printErr
+        verifyReshadeDownloadHash "$_file" 1.0.0 ) >/dev/null 2>&1
+}
+
+test_newest_pinned_reshade_version_keeps_standard_and_addon_builds_apart() {
+    pin_test_reshade_builds 6.7.3 6.10.0_Addon 6.10.0 6.9.1 6.9.1_Addon
+
+    [[ $(newestPinnedReshadeVersion 0) == 6.10.0 ]]
+    [[ $(newestPinnedReshadeVersion 1) == 6.10.0_Addon ]]
+}
+
+test_built_in_reshade_pins_are_well_formed() {
+    local _name _hash _count=0
+
+    while read -r _name _hash; do
+        [[ $_name =~ ^[0-9]+(\.[0-9]+)+(_Addon)?$ ]]
+        [[ $_hash =~ ^[0-9a-f]{64}$ ]]
+        _count=$((_count + 1))
+    done < <(listPinnedReshadeSetups)
+    [[ $_count -ge 2 ]]
+    newestPinnedReshadeVersion 0 >/dev/null
+    newestPinnedReshadeVersion 1 >/dev/null
 }
 
 test_extra_dll_overrides_extend_the_known_list_and_ignore_invalid_entries() {
@@ -358,7 +426,13 @@ run_install_tests() {
     run_test "Hash pin rejects a non-matching hash" test_hash_pin_rejects_a_well_formed_hash_that_does_not_match
     run_test "Hash pin accepts the correct hash" test_hash_pin_accepts_the_correct_hash_in_either_case
     run_test "Hash pin names the variable when malformed" test_hash_pin_names_the_variable_when_the_value_is_malformed
-    run_test "Hash pin is skipped when unset" test_hash_pin_is_skipped_when_unset
+    run_test "An unpinned ReShade build is refused" test_unpinned_reshade_build_is_refused_with_the_integrity_status
+    run_test "An unpinned build needs RESHADE_ALLOW_UNPINNED" test_unpinned_reshade_build_is_installed_only_when_allowed_explicitly
+    run_test "Built-in pin accepts a matching download" test_built_in_pin_accepts_a_matching_download
+    run_test "Built-in pin rejects a changed download" test_built_in_pin_rejects_a_changed_download
+    run_test "RESHADE_SETUP_SHA256 wins over the built-in pin" test_user_digest_takes_precedence_over_the_built_in_pin
+    run_test "Newest pin is chosen per build flavour" test_newest_pinned_reshade_version_keeps_standard_and_addon_builds_apart
+    run_test "Built-in ReShade pins are well formed" test_built_in_reshade_pins_are_well_formed
     run_test "EXTRA_DLL_OVERRIDES extends the list safely" test_extra_dll_overrides_extend_the_known_list_and_ignore_invalid_entries
     run_test "Manual DLL entry rejects unknown names" test_manual_dll_entry_rejects_unknown_names_and_asks_again
     run_test "Manual DLL entry accepts configured extras" test_manual_dll_entry_accepts_names_added_through_extra_dll_overrides

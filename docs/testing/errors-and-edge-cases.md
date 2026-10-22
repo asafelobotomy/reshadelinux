@@ -67,6 +67,12 @@ dialog under the GUI, a message on the terminal), **specific** (says what and wh
 - [ ] **EDGE-50 P0** ReShade downloads are only accepted from the official hosts; an altered download URL is
   refused.
 - [ ] **EDGE-51 P0** `d3dcompiler_47.dll` is checked against its pinned hash; a different file is rejected.
+- [ ] **EDGE-54 P0** A ReShade setup file is checked against `lib/reshade_pins.sh`: a changed file stops with
+  status 5; `RESHADE_VERSION=<unpinned>` stops before downloading; a newer `latest` installs the newest pinned
+  build with a warning; `RESHADE_ALLOW_UNPINNED=1` installs it with a warning. **Auto:** unit tests
+- [ ] **EDGE-55 P0** `--list-shader-repos --json` shows a commit for every built-in pack, and after an install
+  `git -C ~/.local/share/reshade/ReShade_shaders/<pack> rev-parse HEAD` is that commit. An edit inside a clone
+  keeps it where it is, with a warning, on the next run. **Auto:** `pinning_suite.sh`
 - [ ] **EDGE-52 P1** A shader pack cannot make the installer run anything: packs are only cloned and their `.fx`
   and `.fxh` files linked. Check a new pack's tree for scripts or binaries before adding it.
 - [ ] **EDGE-53 P1** No temporary file with predictable content is left world-writable.

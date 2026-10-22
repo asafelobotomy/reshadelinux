@@ -111,7 +111,7 @@ test_warning_dialog_is_a_plain_message_box_on_the_terminal_backends_and_silent_o
 
 test_the_messages_that_warn_use_the_warning_dialog() {
     grep -q 'ui_warnbox "ReShade" "Path does not exist' "$REPO_DIR/lib/game_selection.sh"
-    grep -q 'ui_warnbox "ReShade" "'"'"'$wantedDll'"'"' is not a supported DLL override' "$REPO_DIR/lib/install.sh"
+    grep -qF 'ui_warnbox "ReShade" "'"'"'$(uiQuote "$wantedDll")'"'"' is not a supported DLL override' "$REPO_DIR/lib/install.sh"
     grep -q 'ui_warnbox "ReShade - Download Error" "Some shader repositories could not be downloaded' "$REPO_DIR/lib/flow.sh"
 }
 

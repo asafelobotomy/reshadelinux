@@ -43,9 +43,13 @@ SCRIPT_DIR="$(dirname "$(realpath -- "$0")")"
 
 . "$SCRIPT_DIR/lib/logging.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/logging.sh" >&2; exit 1; }
 . "$SCRIPT_DIR/lib/ui.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/ui.sh" >&2; exit 1; }
+. "$SCRIPT_DIR/lib/ui_yad.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/ui_yad.sh" >&2; exit 1; }
 . "$SCRIPT_DIR/lib/ui_auto.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/ui_auto.sh" >&2; exit 1; }
 . "$SCRIPT_DIR/lib/utils.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/utils.sh" >&2; exit 1; }
 . "$SCRIPT_DIR/lib/cli.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/cli.sh" >&2; exit 1; }
+. "$SCRIPT_DIR/lib/integrity.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/integrity.sh" >&2; exit 1; }
+. "$SCRIPT_DIR/lib/reshade_pins.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/reshade_pins.sh" >&2; exit 1; }
+. "$SCRIPT_DIR/lib/shader_pins.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/shader_pins.sh" >&2; exit 1; }
 . "$SCRIPT_DIR/lib/config.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/config.sh" >&2; exit 1; }
 . "$SCRIPT_DIR/lib/state.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/state.sh" >&2; exit 1; }
 . "$SCRIPT_DIR/lib/shader_registry.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/shader_registry.sh" >&2; exit 1; }
@@ -58,6 +62,8 @@ SCRIPT_DIR="$(dirname "$(realpath -- "$0")")"
 . "$SCRIPT_DIR/lib/install.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/install.sh" >&2; exit 1; }
 . "$SCRIPT_DIR/lib/deps.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/deps.sh" >&2; exit 1; }
 . "$SCRIPT_DIR/lib/flow.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/flow.sh" >&2; exit 1; }
+. "$SCRIPT_DIR/lib/batch_update.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/batch_update.sh" >&2; exit 1; }
+. "$SCRIPT_DIR/lib/dry_run.sh" || { printf 'Failed to source %s\n' "$SCRIPT_DIR/lib/dry_run.sh" >&2; exit 1; }
 
 trap _cleanupTempDir EXIT
 
@@ -67,7 +73,8 @@ SEPARATOR="---------------------------------------------------------------------
 # shellcheck disable=SC2034  # Consumed by flow helpers sourced from lib/flow.sh.
 SCRIPT_VERSION="$(cat "$SCRIPT_DIR/VERSION" 2>/dev/null || printf '1.3.5')"
 parseCliArgs "$@"
-init_runtime_config
+[[ $CLI_QUIET -eq 1 ]] && enableQuietOutput
+init_runtime_config || exit $?
 validateCliArgs
 handleCliInfoArgs
 
@@ -94,9 +101,12 @@ maybeHandleDirectXUninstall
 # Nothing to update: leave before requiring download tools or fetching ReShade.
 exitWhenBatchUpdateHasNothingToDo
 
-checkRequiredExecutablesForMode install
-printShaderUpdateStatus
-ensureRequestedReshadeVersion
+# A dry run downloads nothing, so it neither needs the download tools nor fetches ReShade.
+if ! isDryRun; then
+    checkRequiredExecutablesForMode install
+    printShaderUpdateStatus
+    ensureRequestedReshadeVersion
+fi
 
 # Z0028 Batch update: re-link ReShade for all previously installed games.
 maybeHandleBatchUpdate
@@ -114,6 +124,11 @@ resolveInstallShaderSelection
 # from the game path when the game lives under a Steam steamapps/common/ tree.
 autoDetectWineprefixFromGamePath
 
+if isDryRun; then
+    describeInstallPlan
+    exit 0
+fi
+
 # Z0040
 withProgress "Downloading d3dcompiler_47.dll ($exeArch-bit)..." \
     downloadD3dcompiler_47 "$exeArch"
@@ -122,7 +137,7 @@ linkD3dcompilerToWineprefix "$exeArch"
 
 # Z0045
 if [[ $_shaderDownloadSuccess -eq 0 && -n $_selectedRepos ]]; then
-    printf '%bWarning: one or more shader repositories could not be downloaded. Linking will proceed with available repos only.%b\n' "$_YLW" "$_R"
+    printWarn "Warning: one or more shader repositories could not be downloaded. Linking will proceed with available repos only."
 fi
 withProgress "Building and linking ReShade shaders to game directory..." linkGameFilesForInstall
 # Z0045
@@ -132,6 +147,9 @@ withProgress "Building and linking ReShade shaders to game directory..." linkGam
 writeGameState "$_selectedGameKey" "$gamePath" "$wantedDll" "$exeArch" "$_selectedRepos" "$_selectedAppId"
 
 gameEnvVar="WINEDLLOVERRIDES=\"d3dcompiler_47=n;$wantedDll=n,b\""
+
+# Under --quiet this is the one line printed: what to paste into the launch options.
+[[ ${_RESULT_FD:-1} -eq 3 ]] && printResult "$gameEnvVar %command%"
 
 _clipCopied=0
 if [[ -n $_selectedAppId ]] && copyToClipboard "$gameEnvVar %command%"; then
@@ -163,10 +181,10 @@ if [[ -z $WINEPREFIX ]]; then
         "$_CYN" "$HOME" "$0" "$_R"
 fi
 if [[ $_UI_BACKEND != cli ]]; then
-    _summary="ReShade installation complete!\n\nNext steps:\n\n1. Configure Steam launch option in Game Properties:\n$gameEnvVar %command%"
+    _summary="ReShade installation complete!\n\nNext steps:\n\n1. Configure Steam launch option in Game Properties:\n$(uiQuote "$gameEnvVar") %command%"
     if [[ $_clipCopied -eq 1 ]]; then
         _summary+="\n\n(Already copied to clipboard)"
     fi
-    _summary+="\n\n2. Open the ReShade overlay in-game (usually Ctrl+Shift+Backspace)\n\n3. Shader paths are pre-configured in ReShade.ini to:\n$gamePath/ReShade_shaders/Merged/\n   If an existing ReShade.ini was preserved, verify paths in the Settings tab.\n\n4. Click Home tab and Reload"
+    _summary+="\n\n2. Open the ReShade overlay in-game (usually Ctrl+Shift+Backspace)\n\n3. Shader paths are pre-configured in ReShade.ini to:\n$(uiQuote "$gamePath")/ReShade_shaders/Merged/\n   If an existing ReShade.ini was preserved, verify paths in the Settings tab.\n\n4. Click Home tab and Reload"
     ui_msgbox "ReShade - Installation Complete" "$_summary" 18 78
 fi

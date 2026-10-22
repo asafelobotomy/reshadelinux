@@ -43,7 +43,9 @@ environments you support, and with each yad version you ship for.
 
 - [ ] **DLG-30 P0** The progress window opens for long steps and closes by itself when they finish, without
   a flash of an empty window for instant steps.
-- [ ] **DLG-31 P1** Step text changes are visible; text containing `<` or `&` is not mangled.
+- [ ] **DLG-31 P1** Step text changes are visible in the Details log; text containing `<` or `&` is not mangled.
+- [ ] **DLG-33 P2** A game folder whose name contains a backslash (for example `odd\name`) is shown with the
+  backslash in the "No .exe file found" and completion dialogs, not as a line break. **Auto:** unit tests
 - [ ] **DLG-32 P1** With `PROGRESS_UI=0` no progress window appears and the flow is unchanged.
 
 ## Windows, focus and sizing

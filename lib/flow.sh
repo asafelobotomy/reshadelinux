@@ -3,6 +3,10 @@
 # shellcheck disable=SC2153,SC2154
 
 function initializeMainWorkspace() {
+    if isDryRun; then
+        cd "$MAIN_PATH" 2>/dev/null || cd / || exit
+        return 0
+    fi
     mkdir -p "$MAIN_PATH" || printErr "Unable to create directory '$MAIN_PATH'."
     cd "$MAIN_PATH" || exit
 
@@ -54,9 +58,10 @@ function ensureRequestedReshadeVersion() {
         fi
         [[ $RESHADE_ADDON_SUPPORT -eq 1 ]] && VREGEX="[0-9][0-9.]*[0-9]_Addon" || VREGEX="[0-9][0-9.]*[0-9]"
         RLINK="$(grep -o "/downloads/ReShade_Setup_${VREGEX}\.exe" <<< "$RHTML" | head -n1)"
-        [[ -z $RLINK ]] && printErr "Could not fetch ReShade version."
+        [[ -z $RLINK ]] && failWith "$EXIT_NETWORK" "Could not fetch ReShade version."
         [[ $ALT_URL -eq 1 ]] && RLINK="${RESHADE_URL_ALT}${RLINK}" || RLINK="${RESHADE_URL}${RLINK}"
         RVERS=$(grep -o "$VREGEX" <<< "$RLINK")
+        _fallBackToPinnedReshade
         if [[ $RVERS != "$LVERS" || ! -f $RESHADE_PATH/$RVERS/ReShade64.dll || ! -f $RESHADE_PATH/$RVERS/ReShade32.dll ]]; then
             printf '%bUpdating ReShade to version %s...%b\n' "$_GRN" "$RVERS" "$_R"
             withProgress "Downloading ReShade $RVERS..." downloadReshade "$RVERS" "$RLINK"
@@ -74,6 +79,8 @@ function ensureRequestedReshadeVersion() {
     if [[ $RESHADE_VERSION != latest ]]; then
         [[ $RESHADE_ADDON_SUPPORT -eq 1 ]] && RESHADE_VERSION="${RESHADE_VERSION}_Addon"
         if [[ ! -f reshade/$RESHADE_VERSION/ReShade64.dll ]] || [[ ! -f reshade/$RESHADE_VERSION/ReShade32.dll ]]; then
+            reshadeSetupIsAcceptable "$RESHADE_VERSION" \
+                || failWith "$EXIT_INTEGRITY" "ReShade $RESHADE_VERSION has no built-in checksum. Pick a pinned version, set RESHADE_SETUP_SHA256 to the digest you expect, or set RESHADE_ALLOW_UNPINNED=1."
             printf 'Downloading version %s of ReShade.\n%s\n\n' "$RESHADE_VERSION" "$SEPARATOR"
             [[ -e reshade/$RESHADE_VERSION ]] && rm -rf "reshade/$RESHADE_VERSION"
             withProgress "Downloading ReShade $RESHADE_VERSION..." \
@@ -85,18 +92,17 @@ function ensureRequestedReshadeVersion() {
     fi
 }
 
-function validateBatchUpdateState() {
-    local _stateFile="$1"
-    local _dll _arch _gp _selectedRepos _appId
+# A ReShade release newer than this installer's checksums is not installed unverified: the newest
+# pinned build is used instead, until reshadelinux is updated. Adjusts RVERS and RLINK in place.
+function _fallBackToPinnedReshade() {
+    local _pinned
 
-    loadGameState "$_stateFile" _dll _arch _gp _selectedRepos _appId || return 1
-
-    [[ $_arch =~ ^(32|64)$ ]] || return 1
-    isKnownDllOverride "$_dll" || return 1
-    [[ -n $_gp ]] || return 1
-
-    _gp=$(realpath "$_gp" 2>/dev/null || printf '%s' "$_gp")
-    [[ -d $_gp ]] || return 1
+    reshadeSetupIsAcceptable "$RVERS" && return 0
+    _pinned=$(newestPinnedReshadeVersion "$RESHADE_ADDON_SUPPORT") \
+        || failWith "$EXIT_INTEGRITY" "ReShade $RVERS has no built-in checksum and no other build is pinned. Set RESHADE_SETUP_SHA256 or RESHADE_ALLOW_UNPINNED=1."
+    printWarn "ReShade $RVERS is newer than the builds this installer has checksums for, so $_pinned is used. Update reshadelinux to get $RVERS, or set RESHADE_ALLOW_UNPINNED=1 to install it unverified."
+    RLINK="${RLINK%/downloads/*}/downloads/ReShade_Setup_$_pinned.exe"
+    RVERS="$_pinned"
 }
 
 function _notifyShaderDownloadSuccess() {
@@ -128,7 +134,7 @@ function ensureSelectedShaderReposWithRetry() {
             ui_warnbox "ReShade - Download Error" "Some shader repositories could not be downloaded. Installation will continue without them." 10 60
             return 1
         fi
-    else
+    elif ! isNoInput; then
         printf '%bRetry downloading failed repositories? (y/n): %b' "$_YLW" "$_R"
         read -r _retry
         if [[ $_retry =~ ^(y|Y|yes|YES)$ ]]; then
@@ -146,14 +152,23 @@ function ensureSelectedShaderReposWithRetry() {
     return 1
 }
 
+# Every name in a game folder that an install may have linked.
+function uninstallLinkNames() {
+    local _links="${COMMON_OVERRIDES// /.dll }.dll ReShade.ini d3dcompiler_47.dll Shaders Textures ReShade_shaders"
+    [[ -n $LINK_PRESET ]] && _links+=" $LINK_PRESET"
+    printf '%s\n' "$_links"
+}
+
 function performDirectXUninstall() {
-    local LINKS link sysDir
+    local link sysDir
 
     getGamePath
+    if isDryRun; then
+        describeUninstallPlan
+        exit 0
+    fi
     printf '%bUnlinking ReShade files from:%b %s\n' "$_GRN" "$_R" "$gamePath"
-    LINKS="${COMMON_OVERRIDES// /.dll }.dll ReShade.ini d3dcompiler_47.dll Shaders Textures ReShade_shaders"
-    [[ -n $LINK_PRESET ]] && LINKS="$LINKS $LINK_PRESET"
-    for link in $LINKS; do
+    for link in $(uninstallLinkNames); do
         if [[ -L $gamePath/$link ]]; then
             echo "Unlinking \"$gamePath/$link\"."
             unlink "$gamePath/$link"
@@ -183,7 +198,7 @@ function performDirectXUninstall() {
     # whiptail and dialog run in a terminal, where the lines above are already visible.
     if [[ $_UI_BACKEND == yad ]]; then
         ui_msgbox "ReShade - Uninstall Complete" \
-            "ReShade was removed from:\n$gamePath\n\nRemove the WINEDLLOVERRIDES setting from the game's Steam launch options." 12 74
+            "ReShade was removed from:\n$(uiQuote "$gamePath")\n\nRemove the WINEDLLOVERRIDES setting from the game's Steam launch options." 12 74
     fi
     exit 0
 }
@@ -193,6 +208,9 @@ function maybeHandleDirectXUninstall() {
     local _hasInstalled=0
 
     [[ $_BATCH_UPDATE -eq 1 ]] && return
+    [[ ${CLI_UNINSTALL:-0} -eq 1 ]] && performDirectXUninstall
+    # Without --uninstall or --update-all, a run that may not ask is an install.
+    isNoInput && return
 
     # Check if any games are installed (for the update-all option).
     if [[ -d "$MAIN_PATH/game-state" ]] && compgen -G "$MAIN_PATH/game-state/*.state" &>/dev/null; then
@@ -230,98 +248,6 @@ function maybeHandleDirectXUninstall() {
     fi
     [[ $_action == "u" ]] || return
     performDirectXUninstall
-}
-
-function batchUpdateGameFromState() {
-    local _stateFile="$1" _gameKey="$2" _requestedRepos="$3"
-    local _dll _arch _gp _savedRepos _appId _effectiveRepos _reshadeDllPath _compilerDllPath
-
-    if ! validateBatchUpdateState "$_stateFile"; then
-        printf '%bSkipping game %s — invalid or stale state file: %s%b\n' \
-            "$_YLW" "$_gameKey" "$_stateFile" "$_R"
-        return 1
-    fi
-
-    loadGameState "$_stateFile" _dll _arch _gp _savedRepos _appId || return 1
-
-    if [[ $_arch == 64 ]]; then
-        _reshadeDllPath="$RESHADE_PATH/$RESHADE_VERSION/ReShade64.dll"
-    else
-        _reshadeDllPath="$RESHADE_PATH/$RESHADE_VERSION/ReShade32.dll"
-    fi
-    _compilerDllPath="$MAIN_PATH/d3dcompiler_47.dll.$_arch"
-    if [[ ! -f $_reshadeDllPath || ! -f $_compilerDllPath ]]; then
-        printf '%bSkipping game %s — required ReShade files for %s-bit update are missing.%b\n' \
-            "$_YLW" "$_gameKey" "$_arch" "$_R"
-        return 1
-    fi
-
-    printf '%bUpdating %s — %s (%s-bit, %s.dll)%b\n' \
-        "$_GRN" "${_appId:-$_gameKey}" "$_gp" "$_arch" "$_dll" "$_R"
-    [[ -L "$_gp/$_dll.dll" ]] && unlink "$_gp/$_dll.dll"
-    ln -sf "$(realpath "$_reshadeDllPath")" "$_gp/$_dll.dll"
-    [[ -L "$_gp/d3dcompiler_47.dll" ]] && unlink "$_gp/d3dcompiler_47.dll"
-    ln -sf "$(realpath "$_compilerDllPath")" "$_gp/d3dcompiler_47.dll"
-    [[ -n $_requestedRepos ]] && ensureSelectedShaderRepos "$_requestedRepos"
-    _effectiveRepos=$(getAvailableSelectedRepos "$_requestedRepos")
-    if [[ $_effectiveRepos != "$_requestedRepos" ]]; then
-        printf '%bBatch update for %s will link available shader repos only:%b %s\n' \
-            "$_YLW" "${_appId:-$_gameKey}" "$_R" "${_effectiveRepos:-<none>}"
-    fi
-    detachGameShaderDir "$_gp"
-    buildGameShaderDir "$_gameKey" "$_effectiveRepos" "$_appId"
-    ln -sf "$(realpath "$MAIN_PATH/game-shaders/$_gameKey")" "$_gp/ReShade_shaders"
-    ensureGameIni "$_gp"
-    ensureGamePreset "$_gp"
-    writeGameState "$_gameKey" "$_gp" "$_dll" "$_arch" "$_effectiveRepos" "$_appId"
-    return 0
-}
-
-# True when at least one game has a tracked install state.
-function hasTrackedGames() {
-    [[ -d "$MAIN_PATH/game-state" ]] && compgen -G "$MAIN_PATH/game-state/*.state" &>/dev/null
-}
-
-# --update-all with nothing tracked has no work to do: leave before ReShade is
-# fetched or any download tool is required.
-function exitWhenBatchUpdateHasNothingToDo() {
-    [[ $_BATCH_UPDATE -eq 1 ]] || return 0
-    hasTrackedGames && return 0
-    printf '%bNo installed games found in state store. Run without --update-all first.%b\n' "$_YLW" "$_R"
-    exit 0
-}
-
-function maybeHandleBatchUpdate() {
-    local _stateDir _ok _fail _sf _gameKey _requestedRepos _summary
-
-    [[ $_BATCH_UPDATE -eq 1 ]] || return
-
-    exitWhenBatchUpdateHasNothingToDo
-    _stateDir="$MAIN_PATH/game-state"
-    _ok=0
-    _fail=0
-    for _sf in "$_stateDir"/*.state; do
-        _gameKey="${_sf##*/}"
-        _gameKey="${_gameKey%.state}"
-        if [[ ${CLI_SHADER_REPOS_SET:-0} -eq 1 ]]; then
-            _requestedRepos="$CLI_SHADER_REPOS"
-        else
-            _requestedRepos=$(readSelectedReposFromState "$_sf")
-        fi
-        if batchUpdateGameFromState "$_sf" "$_gameKey" "$_requestedRepos"; then
-            _ok=$((_ok + 1))
-        else
-            _fail=$((_fail + 1))
-        fi
-    done
-    printf '%bBatch update complete: %d game(s) updated, %d skipped.%b\n' \
-        "$_GRN$_B" "$_ok" "$_fail" "$_R"
-    if [[ $_UI_BACKEND == yad ]]; then
-        _summary="Updated $_ok game(s); skipped $_fail."
-        [[ $_fail -eq 0 ]] || _summary+="\n\nA skipped game is missing ReShade files or its folder moved. Install it again from the main menu."
-        ui_msgbox "ReShade - Update Complete" "$_summary" 12 70
-    fi
-    exit 0
 }
 
 function autoDetectWineprefixFromGamePath() {

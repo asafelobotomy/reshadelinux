@@ -10,6 +10,9 @@ yad:                bash:               Steam: native | Flatpak      Proton:
 
 ## 1. Automated (all must pass)
 
+- [ ] `scripts/release/pin-reshade.sh` and `scripts/release/pin-shader-repos.sh` run; every MOVED or NEW pack
+  printed was reviewed through its compare link, and the pin files are committed
+
 - [ ] `bash tests/run_simple_tests.sh` — all tests pass
 - [ ] `shellcheck $(git ls-files '*.sh')` — no output
 - [ ] `bash scripts/diagnostics/smoke_cli.sh` — `SMOKE_RESULT=PASS`

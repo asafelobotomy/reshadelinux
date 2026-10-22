@@ -72,12 +72,29 @@ Use the CLI path when you want deterministic automation or test coverage.
 
 ```bash
 ./reshadelinux.sh --cli --app-id=255710 --dll-override=dxgi --shader-repos=all
-./reshadelinux.sh --cli --game-path="$HOME/Games/MyGame" --dll-override=d3d9 --shader-repos=none
-./reshadelinux.sh --list-shader-repos
+./reshadelinux.sh --no-input --game-path="$HOME/Games/MyGame" --dll-override=d3d9 --shader-repos=none
+./reshadelinux.sh --dry-run --no-input --app-id=255710
+./reshadelinux.sh --no-input --uninstall --app-id=255710
+./reshadelinux.sh --list-shader-repos --json
 ./reshadelinux.sh --version
 ```
 
 The graphical and terminal UIs are wrappers over the same install logic. The CLI path is the canonical scripted interface.
+
+- `--no-input` guarantees the run never waits for an answer. It uses the flags, then the game's stored settings, then what was detected (the DLL from the executable, the shader packs from the last install or the starter set), and stops with status 2 and the flag to add when something is still missing, such as which game.
+- `--dry-run` prints what a run would download, link and write, including whether each shader pack would be cloned, updated or moved to its pinned commit, and changes nothing: no file is written and the network is not used.
+- `--quiet` silences progress and summaries. Warnings, errors and the Steam launch option are still printed, so `--update-all --quiet` in a timer only says something when there is something to see.
+
+### Exit status
+
+| Status | Meaning |
+| --- | --- |
+| `0` | Success, including a cancelled dialog and `--dry-run`. |
+| `1` | Any other failure. |
+| `2` | Usage: an unknown or conflicting flag, a bad value, or input that `--no-input` could not ask for. |
+| `3` | A required program is missing. |
+| `4` | Network: reshade.me, a ReShade or `d3dcompiler_47.dll` download could not be reached. |
+| `5` | Integrity: a download did not match its checksum, or the ReShade build has no checksum (see [Know what is trusted](#know-what-is-trusted)). |
 
 ## Update every tracked install
 
@@ -158,7 +175,9 @@ VARIABLE=value ./reshadelinux.sh
 | `FORCE_RESHADE_UPDATE_CHECK` | `0` | Bypass the four-hour update throttle. |
 | `PROGRESS_UI` | `1` | Disable progress widgets without changing the selected dialog backend. |
 | `RESHADE_DEBUG_LOG` | empty | Append timestamped debug lines here for backend or flow debugging. |
-| `RESHADE_SETUP_SHA256` | empty | Require the downloaded official ReShade setup executable to match this 64-character sha256 before extraction continues. Anything that is not a plain hex digest is rejected. |
+| `RESHADE_SETUP_SHA256` | empty | Require the downloaded ReShade setup executable to match this 64-character sha256, instead of the checksum built into the installer. Use it to install a ReShade build newer than this release. Anything that is not a plain hex digest is rejected. |
+| `RESHADE_ALLOW_UNPINNED` | `0` | Set to `1` to install a ReShade build that has no built-in checksum without verifying it. A warning is printed. |
+| `SHADER_REPOS_TRACK_HEAD` | `0` | Set to `1` to install every shader pack at the head of its branch instead of its reviewed, pinned commit. |
 | `NO_COLOR` | unset | Turn colour off even on a terminal ([no-color.org](https://no-color.org)). Output that is not a terminal is never coloured. |
 | `CLICOLOR_FORCE` | unset | Set to `1` to colour output that is not a terminal, for example when piping into a pager. |
 | `UI_AUTO_CONFIRM` | `0` | Testing hook: answers every dialog automatically. A warning is printed when it is on. Do not set it for normal use. |
@@ -176,9 +195,14 @@ Use flags when you want to drive the installer directly.
 | `--app-id=<appid>` | Select a detected Steam game by App ID, or persist that App ID alongside `--game-path`. |
 | `--dll-override=<name>` | Use an explicit DLL override such as `dxgi`, `d3d9`, `opengl32`, or `dinput8`. |
 | `--shader-repos=<value>` | Use `all`, `none`, or a comma-separated list of repo names. With `--update-all`, this becomes the batch override. |
+| `--uninstall` | Remove ReShade from the game chosen with `--game-path` or `--app-id`, without the action menu. |
 | `--list-shader-repos` | Print configured shader repo names and human-readable labels, then exit. |
+| `--json` | With `--list-shader-repos`, print a JSON array instead: name, URL, branch, title, description, creator, required packs and pinned commit of each pack. |
+| `--no-input` | Never prompt, never open a dialog; fail with status 2 when an answer is missing. Implies `--cli`. |
+| `--dry-run`, `-n` | Describe what would be downloaded, linked and written, and change nothing. |
+| `--quiet`, `-q` | Print only warnings, errors and the Steam launch option. |
 | `--version`, `-V` | Print the current script version. |
-| `--help`, `-h` | Show the built-in usage summary. |
+| `--help`, `-h` | Show the built-in usage summary, with examples. |
 
 ## Launch the GUI wrapper directly
 
@@ -198,13 +222,14 @@ This wrapper prefers `UI_BACKEND=yad` when `yad` is installed and otherwise fall
 | `packaging/appimage/` | AppImage launcher assets, metadata, and icon files. |
 | `scripts/diagnostics/` | Local smoke scripts and troubleshooting helpers. |
 | `tests/` | Shell regression suites, fixtures, and helper loaders. |
-| `scripts/release/` | Release automation that builds and publishes the AppImage. |
-| `docs/research/` | Design notes and backlog ideas that are not yet implemented. |
+| `scripts/release/` | Release automation that builds and publishes the AppImage, and the scripts that refresh the ReShade and shader pack pins. |
+| `docs/testing/` | Manual test checklists for every interface, and the GUI audit. |
+| `docs/research/` | Ideas that are not implemented yet. |
 
 ## Know what is trusted
 
-- ReShade itself is downloaded only from `reshade.me` or `static.reshade.me`, and only from an exact `ReShade_Setup_<version>.exe` address. The project publishes no checksum, so set `RESHADE_SETUP_SHA256` if you want to pin a build. `d3dcompiler_47.dll` is always checked against a built-in hash.
-- The shader packs are third-party Git repositories, cloned at the head of their default branch and not pinned to a commit. They are shader source that ReShade compiles, not programs this installer runs. Use `SHADER_REPOS` or `External_shaders/` if you want a reviewed set.
+- ReShade itself is downloaded only from `reshade.me` or `static.reshade.me`, and only from an exact `ReShade_Setup_<version>.exe` address. ReShade publishes no checksums, so each release of this installer carries the SHA-256 of the ReShade builds it was tested with (`lib/reshade_pins.sh`) and refuses a download that does not match. When reshade.me offers a newer build than the installer knows, the newest known build is installed and a warning says so; update reshadelinux to get the new one, or set `RESHADE_SETUP_SHA256` (a digest you trust) or `RESHADE_ALLOW_UNPINNED=1` (no check). `d3dcompiler_47.dll` is always checked against a built-in hash.
+- The shader packs are third-party Git repositories. Each built-in pack is installed at a reviewed commit (`lib/shader_pins.sh`), not whatever its branch holds that day, so an upstream change reaches you only in a new release. A clone with your own edits or commits is never moved. Packs you add through `SHADER_REPOS` have no pin and follow their branch; `SHADER_REPOS_TRACK_HEAD=1` makes every pack follow its branch. Shader packs are source that ReShade compiles, not programs this installer runs.
 - A real `ReShade_shaders` folder already in a game directory is moved aside to `ReShade_shaders.bak-<timestamp>` rather than deleted.
 
 Report security problems privately; see [SECURITY.md](SECURITY.md). Contributions are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).

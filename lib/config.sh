@@ -37,6 +37,7 @@ function init_runtime_config() {
             MAIN_PATH="$_flatpak_data/reshade"
             printf '%bDetected Flatpak Steam — using Flatpak data dir for MAIN_PATH.%b\n' "$_CYN" "$_R"
         elif [[ $_flatpak_ok -eq 1 && $_native_ok -eq 1 ]]; then
+            requireInput "both Flatpak and native Steam are installed. Set MAIN_PATH to $_flatpak_data/reshade or $XDG_DATA_HOME/reshade to choose."
             if [[ $_UI_BACKEND != cli ]]; then
                 local _fpChoice
                 _fpChoice=$(ui_radiolist "ReShade" \

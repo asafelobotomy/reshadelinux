@@ -4,8 +4,8 @@
 # Downloads d3dcompiler_47.dll files.
 # Sources from mozilla/fxc2 GitHub, same source used by Winetricks.
 function downloadD3dcompiler_47() {
-    ! [[ $1 =~ ^(32|64)$ ]] && printErr "(downloadD3dcompiler_47): Wrong system architecture."
-    [[ -f $MAIN_PATH/d3dcompiler_47.dll.$1 ]] && return
+    [[ $1 =~ ^(32|64)$ ]] || printErr "(downloadD3dcompiler_47): Wrong system architecture."
+    [[ -f $MAIN_PATH/d3dcompiler_47.dll.$1 ]] && return 0
     printf '%bDownloading d3dcompiler_47.dll (%s-bit)...%b\n' "$_GRN" "$1" "$_R"
     createTempDir
     if [[ $1 -eq 32 ]]; then
@@ -16,10 +16,10 @@ function downloadD3dcompiler_47() {
         local hash="4432bbd1a390874f3f0a503d45cc48d346abc3a8c0213c289f4b615bf0ee84f3"
     fi
     curl --fail "${_CURL_PROG[@]}" -Lo d3dcompiler_47.dll "$url" \
-        || printErr "(downloadD3dcompiler_47) Could not download d3dcompiler_47.dll."
+        || failWith "$EXIT_NETWORK" "(downloadD3dcompiler_47) Could not download d3dcompiler_47.dll."
     local dlhash _
     read -r dlhash _ < <(sha256sum d3dcompiler_47.dll)
-    [[ "$dlhash" != "$hash" ]] && printErr "(downloadD3dcompiler_47) Integrity check failed. (Expected: $hash ; Calculated: $dlhash)"
+    [[ "$dlhash" == "$hash" ]] || failWith "$EXIT_INTEGRITY" "(downloadD3dcompiler_47) Integrity check failed. (Expected: $hash ; Calculated: $dlhash)"
     cp d3dcompiler_47.dll "$MAIN_PATH/d3dcompiler_47.dll.$1" || printErr "(downloadD3dcompiler_47) Unable to copy d3dcompiler_47.dll to $MAIN_PATH"
     removeTempDir
 }
@@ -32,27 +32,8 @@ function validateReshadeDownloadUrl() {
     if [[ $_url =~ ^https://(static\.)?reshade\.me/downloads/ReShade_Setup_[0-9][0-9.]*(_Addon)?\.exe$ ]]; then
         return 0
     fi
-    printErr "Refusing to download ReShade from an unexpected URL: $_url"
+    failWith "$EXIT_INTEGRITY" "Refusing to download ReShade from an unexpected URL: $_url"
     return 1
-}
-
-function verifyReshadeDownloadHash() {
-    local _file="$1"
-    local _expectedHash="${RESHADE_SETUP_SHA256:-}"
-    local _actualHash _rest
-
-    [[ -n $_expectedHash ]] || return 0
-
-    [[ $_expectedHash =~ ^[0-9a-fA-F]{64}$ ]] || {
-        printErr "RESHADE_SETUP_SHA256 must be a 64-character hexadecimal SHA-256 digest."
-        return 1
-    }
-
-    read -r _actualHash _rest < <(sha256sum "$_file")
-    [[ ${_actualHash,,} == "${_expectedHash,,}" ]] || {
-        printErr "ReShade download integrity check failed. Expected $_expectedHash but calculated $_actualHash."
-        return 1
-    }
 }
 
 function verifyExtractedReshadePayload() {
@@ -77,13 +58,13 @@ function downloadReshade() {
     createTempDir
     if ! curl --fail "${_CURL_PROG[@]}" -LO "$2"; then
         removeTempDir
-        printErr "Could not download version $1 of ReShade."
+        failWith "$EXIT_NETWORK" "Could not download version $1 of ReShade."
         return 1
     fi
     exeFile="${2##*/}"
     if ! [[ -f "$exeFile" ]]; then
         removeTempDir
-        printErr "Download of ReShade exe file failed."
+        failWith "$EXIT_NETWORK" "Download of ReShade exe file failed."
         return 1
     fi
     if ! file "$exeFile" | grep -q executable; then
@@ -91,7 +72,7 @@ function downloadReshade() {
         printErr "The ReShade exe file is not an executable file, does the ReShade version exist?"
         return 1
     fi
-    verifyReshadeDownloadHash "$exeFile" || {
+    verifyReshadeDownloadHash "$exeFile" "$1" || {
         removeTempDir
         return 1
     }
@@ -197,7 +178,9 @@ function resolveInstallDllSelection() {
             [[ $exeArch -eq 32 ]] && wantedDll="d3d9" || wantedDll="dxgi"
         fi
 
-        if [[ $_UI_BACKEND != cli ]]; then
+        if isNoInput; then
+            printf '%bDetected %s-bit game, using %s.dll (--no-input).%b\n' "$_CYN" "$exeArch" "$wantedDll" "$_R"
+        elif [[ $_UI_BACKEND != cli ]]; then
             ui_yesno "ReShade" \
                 "Detected a $exeArch-bit game. Use $wantedDll.dll as the DLL override?\n\nCommon overrides: d3d9, dxgi, d3d11, opengl32, ddraw, dinput8." \
                 14 78 || wantedDll="manual"
@@ -217,7 +200,7 @@ function resolveInstallDllSelection() {
                     "dxgi") || exit 0
                 wantedDll=$(normalizeDllOverrideInput "$wantedDll")
                 isKnownDllOverride "$wantedDll" && break
-                ui_warnbox "ReShade" "'$wantedDll' is not a supported DLL override.\n\nChoose one of: $COMMON_OVERRIDES\n(Add more with EXTRA_DLL_OVERRIDES.)" 12 70
+                ui_warnbox "ReShade" "'$(uiQuote "$wantedDll")' is not a supported DLL override.\n\nChoose one of: $COMMON_OVERRIDES\n(Add more with EXTRA_DLL_OVERRIDES.)" 12 70
             done
         else
             printf '%bManually enter the dll override for ReShade.%b Common values: %b%s%b\n' "$_CYN" "$_R" "$_B" "$COMMON_OVERRIDES" "$_R"
@@ -255,9 +238,14 @@ function resolveInstallShaderSelection() {
 
     if [[ ${CLI_SHADER_REPOS_SET:-0} -eq 1 ]]; then
         _selectedRepos="$CLI_SHADER_REPOS"
+    elif isNoInput; then
+        _selectedRepos="$_prevRepos"
     else
         _selectedRepos=$(selectShaders "$_prevRepos") || exit 0
     fi
+
+    # A dry run reports what the selection would clone instead of cloning it.
+    isDryRun && return 0
 
     if [[ -n $_selectedRepos ]]; then
         _requestedSelectedRepos="$_selectedRepos"
