@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, adapted for this repository.
 
+## [1.4.1] - 2026-10-24
+
+### Changed in 1.4.1
+
+- The Depth3D shader pack (`depth3d-shaders`) is pinned to upstream commit `83761d47ae67`, which brings performance optimizations to `SuperDepth3D.fx`. It was checked by compiling under ReShade 6.8.0.
+
 ## [1.4.0] - 2026-10-22
 
 ### Added in 1.4.0

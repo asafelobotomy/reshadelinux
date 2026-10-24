@@ -9,7 +9,7 @@ https://github.com/crosire/reshade-shaders slim fd0022170615ce0d8162d219bff07232
 https://github.com/CeeJayDK/SweetFX - 93ddf39b357f5da534ed6d34ba4ec8cc7dcfa361
 https://github.com/crosire/reshade-shaders legacy bcb5ba54199f4455026dd8ba66dc1b74461d3152
 https://github.com/FransBouma/OtisFX - 193aa0bf07ee82fbd5f142b5b813b19c5d169745
-https://github.com/BlueSkyDefender/Depth3D - 8459a9f16b8cb304375d9a0ee39066832099beb2
+https://github.com/BlueSkyDefender/Depth3D - 83761d47ae67e2b6c6f67ba41d738761ec42046b
 https://github.com/luluco250/FXShaders - 76365e35c48e30170985ca371e67d8daf8eb9a98
 https://github.com/Daodan317081/reshade-shaders - f01ddb6f3dce6a8fb75ffb9fee878a1489edfc16
 https://github.com/brussell1/Shaders - 3869218ea004d4d7d5c596fbb6179e2d38c0cc55

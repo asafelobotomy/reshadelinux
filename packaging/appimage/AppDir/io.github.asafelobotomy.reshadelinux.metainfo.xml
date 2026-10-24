@@ -36,6 +36,11 @@
   </categories>
   <content_rating type="oars-1.1" />
   <releases>
+    <release version="1.4.1" date="2026-10-24">
+      <description>
+        <p>The Depth3D shader pack is installed at its latest reviewed commit, which brings upstream performance optimizations to SuperDepth3D.</p>
+      </description>
+    </release>
     <release version="1.4.0" date="2026-10-22">
       <description>
         <p>ReShade downloads are checked against built-in checksums and shader packs are installed at reviewed commits. New command-line options --no-input, --dry-run, --quiet, --uninstall and --json, with distinct exit statuses. The graphical progress window shows each step in a readable log and can no longer leave the installer hanging.</p>
